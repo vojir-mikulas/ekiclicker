@@ -24,7 +24,9 @@
     --good:#46e08a;
   }
 
-  *{box-sizing:border-box;}
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  /* smooth mobile tapping: no double-tap zoom, no tap delay, no callout/selection on controls */
+  button, .photo-wrap, .arena{ touch-action:manipulation; -webkit-touch-callout:none; -webkit-user-select:none; user-select:none; }
   html,body{height:100%;}
   body{
     margin:0;
@@ -385,6 +387,30 @@
   .danger-btn:active{ transform:translateY(3px); box-shadow:0 2px 0 #8f141d; }
   .settings-note{ text-align:center; color:var(--muted); font-size:11px; margin:12px 0 0; }
 
+  /* ---------- Rebirth confirm step ---------- */
+  .rebirth-title{ text-align:center; color:var(--text)!important; font-weight:800; font-size:18px!important; margin:0 0 4px!important; }
+  .rebirth-gain{
+    font-family:'Anton',sans-serif; font-size:44px; line-height:1; text-align:center;
+    color:#c0a8ff; margin:6px 0 12px; text-shadow:0 2px 8px rgba(0,0,0,.5);
+  }
+  .rebirth-desc{ text-align:center; color:var(--muted); font-size:13px; line-height:1.5; margin:0 0 20px; }
+  .rebirth-desc b{ color:var(--text); }
+  .rebirth-actions{ display:flex; gap:10px; }
+  .rebirth-actions button{
+    flex:1; padding:13px; border-radius:12px; cursor:pointer;
+    font-family:'Anton',sans-serif; font-size:16px; letter-spacing:.03em;
+    transition:transform .06s ease, filter .2s ease, border-color .15s ease, color .15s ease;
+  }
+  .rebirth-confirm{
+    background:linear-gradient(180deg,#6f5bc0,#46347a); color:#fff; border:1px solid #7a64bc;
+    box-shadow:0 5px 0 #1f1733;
+  }
+  .rebirth-confirm:hover{ filter:brightness(1.1); }
+  .rebirth-confirm:active{ transform:translateY(3px); box-shadow:0 2px 0 #1f1733; }
+  .rebirth-cancel{ background:var(--panel-2); color:var(--muted); border:1px solid var(--line); }
+  .rebirth-cancel:hover{ color:var(--text); border-color:#3a445c; }
+  .rebirth-cancel:active{ transform:translateY(2px); }
+
   @media (prefers-reduced-motion: reduce){
     *{animation-duration:.01ms !important;}
   }
@@ -491,13 +517,28 @@
     </div>
   </div>
 
-  <!-- Tomáš easter egg -->
+  <!-- Rebirth: krok 1 (potvrzení) → krok 2 (poděkování, Tomáš easter egg) -->
   <div id="myPopup" class="popup">
     <div class="popup-content">
       <span class="closeBtn" id="closeBtn">&times;</span>
-      <h2>Právě jsi odklikl: „Pokud na tohle kliknu, všechno Tomášovi odpouštím.“</h2>
-      <img src="https://tomaseckhardt.github.io/Sorry/fotkaOK.jpg" alt="fotkaOK" onerror="this.replaceWith(Object.assign(document.createElement('div'),{textContent:'🤝',style:'font-size:120px;text-align:center'}))">
-      <h1>Výborně. Díky moc.</h1>
+
+      <!-- Krok 1: potvrzení odpuštění -->
+      <div id="rebirthConfirm">
+        <h2 class="rebirth-title">Odpustit Tomášovi a začít znovu?</h2>
+        <div class="rebirth-gain" id="rebirthGain">+0 🕊</div>
+        <p class="rebirth-desc">Vynuluje se <b>peníze, úroveň, zbraně i vylepšení</b>.<br>Odpuštění a prestige bonusy zůstávají napořád.</p>
+        <div class="rebirth-actions">
+          <button class="rebirth-cancel" id="rebirthCancel">Ještě ne</button>
+          <button class="rebirth-confirm" id="rebirthConfirmBtn">Odpustit 🕊</button>
+        </div>
+      </div>
+
+      <!-- Krok 2: po odpuštění -->
+      <div id="rebirthDone" style="display:none">
+        <h2>Právě jsi odklikl: „Pokud na tohle kliknu, všechno Tomášovi odpouštím.“</h2>
+        <img src="https://tomaseckhardt.github.io/Sorry/fotkaOK.jpg" alt="fotkaOK" onerror="this.replaceWith(Object.assign(document.createElement('div'),{textContent:'🤝',style:'font-size:120px;text-align:center'}))">
+        <h1>Výborně. Díky moc.</h1>
+      </div>
     </div>
   </div>
 
@@ -691,11 +732,15 @@ function updateBossTimer(remain){
     : 'linear-gradient(90deg,#ffd23f,#ff8a2b)';
   $('bossTimerText').textContent = '⏱ ' + Math.max(0, remain/1000).toFixed(1) + ' s';
 }
-/* Čas vypršel — Eki uteče, žádná odměna, vrátí se s plným HP */
+/* Čas vypršel — Eki uteče: žádná odměna, ale jdeme dál (boss se přeskočí) */
 function bossEscape(){
   const c = enemyCenter();
-  floatText('Eki utekl! 💨', '#ff6b6b', c.x, c.y - 50);
+  floatText('Eki utekl! Jdeme dál 💨', '#ff6b6b', c.x, c.y - 50);
+  S.level++;
   spawnEnemy();
+  renderStats();
+  renderShop();
+  updateRebirthBtn();
 }
 
 /* =========================================================================
@@ -1003,12 +1048,22 @@ function updateRebirthBtn(){
   el.textContent = `Odpustit Tomášovi  →  +${fmt(gain)} 🕊`;
   el.classList.toggle('show', gain >= 1);
 }
+/* Krok 1 — otevři potvrzovací modal */
 function rebirth(){
   const gain = forgivenessGain(S.level);
   if (gain < 1) return;
-  if (!confirm(`Odpustit Tomášovi a začít znovu?\n\nZískáš ${gain} 🕊 Odpuštění.\nVynuluje se zlato, úroveň, vylepšení i zbraně.\nPrestige bonusy zůstávají.`)) return;
-  // ukázat usmiřovací popup
+  $('rebirthGain').textContent = '+' + fmt(gain) + ' 🕊';
+  $('rebirthConfirm').style.display = '';
+  $('rebirthDone').style.display = 'none';
   $('myPopup').classList.add('open');
+}
+/* Krok 2 — potvrzeno: modal se okamžitě překlopí na poděkování a proběhne rebirth */
+function doRebirth(){
+  const gain = forgivenessGain(S.level);
+  if (gain < 1){ $('myPopup').classList.remove('open'); return; }
+  // překlopit obsah modalu na „Výborně. Díky moc."
+  $('rebirthConfirm').style.display = 'none';
+  $('rebirthDone').style.display = '';
   // prestige zisk
   P.forgiveness += gain;
   P.rebirths++;
@@ -1054,6 +1109,8 @@ function load(){
    EASTER EGG (Tomáš)
    ========================================================================= */
 $('forgiveBtn').onclick = rebirth;
+$('rebirthConfirmBtn').onclick = doRebirth;
+$('rebirthCancel').onclick = () => $('myPopup').classList.remove('open');
 $('closeBtn').onclick = () => $('myPopup').classList.remove('open');
 $('myPopup').addEventListener('click', e => { if (e.target.id === 'myPopup') $('myPopup').classList.remove('open'); });
 
