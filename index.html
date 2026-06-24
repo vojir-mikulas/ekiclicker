@@ -212,9 +212,26 @@
   .item .cost.dove{color:#c0a8ff;}
   #prestigePanel h3{color:#c0a8ff;}
 
-  /* ---------- Shop tabs (mobile only) ---------- */
-  .shop-tabs{ display:none; }
-  .shop-tab{ position:relative; }
+  /* ---------- Shop tabs (mobile + desktop) ---------- */
+  .shop-tabs{ display:flex; gap:6px; }
+  .shop-tab{
+    position:relative;
+    flex:1; min-width:0;
+    padding:11px 4px; border-radius:11px;
+    background:var(--panel); border:1px solid var(--line); color:var(--muted);
+    font-family:'Inter',sans-serif; font-weight:800; font-size:13px; letter-spacing:.01em;
+    cursor:pointer; transition:background .15s, color .15s, border-color .15s;
+  }
+  .shop-tab:hover{ color:var(--text); border-color:#3a445c; }
+  .shop-tab.active{ background:var(--panel-2); color:var(--text); border-color:var(--gold); }
+  .shop-tab.has-deals::after{
+    content:""; position:absolute; top:7px; right:9px;
+    width:8px; height:8px; border-radius:50%;
+    background:var(--good); box-shadow:0 0 6px var(--good);
+  }
+  /* show only the active panel — replaces the long vertical scroll */
+  .shop .panel{ display:none; }
+  .shop .panel.tab-active{ display:block; }
 
   @media (max-width:880px){
     /* compact top bar */
@@ -228,30 +245,13 @@
     .photo-wrap{ width:min(220px,70vw); height:auto; aspect-ratio:280/340; }
     .punch-btn{ min-width:min(280px,82vw); padding:16px 28px; font-size:22px; margin-top:18px; }
 
-    /* tab bar replaces the long vertical scroll */
+    /* keep the tabs reachable while scrolling a long list */
     .shop{ gap:0; }
     .shop-tabs{
-      display:flex; gap:6px;
       position:sticky; top:0; z-index:30;
-      padding:8px 0 10px;
+      padding-bottom:10px;
       background:linear-gradient(var(--ink) 70%, transparent);
     }
-    .shop-tab{
-      flex:1; min-width:0;
-      padding:11px 4px; border-radius:11px;
-      background:var(--panel); border:1px solid var(--line); color:var(--muted);
-      font-family:'Inter',sans-serif; font-weight:800; font-size:13px; letter-spacing:.01em;
-      cursor:pointer; transition:background .15s, color .15s, border-color .15s;
-    }
-    .shop-tab.active{ background:var(--panel-2); color:var(--text); border-color:var(--gold); }
-    .shop-tab.has-deals::after{
-      content:""; position:absolute; top:7px; right:9px;
-      width:8px; height:8px; border-radius:50%;
-      background:var(--good); box-shadow:0 0 6px var(--good);
-    }
-    /* show only the active panel */
-    .shop .panel{ display:none; }
-    .shop .panel.tab-active{ display:block; }
   }
 
   /* ---------- Easter egg popup (Tomáš) ---------- */
