@@ -306,6 +306,18 @@
   .shop .panel{ display:none; }
   .shop .panel.tab-active{ display:block; }
 
+  /* ---------- Bulk-buy amount selector ---------- */
+  .buy-amount{ display:flex; align-items:center; gap:6px; }
+  .buy-amount-label{ font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:.12em; padding:0 4px 0 2px; flex:none; }
+  .buy-opt{
+    flex:1; min-width:0; padding:8px 4px; border-radius:10px;
+    background:var(--panel); border:1px solid var(--line); color:var(--muted);
+    font-family:'Inter',sans-serif; font-weight:800; font-size:13px; cursor:pointer;
+    transition:background .15s, color .15s, border-color .15s;
+  }
+  .buy-opt:hover{ color:var(--text); border-color:#3a445c; }
+  .buy-opt.active{ background:var(--panel-2); color:var(--gold); border-color:var(--gold); }
+
   @media (max-width:880px){
     /* compact top bar: currencies share row 1, combat stats fill row 2 */
     .topbar{ margin-top:10px; padding:0 12px; }
@@ -330,6 +342,8 @@
       padding-bottom:10px;
       background:linear-gradient(var(--ink) 70%, transparent);
     }
+    .buy-amount{ margin:0 0 10px; }
+    .buy-amount-label{ display:none; } /* víc místa pro tlačítka na úzkém telefonu */
   }
 
   /* ---------- Easter egg popup (Tomáš) ---------- */
@@ -476,6 +490,14 @@
         <button class="shop-tab" data-tab="prestige">🕊 Odpuštění</button>
       </div>
 
+      <div class="buy-amount" id="buyAmount">
+        <span class="buy-amount-label">Kupovat</span>
+        <button class="buy-opt active" data-amt="1">1×</button>
+        <button class="buy-opt" data-amt="10">10×</button>
+        <button class="buy-opt" data-amt="100">100×</button>
+        <button class="buy-opt" data-amt="max">Max</button>
+      </div>
+
       <div class="panel tab-active" data-panel="upgrades">
         <h3>Vylepšení</h3>
         <p class="sub">Manuální pěst + globální bonusy</p>
@@ -560,7 +582,11 @@ const CONFIG = {
   bossTime: 25000,   // čas na zabití bosse (ms) — jinak Eki uteče a vrátí se s plným HP
   offlineCapH: 8,    // strop offline výdělku (hodiny)
   offlineRate: 1,    // podíl DPS získaný offline (1 = 100 %)
+  hardenFrom: 15,    // od které úrovně se obtížnost začne zrychlovat (pozdní hra)
+  hardenRamp: 1.04,  // +4 % HP navíc za každou úroveň nad hardenFrom (kumulativně) — pozdější Ekiové tě nutí investovat
 };
+/* Zrychlující obtížnost v pozdní hře: do hardenFrom = 1, pak kumulativně roste */
+const hardenScale = level => Math.pow(CONFIG.hardenRamp, Math.max(0, level - CONFIG.hardenFrom));
 
 /* Manuální pěst (klik) — vylepšení síly úderu */
 const PUNCH = { emoji:'👊', flight:260, base:1, step:5 }; // dmg = base + level*step
@@ -632,6 +658,7 @@ WEAPONS.forEach(w => S.weapons[w.id] = 0);
 const P = { forgiveness:0, rebirths:0, rage:0, greed:0, fist:0, factory:0, shadow:0, headstart:0 };
 let shadowAcc = 0; // akumulátor pro Stín pěsti (auto-údery)
 let pendingOffline = null; // výdělek, který naskákal, dokud byla hra zavřená
+let buyAmount = 1; // hromadný nákup: 1 | 10 | 100 | 'max'
 
 /* =========================================================================
    ODKAZY NA DOM
@@ -676,10 +703,25 @@ function totalDps(){
 const upgradeCost = key => Math.ceil(UPGRADES[key].baseCost * Math.pow(UPGRADES[key].growth, S.up[key]));
 const prestigeCost = key => Math.ceil(PRESTIGE[key].baseCost * Math.pow(PRESTIGE[key].growth, P[key]));
 const forgivenessGain = level => Math.max(0, Math.floor(Math.pow(level, 1.3) / 12));
-function weaponCost(w){
-  const lvl = S.weapons[w.id];
+function weaponCostAtLevel(w, lvl){
   return lvl === 0 ? w.baseCost : Math.ceil(w.baseCost * 0.55 * Math.pow(1.18, lvl));
 }
+const weaponCost = w => weaponCostAtLevel(w, S.weapons[w.id]);
+
+/* Hromadný nákup: costAt(i) = cena i-té DALŠÍ úrovně (od 0). Vrátí, kolik úrovní koupit
+   a za kolik celkem podle zvoleného násobiče: 1/10/100 napevno, 'max' = co dovolí peníze. */
+function buyBatch(costAt){
+  if (buyAmount === 'max'){
+    let n = 0, total = 0, money = S.gold;
+    while (n < 100000){ const c = costAt(n); if (money < c) break; money -= c; total += c; n++; }
+    return { count:n, cost:total };
+  }
+  let total = 0;
+  for (let i = 0; i < buyAmount; i++) total += costAt(i);
+  return { count: buyAmount, cost: total };
+}
+const upgradeCostAt = key => { const u = UPGRADES[key], lvl = S.up[key]; return i => Math.ceil(u.baseCost * Math.pow(u.growth, lvl + i)); };
+const weaponCostAt  = w   => { const lvl = S.weapons[w.id]; return i => weaponCostAtLevel(w, lvl + i); };
 
 /* =========================================================================
    NEPŘÍTEL
@@ -696,7 +738,7 @@ function pickVariant(level){
 }
 function spawnEnemy(){
   const v = pickVariant(S.level);
-  const hp = Math.ceil(CONFIG.baseHp * Math.pow(CONFIG.hpGrowth, S.level-1) * v.hp);
+  const hp = Math.ceil(CONFIG.baseHp * Math.pow(CONFIG.hpGrowth, S.level-1) * v.hp * hardenScale(S.level));
   S.enemy = { v, maxHp: hp, hp };
   if (v.boss){
     S.enemy.timeLimit = CONFIG.bossTime;
@@ -958,7 +1000,11 @@ function renderShop(){
   // vylepšení
   const ul = $('upgradeList'); ul.innerHTML = '';
   for (const key in UPGRADES){
-    const u = UPGRADES[key], cost = upgradeCost(key), can = S.gold >= cost;
+    const u = UPGRADES[key];
+    const costAt = upgradeCostAt(key), batch = buyBatch(costAt);
+    const can = batch.count > 0 && S.gold >= batch.cost;
+    const cnt = batch.count || 1, cost = batch.count ? batch.cost : costAt(0);
+    const amt = cnt > 1 ? `${cnt}× ` : '';
     const b = document.createElement('button');
     b.className = 'item'; b.disabled = !can;
     b.innerHTML = `
@@ -967,14 +1013,23 @@ function renderShop(){
         <div class="name">${u.name} <span class="lvl">Lv ${S.up[key]}</span></div>
         <div class="meta">${u.desc}</div>
       </div>
-      <div class="cost">${fmt(cost)} 🪙</div>`;
-    b.onclick = () => { if (S.gold >= cost){ S.gold -= cost; S.up[key]++; renderStats(); renderShop(); save(); } };
+      <div class="cost ${can?'':'locked'}">${amt}${fmt(cost)} 🪙</div>`;
+    b.onclick = () => {
+      if (batch.count > 0 && S.gold >= batch.cost){
+        S.gold -= batch.cost; S.up[key] += batch.count;
+        renderStats(); renderShop(); save();
+      }
+    };
     ul.appendChild(b);
   }
   // zbraně
   const wl = $('weaponList'); wl.innerHTML = '';
   WEAPONS.forEach(w => {
-    const lvl = S.weapons[w.id], owned = lvl > 0, cost = weaponCost(w), can = S.gold >= cost;
+    const lvl = S.weapons[w.id], owned = lvl > 0;
+    const costAt = weaponCostAt(w), batch = buyBatch(costAt);
+    const can = batch.count > 0 && S.gold >= batch.cost;
+    const cnt = batch.count || 1, cost = batch.count ? batch.cost : costAt(0);
+    const amt = cnt > 1 ? `${cnt}× ` : '';
     const dps = owned ? (weaponDamage(w) / (weaponInterval(w)/1000)) : (w.baseDmg * levelScale() / (w.interval/1000));
     const b = document.createElement('button');
     b.className = 'item' + (owned ? ' equipped' : '');
@@ -985,11 +1040,12 @@ function renderShop(){
         <div class="name">${w.name} ${owned ? `<span class="lvl">Lv ${lvl}</span>` : ''}</div>
         <div class="meta">${owned ? 'poškození ' + fmt(weaponDamage(w)) + ' • ~' + fmt(dps) + ' DPS' : 'auto • ~' + fmt(dps) + ' DPS'}</div>
       </div>
-      <div class="cost ${can?'':'locked'}">${owned ? 'Lv up ' : 'Koupit '}${fmt(cost)} 🪙</div>`;
+      <div class="cost ${can?'':'locked'}">${owned ? 'Lv up ' : 'Koupit '}${amt}${fmt(cost)} 🪙</div>`;
     b.onclick = () => {
-      if (S.gold >= cost){
-        S.gold -= cost; S.weapons[w.id]++;
-        if (S.weapons[w.id] === 1) fireTimers[w.id] = performance.now() + 200;
+      if (batch.count > 0 && S.gold >= batch.cost){
+        const wasZero = S.weapons[w.id] === 0;
+        S.gold -= batch.cost; S.weapons[w.id] += batch.count;
+        if (wasZero) fireTimers[w.id] = performance.now() + 200;
         renderStats(); renderShop(); save();
       }
     };
@@ -1026,14 +1082,23 @@ const shopPanels = document.querySelectorAll('.shop .panel');
 function activateTab(name){
   shopTabs.forEach(t => t.classList.toggle('active', t.dataset.tab === name));
   shopPanels.forEach(p => p.classList.toggle('tab-active', p.dataset.panel === name));
+  // hromadný nákup u odpuštění nedává smysl (kupuje se po jednom)
+  $('buyAmount').style.display = (name === 'prestige') ? 'none' : 'flex';
 }
 shopTabs.forEach(t => t.addEventListener('click', () => activateTab(t.dataset.tab)));
 
-/* Zelená tečka na záložce, když je v ní něco, co si můžeš dovolit koupit */
+/* Přepínač hromadného nákupu (1× / 10× / 100× / Max) */
+document.querySelectorAll('.buy-opt').forEach(b => b.addEventListener('click', () => {
+  buyAmount = b.dataset.amt === 'max' ? 'max' : parseInt(b.dataset.amt, 10);
+  document.querySelectorAll('.buy-opt').forEach(x => x.classList.toggle('active', x === b));
+  renderShop();
+}));
+
+/* Zelená tečka na záložce, když je v ní něco, co si můžeš dovolit při aktuálním násobiči */
 function updateTabBadges(){
   const deals = {
-    upgrades: Object.keys(UPGRADES).some(k => S.gold >= upgradeCost(k)),
-    weapons:  WEAPONS.some(w => S.gold >= weaponCost(w)),
+    upgrades: Object.keys(UPGRADES).some(k => { const b = buyBatch(upgradeCostAt(k)); return b.count > 0 && S.gold >= b.cost; }),
+    weapons:  WEAPONS.some(w => { const b = buyBatch(weaponCostAt(w)); return b.count > 0 && S.gold >= b.cost; }),
     prestige: Object.keys(PRESTIGE).some(k => P.forgiveness >= prestigeCost(k)),
   };
   shopTabs.forEach(t => t.classList.toggle('has-deals', !!deals[t.dataset.tab]));
