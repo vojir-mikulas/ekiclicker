@@ -65,7 +65,7 @@
     padding:0 16px;
   }
   @media (max-width:880px){
-    .game{grid-template-columns:1fr;}
+    .game{grid-template-columns:1fr; gap:12px; margin-top:4px;}
   }
 
   /* ---------- Arena ---------- */
@@ -212,6 +212,48 @@
   .item .cost.dove{color:#c0a8ff;}
   #prestigePanel h3{color:#c0a8ff;}
 
+  /* ---------- Shop tabs (mobile only) ---------- */
+  .shop-tabs{ display:none; }
+  .shop-tab{ position:relative; }
+
+  @media (max-width:880px){
+    /* compact top bar */
+    .topbar{ gap:8px; padding:10px 12px 2px; }
+    .stat{ min-width:0; flex:1 1 calc(50% - 4px); padding:6px 10px; }
+    .stat .value{ font-size:19px; }
+
+    /* smaller arena so it shares the screen with the shop */
+    .arena{ min-height:auto; padding:16px 12px 20px; }
+    .enemy-name{ font-size:24px; }
+    .photo-wrap{ width:min(220px,70vw); height:auto; aspect-ratio:280/340; }
+    .punch-btn{ min-width:min(280px,82vw); padding:16px 28px; font-size:22px; margin-top:18px; }
+
+    /* tab bar replaces the long vertical scroll */
+    .shop{ gap:0; }
+    .shop-tabs{
+      display:flex; gap:6px;
+      position:sticky; top:0; z-index:30;
+      padding:8px 0 10px;
+      background:linear-gradient(var(--ink) 70%, transparent);
+    }
+    .shop-tab{
+      flex:1; min-width:0;
+      padding:11px 4px; border-radius:11px;
+      background:var(--panel); border:1px solid var(--line); color:var(--muted);
+      font-family:'Inter',sans-serif; font-weight:800; font-size:13px; letter-spacing:.01em;
+      cursor:pointer; transition:background .15s, color .15s, border-color .15s;
+    }
+    .shop-tab.active{ background:var(--panel-2); color:var(--text); border-color:var(--gold); }
+    .shop-tab.has-deals::after{
+      content:""; position:absolute; top:7px; right:9px;
+      width:8px; height:8px; border-radius:50%;
+      background:var(--good); box-shadow:0 0 6px var(--good);
+    }
+    /* show only the active panel */
+    .shop .panel{ display:none; }
+    .shop .panel.tab-active{ display:block; }
+  }
+
   /* ---------- Easter egg popup (Tomáš) ---------- */
   .forgive-btn{
     display:none; margin-top:14px;
@@ -275,19 +317,25 @@
 
     <!-- SHOP -->
     <div class="shop">
-      <div class="panel">
+      <div class="shop-tabs" role="tablist">
+        <button class="shop-tab active" data-tab="upgrades">💪 Vylepšení</button>
+        <button class="shop-tab" data-tab="weapons">⚔️ Zbraně</button>
+        <button class="shop-tab" data-tab="prestige">🕊 Odpuštění</button>
+      </div>
+
+      <div class="panel tab-active" data-panel="upgrades">
         <h3>Vylepšení</h3>
         <p class="sub">Manuální pěst + globální bonusy</p>
         <div id="upgradeList"></div>
       </div>
 
-      <div class="panel">
+      <div class="panel" data-panel="weapons">
         <h3>Automatické zbraně</h3>
         <p class="sub">Kup a vylepšuj — střílí samy na Ekiho</p>
         <div id="weaponList"></div>
       </div>
 
-      <div class="panel" id="prestigePanel">
+      <div class="panel" id="prestigePanel" data-panel="prestige">
         <h3>🕊 Odpuštění</h3>
         <p class="sub" id="prestigeSub">Rebirth: 0 × • Odpuštění: 0 🕊</p>
         <div id="prestigeList"></div>
@@ -678,6 +726,7 @@ function renderShop(){
     wl.appendChild(b);
   });
   renderPrestige();
+  updateTabBadges();
 }
 
 function renderPrestige(){
@@ -697,6 +746,27 @@ function renderPrestige(){
     b.onclick = () => { if (P.forgiveness >= cost){ P.forgiveness -= cost; P[key]++; renderStats(); renderShop(); save(); } };
     pl.appendChild(b);
   }
+}
+
+/* =========================================================================
+   ZÁLOŽKY (tabs) — na mobilu místo dlouhého scrollování
+   ========================================================================= */
+const shopTabs = document.querySelectorAll('.shop-tab');
+const shopPanels = document.querySelectorAll('.shop .panel');
+function activateTab(name){
+  shopTabs.forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+  shopPanels.forEach(p => p.classList.toggle('tab-active', p.dataset.panel === name));
+}
+shopTabs.forEach(t => t.addEventListener('click', () => activateTab(t.dataset.tab)));
+
+/* Zelená tečka na záložce, když je v ní něco, co si můžeš dovolit koupit */
+function updateTabBadges(){
+  const deals = {
+    upgrades: Object.keys(UPGRADES).some(k => S.gold >= upgradeCost(k)),
+    weapons:  WEAPONS.some(w => S.gold >= weaponCost(w)),
+    prestige: Object.keys(PRESTIGE).some(k => P.forgiveness >= prestigeCost(k)),
+  };
+  shopTabs.forEach(t => t.classList.toggle('has-deals', !!deals[t.dataset.tab]));
 }
 
 /* =========================================================================
