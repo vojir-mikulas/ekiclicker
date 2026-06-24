@@ -61,9 +61,9 @@
     background:rgba(0,0,0,.22); border:1px solid var(--line);
   }
   .currency .icon{ font-size:26px; line-height:1; filter:drop-shadow(0 2px 4px rgba(0,0,0,.45)); }
-  .currency .txt{ display:flex; flex-direction:column; line-height:1; }
+  .currency .txt{ display:flex; flex-direction:column; line-height:1; min-width:0; }
   .currency .label{ font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); margin-bottom:3px; }
-  .currency .value{ font-family:'Anton',sans-serif; font-size:24px; line-height:1; letter-spacing:.02em; }
+  .currency .value{ font-family:'Anton',sans-serif; font-size:24px; line-height:1; letter-spacing:.02em; white-space:nowrap; }
   .currency.gold{ border-color:rgba(255,210,63,.35); }
   .currency.gold .value{ color:var(--gold); }
   .currency.dove{ border-color:rgba(192,168,255,.35); }
@@ -279,8 +279,8 @@
   .item .body{flex:1; min-width:0;}
   .item .name{font-weight:800; font-size:14px; display:flex; gap:8px; align-items:baseline;}
   .item .lvl{font-size:11px; color:var(--gold); font-weight:800;}
-  .item .meta{font-size:11px; color:var(--muted);}
-  .item .cost{font-family:'Anton',sans-serif; font-size:15px; color:var(--gold); flex:none; text-align:right;}
+  .item .meta{font-size:11px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .item .cost{font-family:'Anton',sans-serif; font-size:14px; color:var(--gold); flex:none; text-align:right; white-space:nowrap;}
   .item .cost.locked{color:var(--muted);}
   .item .cost.dove{color:#c0a8ff;}
   #prestigePanel h3{color:#c0a8ff;}
@@ -570,11 +570,10 @@
    ========================================================================= */
 const CONFIG = {
   baseHp: 12,        // HP prvního Ekiho
-  hpGrowth: 1.33,    // růst HP za úroveň
-  scalePower: 0.70,  // jak moc tvé poškození SAMO drží krok s HP: 0 = vůbec (brutální zeď, jen klikání),
-                     //   1 = přesně (žádná výzva, vše umírá hned). 0.7 = zbraně stíhají, ale MUSÍŠ investovat, ať nezaostáváš
-  baseGold: 4,       // základ odměny
-  goldGrowth: 1.20,  // růst odměny za úroveň
+  hpGrowth: 1.18,    // růst HP za úroveň — nižší = mnohem delší hra (cíl ~úroveň 600+)
+  scalePower: 0.45,  // jak moc tvé poškození SAMO drží krok s HP (0 = vůbec, 1 = přesně). Nižší = musíš víc investovat
+  baseGold: 5,       // základ odměny
+  goldGrowth: 1.145, // růst odměny za úroveň (pomalejší → peníze tě nezahltí, nákupy mají smysl)
   bossEvery: 5,      // každá 5. úroveň = Golden Eki (boss)
   critChance: 0.10,  // šance na kritický úder pěstí
   critMult: 3,       // násobič kritu
@@ -582,8 +581,8 @@ const CONFIG = {
   bossTime: 25000,   // čas na zabití bosse (ms) — jinak Eki uteče a vrátí se s plným HP
   offlineCapH: 8,    // strop offline výdělku (hodiny)
   offlineRate: 1,    // podíl DPS získaný offline (1 = 100 %)
-  hardenFrom: 15,    // od které úrovně se obtížnost začne zrychlovat (pozdní hra)
-  hardenRamp: 1.04,  // +4 % HP navíc za každou úroveň nad hardenFrom (kumulativně) — pozdější Ekiové tě nutí investovat
+  hardenFrom: 35,    // od které úrovně se obtížnost začne zrychlovat (pozdní hra)
+  hardenRamp: 1.015, // +1,5 % HP navíc za každou úroveň nad hardenFrom (kumulativně) — výzva graduje ke konci (~600)
 };
 /* Zrychlující obtížnost v pozdní hře: do hardenFrom = 1, pak kumulativně roste */
 const hardenScale = level => Math.pow(CONFIG.hardenRamp, Math.max(0, level - CONFIG.hardenFrom));
@@ -594,13 +593,13 @@ const PUNCH = { emoji:'👊', flight:260, base:1, step:5 }; // dmg = base + leve
 /* Vylepšení (manuál + globální) */
 const UPGRADES = {
   punch: { name:'Síla pěsti',    emoji:'💪', baseCost:25,  growth:1.15, desc:'+5 k síle úderu' },
-  power: { name:'Násobič síly',  emoji:'🔥', baseCost:200, growth:1.30, desc:'+10 % poškození (vše)' },
+  power: { name:'Násobič síly',  emoji:'🔥', baseCost:200, growth:1.14, desc:'×1,15 poškození (vše) — násobí se!' },
   speed: { name:'Zrychlení zbraní', emoji:'⚡', baseCost:500, growth:1.45, desc:'zbraně střílí o 4 % rychleji' },
 };
 
 /* REBIRTH (prestige) — kupuje se za Odpuštění 🕊, zůstává napořád */
 const PRESTIGE = {
-  rage:      { name:'Věčný hněv',     emoji:'🩸', baseCost:1, growth:1.6, desc:'+20 % poškození (vše)' },
+  rage:      { name:'Věčný hněv',     emoji:'🩸', baseCost:1, growth:1.6, desc:'×1,20 poškození (vše) — násobí se!' },
   greed:     { name:'Štědrost',       emoji:'🪙', baseCost:1, growth:1.6, desc:'+25 % zlata' },
   fist:      { name:'Trénovaná pěst', emoji:'👊', baseCost:2, growth:1.7, desc:'+50 % síla úderu' },
   factory:   { name:'Sériová výroba', emoji:'⚙️', baseCost:2, growth:1.7, desc:'zbraně +5 % rychlost' },
@@ -672,12 +671,15 @@ let imageMode = true; // přepne se na false, když Placeholder.jpg neexistuje
    POMOCNÉ FUNKCE
    ========================================================================= */
 function fmt(n){
+  if (!isFinite(n)) return '∞';
   n = Math.floor(n);
   if (n < 1000) return '' + n;
-  const u = ['K','M','B','T','Qa','Qi','Sx'];
-  let i = -1;
-  while (n >= 1000 && i < u.length-1){ n /= 1000; i++; }
-  return n.toFixed(n < 10 ? 2 : n < 100 ? 1 : 0) + u[i];
+  // přípony až po ~1e63, dál vědecký zápis → řetězec zůstane krátký a čitelný
+  const u = ['K','M','B','T','Qa','Qi','Sx','Sp','Oc','No','Dc','Ud','Dd','Td','Qd','Qt','Sd','St','Od','Nd','Vg'];
+  let i = -1, x = n;
+  while (x >= 1000 && i < u.length-1){ x /= 1000; i++; }
+  if (x >= 1000) return n.toExponential(2).replace('e+','e'); // přerostlo přípony → vědecky z PŮVODNÍ hodnoty (např. 1.23e66)
+  return x.toFixed(x < 10 ? 2 : x < 100 ? 1 : 0) + u[i];
 }
 function fmtDuration(s){
   s = Math.floor(s);
@@ -686,7 +688,7 @@ function fmtDuration(s){
   if (m) return `${m} min ${sec} s`;
   return `${sec} s`;
 }
-const globalMult = () => (1 + S.up.power * 0.10) * (1 + P.rage * 0.20);
+const globalMult = () => Math.pow(1.15, S.up.power) * Math.pow(1.20, P.rage); // NÁSOBÍCÍ (kompaundní) — drží krok s exponenc. růstem HP, bez něj vznikne zeď
 const goldMult   = () => (1 + P.greed * 0.25);
 /* Poškození roste s úrovní jen ČÁSTEČNĚ (scalePower) — drží zhruba krok s HP, aby počet kliků
    nevybuchl, ale nepřítel tě postupně předbíhá, takže musíš kupovat vylepšení a zbraně. */
@@ -820,8 +822,19 @@ function enemyCenter(){
   const r = photoWrap.getBoundingClientRect();
   return { x: r.left + r.width/2, y: r.top + r.height/2, r };
 }
+const MAX_PROJ = 40; // strop, ať se projektily nikdy nehromadí
 function throwProjectile(emoji, fromX, fromY, flight, scale, onHit){
   const c = enemyCenter();
+  // Nepřítel mimo viditelnou oblast (scrollnuto dolů k obchodu) → jen aplikuj zásah,
+  // žádný létající emoji „venku za obrazovkou".
+  if (c.x < 0 || c.x > window.innerWidth || c.y < 0 || c.y > window.innerHeight){
+    try { onHit(c.x, c.y); } catch(e){}
+    return;
+  }
+  // backstop proti hromadění (živá kolekce → mazání zepředu odebírá nejstarší)
+  const live = document.getElementsByClassName('proj');
+  while (live.length >= MAX_PROJ) live[0].remove();
+
   const p = document.createElement('div');
   p.className = 'proj';
   p.textContent = emoji;
@@ -829,6 +842,12 @@ function throwProjectile(emoji, fromX, fromY, flight, scale, onHit){
   p.style.top  = fromY + 'px';
   p.style.transform = `translate(-50%,-50%) scale(${0.6*scale}) rotate(0deg)`;
   document.body.appendChild(p);
+
+  // Záruka úklidu: ať se stane cokoli (i kdyby onHit spadl), projektil zmizí.
+  let done = false;
+  const cleanup = () => { if (!done){ done = true; p.remove(); } };
+  const safety = setTimeout(cleanup, flight + 600);
+
   p.getBoundingClientRect(); // reflow
   p.style.transition = `left ${flight}ms cubic-bezier(.55,.06,.68,.19), top ${flight}ms cubic-bezier(.55,.06,.68,.19), transform ${flight}ms ease-in`;
   const tx = c.x + (Math.random()*40-20), ty = c.y + (Math.random()*50-25);
@@ -836,11 +855,12 @@ function throwProjectile(emoji, fromX, fromY, flight, scale, onHit){
   p.style.top  = ty + 'px';
   p.style.transform = `translate(-50%,-50%) scale(${1.4*scale}) rotate(-25deg)`;
   setTimeout(() => {
-    onHit(tx, ty);
+    try { onHit(tx, ty); } catch(e){ /* zásah selhal — projektil stejně uklidíme */ }
     p.style.transition = 'transform 120ms ease-out, opacity 200ms ease-out';
     p.style.transform = `translate(-50%,-50%) scale(${2.0*scale}) rotate(12deg)`;
     p.style.opacity = '0';
-    setTimeout(() => p.remove(), 220);
+    clearTimeout(safety);
+    setTimeout(cleanup, 220);
   }, flight);
 }
 function hitFx(type){
