@@ -39,21 +39,48 @@
 
   /* ---------- Top bar ---------- */
   .topbar{
-    display:flex; gap:10px; flex-wrap:wrap; justify-content:center;
-    padding:14px 16px 4px;
+    max-width:1080px;
+    margin:14px auto 0;
+    padding:0 16px;
   }
-  .stat{
-    background:var(--panel);
+  .topbar-inner{
+    display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+    background:linear-gradient(180deg, rgba(40,46,64,.9), var(--panel));
     border:1px solid var(--line);
-    border-radius:12px;
-    padding:8px 16px;
-    display:flex; flex-direction:column; align-items:center;
-    min-width:96px;
+    border-radius:16px;
+    padding:12px 14px;
+    box-shadow:0 8px 28px rgba(0,0,0,.28);
   }
-  .stat .label{font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted);}
-  .stat .value{font-family:'Anton',sans-serif; font-size:22px; line-height:1.1; letter-spacing:.02em;}
-  .stat.gold .value{color:var(--gold);}
-  .stat.dps .value{color:var(--orange);}
+
+  /* currency cards (gold + forgiveness) — the two things you spend */
+  .currency{
+    display:flex; align-items:center; gap:11px;
+    padding:8px 16px; border-radius:12px;
+    background:rgba(0,0,0,.22); border:1px solid var(--line);
+  }
+  .currency .icon{ font-size:26px; line-height:1; filter:drop-shadow(0 2px 4px rgba(0,0,0,.45)); }
+  .currency .txt{ display:flex; flex-direction:column; line-height:1; }
+  .currency .label{ font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); margin-bottom:3px; }
+  .currency .value{ font-family:'Anton',sans-serif; font-size:24px; line-height:1; letter-spacing:.02em; }
+  .currency.gold{ border-color:rgba(255,210,63,.35); }
+  .currency.gold .value{ color:var(--gold); }
+  .currency.dove{ border-color:rgba(192,168,255,.35); }
+  .currency.dove .value{ color:#c0a8ff; }
+
+  .topbar-spacer{ flex:1 1 auto; }
+
+  /* compact combat stats on the right, separated by hairlines */
+  .stat{
+    display:flex; flex-direction:column; align-items:center;
+    padding:4px 16px; position:relative;
+  }
+  .stat + .stat::before{
+    content:""; position:absolute; left:0; top:50%; transform:translateY(-50%);
+    height:60%; width:1px; background:var(--line);
+  }
+  .stat .label{ font-size:10px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); }
+  .stat .value{ font-family:'Anton',sans-serif; font-size:22px; line-height:1.1; letter-spacing:.02em; }
+  .stat.dps .value{ color:var(--orange); }
 
   /* ---------- Layout ---------- */
   .game{
@@ -234,9 +261,14 @@
   .shop .panel.tab-active{ display:block; }
 
   @media (max-width:880px){
-    /* compact top bar */
-    .topbar{ gap:8px; padding:10px 12px 2px; }
-    .stat{ min-width:0; flex:1 1 calc(50% - 4px); padding:6px 10px; }
+    /* compact top bar: currencies share row 1, combat stats fill row 2 */
+    .topbar{ margin-top:10px; padding:0 12px; }
+    .topbar-inner{ gap:8px; padding:10px; }
+    .currency{ flex:1 1 calc(50% - 4px); padding:8px 12px; }
+    .currency .value{ font-size:21px; }
+    .topbar-spacer{ display:none; }
+    .stat{ flex:1 1 0; padding:4px 6px; }
+    .stat + .stat::before{ display:none; }
     .stat .value{ font-size:19px; }
 
     /* smaller arena so it shares the screen with the shop */
@@ -284,10 +316,22 @@
 <body>
 
   <div class="topbar">
-    <div class="stat gold"><span class="label">Zlato</span><span class="value" id="goldVal">0</span></div>
-    <div class="stat"><span class="label">Úroveň</span><span class="value" id="levelVal">1</span></div>
-    <div class="stat"><span class="label">Úder</span><span class="value" id="clickVal">1</span></div>
-    <div class="stat dps"><span class="label">DPS (auto)</span><span class="value" id="dpsVal">0</span></div>
+    <div class="topbar-inner">
+      <div class="currency gold">
+        <span class="icon">🪙</span>
+        <span class="txt"><span class="label">Zlato</span><span class="value" id="goldVal">0</span></span>
+      </div>
+      <div class="currency dove">
+        <span class="icon">🕊</span>
+        <span class="txt"><span class="label">Odpuštění</span><span class="value" id="forgiveVal">0</span></span>
+      </div>
+
+      <div class="topbar-spacer"></div>
+
+      <div class="stat"><span class="label">Úroveň</span><span class="value" id="levelVal">1</span></div>
+      <div class="stat"><span class="label">Úder</span><span class="value" id="clickVal">1</span></div>
+      <div class="stat dps"><span class="label">DPS (auto)</span><span class="value" id="dpsVal">0</span></div>
+    </div>
   </div>
 
   <div class="game">
@@ -679,10 +723,11 @@ function fireWeapon(w, i){
    RENDER UI
    ========================================================================= */
 function renderStats(){
-  $('goldVal').textContent  = fmt(S.gold);
-  $('levelVal').textContent = S.level;
-  $('clickVal').textContent = fmt(punchDamage());
-  $('dpsVal').textContent   = fmt(totalDps());
+  $('goldVal').textContent    = fmt(S.gold);
+  $('forgiveVal').textContent = fmt(P.forgiveness);
+  $('levelVal').textContent   = S.level;
+  $('clickVal').textContent   = fmt(punchDamage());
+  $('dpsVal').textContent     = fmt(totalDps());
 }
 function renderShop(){
   // vylepšení
