@@ -319,7 +319,7 @@
     <div class="topbar-inner">
       <div class="currency gold">
         <span class="icon">🪙</span>
-        <span class="txt"><span class="label">Zlato</span><span class="value" id="goldVal">0</span></span>
+        <span class="txt"><span class="label">Peníze</span><span class="value" id="goldVal">0</span></span>
       </div>
       <div class="currency dove">
         <span class="icon">🕊</span>
@@ -403,9 +403,9 @@
    ========================================================================= */
 const CONFIG = {
   baseHp: 12,        // HP prvního Ekiho
-  hpGrowth: 1.55,    // o kolik roste HP každou úroveň
-  baseGold: 4,       // základ odměny
-  goldGrowth: 1.16,  // růst odměny za úroveň
+  hpGrowth: 1.27,    // růst HP za úroveň — ZÁROVEŇ škáluje tvé poškození (viz levelScale), takže pěst i zbraně drží krok
+  baseGold: 5,       // základ odměny
+  goldGrowth: 1.23,  // růst odměny za úroveň (těsně pod hpGrowth → příjem drží krok, nevzniká zeď)
   bossEvery: 5,      // každá 5. úroveň = Golden Eki (boss)
   critChance: 0.10,  // šance na kritický úder pěstí
   critMult: 3,       // násobič kritu
@@ -447,12 +447,12 @@ const WEAPONS = [
 
 /* Varianty Ekiho — barevný nádech přes obrázek + škálování HP/odměny */
 const VARIANTS = {
-  normal: { name:'Normal Eki',          tier:'obyčejný',  tint:null,                 filter:null,                              hp:1,   gold:1,  glow:'#5a6477' },
-  red:    { name:'Red Eki',             tier:'naštvaný',  tint:'rgba(255,40,50,.55)',filter:'saturate(1.4) brightness(.95)',   hp:1.8, gold:1.7, glow:'#ff3b47' },
-  blue:   { name:'Frozen Eki',          tier:'zmrzlý',    tint:'rgba(40,130,255,.5)',filter:'hue-rotate(170deg) brightness(1.05)', hp:2.6, gold:2.3, glow:'#3b9dff' },
-  toxic:  { name:'Toxic Eki',           tier:'jedovatý',  tint:'rgba(80,255,80,.45)',filter:'hue-rotate(70deg) saturate(1.5)', hp:3.6, gold:3,   glow:'#5dff5d' },
-  shadow: { name:'Shadow Eki',          tier:'temný',     tint:'rgba(20,10,40,.65)', filter:'grayscale(.7) brightness(.55)',   hp:5,   gold:4,   glow:'#a06bff' },
-  gold:   { name:'Golden Eki',          tier:'★ BOSS ★',  tint:'rgba(255,200,40,.55)',filter:'sepia(.6) saturate(2) brightness(1.1)', hp:9, gold:12, glow:'#ffd23f', boss:true },
+  normal: { name:'Normal Eki',          tier:'obyčejný',  tint:null,                 filter:null,                              hp:1,   gold:1,   glow:'#5a6477' },
+  red:    { name:'Red Eki',             tier:'naštvaný',  tint:'rgba(255,40,50,.55)',filter:'saturate(1.4) brightness(.95)',   hp:1.6, gold:1.8, glow:'#ff3b47' },
+  blue:   { name:'Frozen Eki',          tier:'zmrzlý',    tint:'rgba(40,130,255,.5)',filter:'hue-rotate(170deg) brightness(1.05)', hp:2.2, gold:2.4, glow:'#3b9dff' },
+  toxic:  { name:'Toxic Eki',           tier:'jedovatý',  tint:'rgba(80,255,80,.45)',filter:'hue-rotate(70deg) saturate(1.5)', hp:3.0, gold:3.2, glow:'#5dff5d' },
+  shadow: { name:'Shadow Eki',          tier:'temný',     tint:'rgba(20,10,40,.65)', filter:'grayscale(.7) brightness(.55)',   hp:4.0, gold:4.5, glow:'#a06bff' },
+  gold:   { name:'Golden Eki',          tier:'★ BOSS ★',  tint:'rgba(255,200,40,.55)',filter:'sepia(.6) saturate(2) brightness(1.1)', hp:6, gold:14, glow:'#ffd23f', boss:true },
 };
 
 /* Hlášky, co občas vyletí při zásahu (z původního souboru) */
@@ -502,9 +502,12 @@ function fmt(n){
 }
 const globalMult = () => (1 + S.up.power * 0.10) * (1 + P.rage * 0.20);
 const goldMult   = () => (1 + P.greed * 0.25);
-const punchDamage = () => Math.max(1, Math.round((PUNCH.base + S.up.punch * PUNCH.step) * globalMult() * (1 + P.fist * 0.50)));
+/* Poškození roste s úrovní stejně rychle jako HP nepřítele → základní úder i zbraně
+   dělají pořád stejný podíl HP. Počet kliků na zabití zůstává konstantní místo aby rostl. */
+const levelScale = () => Math.pow(CONFIG.hpGrowth, S.level - 1);
+const punchDamage = () => Math.max(1, Math.round((PUNCH.base + S.up.punch * PUNCH.step) * levelScale() * globalMult() * (1 + P.fist * 0.50)));
 const speedFactor = () => Math.pow(0.96, S.up.speed) * Math.pow(0.95, P.factory); // < 1 => rychleji
-function weaponDamage(w){ return Math.round(w.baseDmg * S.weapons[w.id] * globalMult()); }
+function weaponDamage(w){ return Math.round(w.baseDmg * S.weapons[w.id] * levelScale() * globalMult()); }
 function weaponInterval(w){ return Math.max(120, w.interval * speedFactor()); }
 function totalDps(){
   let d = 0;
