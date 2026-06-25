@@ -1,6 +1,7 @@
 import { useEngineSelector, shallowEqual } from '../hooks/useEngine.js';
 import { useAccount } from '../hooks/useAccount.js';
 import { useWorldBoss } from '../hooks/useWorldBoss.js';
+import { useRaid } from '../hooks/useRaid.js';
 import { fmt } from '../game/format.js';
 import { clickDamage } from '../game/formulas.js';
 import { claimableCount } from '../game/data/quests.js';
@@ -21,13 +22,18 @@ const select = (s) => ({
   eggCount: s.eggs || 0,
   equippedPet: s.equippedPet || null,
   petLevel: (s.equippedPet && s.pets?.[s.equippedPet]?.level) || 0,
+  runesUnlocked: s.runesUnlocked,
+  runeCount: (s.runes || []).length,
+  masteryUnlocked: s.masteryUnlocked,
+  masteryPoints: s.mastery?.points || 0,
   albumNew: s.album?.new || 0,
 });
 
-export default function TopBar({ view, onView, onOpenSettings, onOpenJoin, onOpenAccount, onOpenStats, onOpenDaily, onOpenInventory, onOpenPets, onOpenAlbum }) {
-  const { gold, forgiveness, dust, level, click, daily, invUnlocked, chestCount, petsUnlocked, eggCount, equippedPet, petLevel, albumNew } = useEngineSelector(select, shallowEqual);
+export default function TopBar({ view, onView, onOpenSettings, onOpenJoin, onOpenAccount, onOpenStats, onOpenDaily, onOpenInventory, onOpenPets, onOpenRunes, onOpenMastery, onOpenAlbum }) {
+  const { gold, forgiveness, dust, level, click, daily, invUnlocked, chestCount, petsUnlocked, eggCount, equippedPet, petLevel, runesUnlocked, runeCount, masteryUnlocked, masteryPoints, albumNew } = useEngineSelector(select, shallowEqual);
   const account = useAccount();
   const wb = useWorldBoss();
+  const rd = useRaid();
 
   return (
     <div className="topbar">
@@ -46,6 +52,14 @@ export default function TopBar({ view, onView, onOpenSettings, onOpenJoin, onOpe
             onClick={() => onView('boss')}
           >🐲 Boss{(wb.claimable || wb.live) && (
             <span className={'seg-dot' + (wb.claimable ? ' alert' : '')}>{wb.claimable ? '!' : '•'}</span>
+          )}</button>
+          <button
+            role="tab"
+            aria-selected={view === 'raid'}
+            className={'seg raid-seg' + (view === 'raid' ? ' active' : '')}
+            onClick={() => onView('raid')}
+          >⚔️ Aréna{rd?.badge && (
+            <span className={'seg-dot' + (rd.unseen > 0 ? ' alert' : '')}>{rd.unseen > 0 ? '!' : '•'}</span>
           )}</button>
           <button
             role="tab"
@@ -84,6 +98,16 @@ export default function TopBar({ view, onView, onOpenSettings, onOpenJoin, onOpe
               {equippedPet ? petEmoji(equippedPet) : '🐾'}{eggCount > 0 && <span className="topbar-badge">{eggCount}</span>}
             </button>
           )}
+          {runesUnlocked && (
+            <button className="topbar-btn badged" onClick={onOpenRunes} title="Runy & sokety" aria-label="Runy">
+              🔣{runeCount > 0 && <span className="topbar-badge">{runeCount}</span>}
+            </button>
+          )}
+          {masteryUnlocked && (
+            <button className="topbar-btn badged" onClick={onOpenMastery} title="Mistrovská mřížka" aria-label="Mistrovská mřížka">
+              🔱{masteryPoints > 0 && <span className="topbar-badge">{masteryPoints > 99 ? '99+' : masteryPoints}</span>}
+            </button>
+          )}
           <button className="topbar-btn badged" onClick={onOpenAlbum} title="Sběratelský deník" aria-label="Sběratelský deník">
             📖{albumNew > 0 && <span className="topbar-badge">{albumNew}</span>}
           </button>
@@ -115,6 +139,15 @@ export default function TopBar({ view, onView, onOpenSettings, onOpenJoin, onOpe
               <span className="value">{fmt(dust)}</span>
             </span>
           </div>
+        )}
+        {masteryUnlocked && (
+          <button className="currency mastery" onClick={onOpenMastery} title="Mistrovské body — utrať je v Mistrovské mřížce 🔱">
+            <span className="icon">🔱</span>
+            <span className="txt">
+              <span className="label">Mistrovství</span>
+              <span className="value">{fmt(masteryPoints)}</span>
+            </span>
+          </button>
         )}
 
         <ActiveElixir />

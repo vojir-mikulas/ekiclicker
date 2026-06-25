@@ -19,6 +19,9 @@ const StatsModal = lazy(() => import('./modals/StatsModal.jsx'));
 const InventoryModal = lazy(() => import('./modals/InventoryModal.jsx'));
 const RouletteModal = lazy(() => import('./modals/RouletteModal.jsx'));
 const PetsModal = lazy(() => import('./modals/PetsModal.jsx'));
+const RunesModal = lazy(() => import('./modals/RunesModal.jsx'));
+const EnchantModal = lazy(() => import('./modals/EnchantModal.jsx'));
+const MasteryModal = lazy(() => import('./modals/MasteryModal.jsx'));
 const AlbumModal = lazy(() => import('./modals/AlbumModal.jsx'));
 const PetRevealModal = lazy(() => import('./modals/PetRevealModal.jsx'));
 const DailyQuests = lazy(() => import('./modals/DailyQuests.jsx'));
@@ -27,17 +30,19 @@ const PlayerProfile = lazy(() => import('./modals/PlayerProfile.jsx'));
 const SeasonEndModal = lazy(() => import('./modals/SeasonEndModal.jsx'));
 const NewSeasonModal = lazy(() => import('./modals/NewSeasonModal.jsx'));
 const WorldBossView = lazy(() => import('./worldboss/WorldBossView.jsx'));
+const RaidView = lazy(() => import('./raid/RaidView.jsx'));
 
 export default function Game() {
   const engine = useEngine();
   const account = useAccount();
-  const [view, setView] = useState('game'); // 'game' | 'boss' | 'board'
+  const [view, setView] = useState('game'); // 'game' | 'boss' | 'raid' | 'board'
   const [modal, setModal] = useState(null); // 'settings' | 'rebirth' | 'join' | 'account' | null
   const [offline, setOffline] = useState(null);
   const [gift, setGift] = useState(null);
   const [profileId, setProfileId] = useState(null); // otevřený profil hráče
   const pendingOpenId = useEngineSelector((s) => s.pendingOpen?.id || null); // běžící ruleta bedny
   const pendingEggId = useEngineSelector((s) => s.pendingEgg?.id || null); // běžící líhnutí vejce
+  const enchantOn = useEngineSelector((s) => !!s.pendingEnchant); // otevřený zaklínací stůl
 
   // jednorázové připsání offline výdělku po načtení
   useEffect(() => {
@@ -66,6 +71,8 @@ export default function Game() {
         onOpenDaily={() => setModal('daily')}
         onOpenInventory={() => setModal('inventory')}
         onOpenPets={() => setModal('pets')}
+        onOpenRunes={() => setModal('runes')}
+        onOpenMastery={() => setModal('mastery')}
         onOpenAlbum={() => setModal('album')}
       />
 
@@ -77,6 +84,10 @@ export default function Game() {
       ) : view === 'boss' ? (
         <Suspense fallback={<div className="board-loading">Načítám bosse…</div>}>
           <WorldBossView onJoin={() => setModal('join')} onSelectPlayer={setProfileId} />
+        </Suspense>
+      ) : view === 'raid' ? (
+        <Suspense fallback={<div className="board-loading">Načítám arénu…</div>}>
+          <RaidView onJoin={() => setModal('join')} onSelectPlayer={setProfileId} />
         </Suspense>
       ) : (
         <Suspense fallback={<div className="board-loading">Načítám žebříček…</div>}>
@@ -95,8 +106,11 @@ export default function Game() {
         {modal === 'account' && <AccountModal onClose={() => setModal(null)} />}
         {modal === 'stats' && <StatsModal onClose={() => setModal(null)} />}
         {modal === 'inventory' && <InventoryModal onClose={() => setModal(null)} />}
+        {enchantOn && <EnchantModal />}
         {pendingOpenId && <RouletteModal key={pendingOpenId} />}
         {modal === 'pets' && <PetsModal onClose={() => setModal(null)} />}
+        {modal === 'runes' && <RunesModal onClose={() => setModal(null)} />}
+        {modal === 'mastery' && <MasteryModal onClose={() => setModal(null)} />}
         {modal === 'album' && <AlbumModal onClose={() => setModal(null)} />}
         {pendingEggId && <PetRevealModal key={pendingEggId} />}
         {modal === 'daily' && <DailyQuests onClose={() => setModal(null)} />}

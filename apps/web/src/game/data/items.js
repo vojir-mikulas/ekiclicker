@@ -80,6 +80,19 @@ export const SETS = {
       { pieces: 4, stats: { dmgPct: 0.30, goldPct: 0.20 } },
     ],
   },
+  /* NEJLEPŠÍ sada ve hře — kusy padají JEDINĚ ze Světového bosse (Dračí truhla 🐉).
+     ZÁMĚRNĚ bez dmgPct: bonusy jedou na úderu/zbraních/kritu, které NEvstupují do
+     snapshotu obtížnosti (jen dmgPct ano) → obří, ale BOUNDED boost, který reálně
+     posune i slabšího hráče (catch-up), drží anti-blitz filozofii Světového bosse
+     („nic nenásobí obtížnost") a procenta ho nechají relevantní i v endgame. */
+  slayer: {
+    name: 'Drakobijec', emoji: '🐉',
+    desc: 'Nejlepší výbava ve hře — kusy padají jen ze Světového bosse. Žene combo, ne zeď.',
+    bonuses: [
+      { pieces: 2, stats: { punchPct: 0.25, weaponPct: 0.20, critChance: 0.04 } },
+      { pieces: 4, stats: { punchPct: 0.60, weaponPct: 0.50, critChance: 0.10, critMult: 0.60 } },
+    ],
+  },
 };
 
 /* ----------------------------- sloty ----------------------------- */
@@ -116,14 +129,16 @@ const SLOT_POOLS = {
   aura:   { primary: 'dmgPct',    pool: ['weaponPct', 'frenzyDur', 'goldPct', 'critChance'] },
 };
 
-/* ----------------------------- vzácnosti ----------------------------- */
+/* ----------------------------- vzácnosti -----------------------------
+   `sockets` = počet soketů na runy („Pivní tácky", viz data/runes.js). Plyne ze
+   vzácnosti (1–3) → vyšší vzácnost = víc soketů; povýšení vzácnosti přidá soket. */
 export const RARITY_ORDER = ['common', 'rare', 'epic', 'legendary', 'mythic'];
 export const RARITIES = {
-  common:    { name: 'Běžný',      mult: 1,   affixes: 1, weight: 100, color: '#9aa3b8' },
-  rare:      { name: 'Vzácný',     mult: 1.6, affixes: 2, weight: 42,  color: '#46a0ff' },
-  epic:      { name: 'Epický',     mult: 2.5, affixes: 3, weight: 14,  color: '#c06bff' },
-  legendary: { name: 'Legendární', mult: 4,   affixes: 4, weight: 3.4, color: '#ff9d2b' },
-  mythic:    { name: 'Mýtický',    mult: 6,   affixes: 5, weight: 0.6, color: '#ff4d6d' },
+  common:    { name: 'Běžný',      mult: 1,   affixes: 1, weight: 100, sockets: 1, color: '#9aa3b8' },
+  rare:      { name: 'Vzácný',     mult: 1.6, affixes: 2, weight: 42,  sockets: 2, color: '#46a0ff' },
+  epic:      { name: 'Epický',     mult: 2.5, affixes: 3, weight: 14,  sockets: 2, color: '#c06bff' },
+  legendary: { name: 'Legendární', mult: 4,   affixes: 4, weight: 3.4, sockets: 3, color: '#ff9d2b' },
+  mythic:    { name: 'Mýtický',    mult: 6,   affixes: 5, weight: 0.6, sockets: 3, color: '#ff4d6d' },
 };
 
 /* ----------------------------- základy (emoji + tier) -----------------------------
@@ -140,21 +155,25 @@ const BASES = {
     { id: 'trident',  emoji: '🔱', name: 'Neptunovo párátko',     minIlvl: 1600, set: 'eternal' },
     { id: 'bolt',     emoji: '⚡', name: 'Boží trest',  minIlvl: 3200 },
     { id: 'star',     emoji: '🌟', name: 'Vesmírná pecka',  minIlvl: 6000 },
+    { id: 'dragon',   emoji: '🐉', name: 'Dračí spár',  minIlvl: 8000, set: 'slayer', exclusive: true },
   ],
   gloves: [
     { id: 'mitt',  emoji: '🧤', name: 'Rukavice na Richarda',  minIlvl: 0,    set: 'brawler' },
     { id: 'belt',  emoji: '🥋', name: 'Skoro černý pásek',  minIlvl: 1200 },
     { id: 'wing',  emoji: '🪽', name: 'Andělská křídla',    minIlvl: 4000, set: 'eternal' },
+    { id: 'claws', emoji: '🐾', name: 'Tlapy bestie',      minIlvl: 8000, set: 'slayer', exclusive: true },
   ],
   charm: [
     { id: 'ring',   emoji: '💍', name: 'Prsten z automatu',  minIlvl: 0,    set: 'brawler' },
     { id: 'beads',  emoji: '📿', name: 'Babiččiny korále',  minIlvl: 1200 },
     { id: 'orb',    emoji: '🔮', name: 'Věštecká koule',   minIlvl: 4000, set: 'eternal' },
+    { id: 'blood',  emoji: '🩸', name: 'Dračí krev',       minIlvl: 8000, set: 'slayer', exclusive: true },
   ],
   aura: [
     { id: 'shield', emoji: '🛡️', name: 'Pokličkový štít',    minIlvl: 0,    set: 'brawler' },
     { id: 'spark',  emoji: '✨', name: 'Bojové třpytky',  minIlvl: 1200 },
     { id: 'swirl',  emoji: '🌀', name: 'Vír zkázy',     minIlvl: 4000, set: 'eternal' },
+    { id: 'breath', emoji: '🔥', name: 'Dračí dech',     minIlvl: 8000, set: 'slayer', exclusive: true },
   ],
 };
 /* slot -> id -> base (rychlé dohledání pro emoji/název) */
@@ -198,10 +217,12 @@ export function rollRarity(level) {
   return 'common';
 }
 
-/* Base: z dostupných (minIlvl ≤ ilvl) váž k vyšším tierům (index+1). */
+/* Base: z dostupných (minIlvl ≤ ilvl) váž k vyšším tierům (index+1). `exclusive`
+   základy (sada Drakobijec) se sem ZÁMĚRNĚ nedostanou — padají jen cíleně z Dračí
+   truhly přes rollSetItem, takže běžná kořist je nikdy nenabídne. */
 export function rollBase(slot, level) {
   const list = BASES[slot];
-  const eligible = list.filter((b) => b.minIlvl <= level);
+  const eligible = list.filter((b) => b.minIlvl <= level && !b.exclusive);
   const pool = eligible.length ? eligible : [list[0]];
   let total = 0;
   const acc = pool.map((b, i) => {
@@ -312,16 +333,18 @@ export function upgradeRarity(item) {
    Kořist nepadá jako kus rovnou — padají BEDNY (counts ve state.chests). Otevření
    spustí ruletu (vizuál), ale VÝSLEDEK SE ZAÚČTUJE HNED při otevření (engine) → zavření
    ani reload nic nezmění (anti-exploit). Tady jsou jen ČISTÁ data + losování.
-   `rarityFloor` = podlaha vzácnosti, `setBias` = losuje kus sady „Věčný",
-   `missChance` = šance na prázdnou (malá útěcha v úlomcích `missDust`),
-   `cost` = cena v úlomcích (jen u kupované „vykované" bedny). */
+   `rarityFloor` = podlaha vzácnosti, `setBias` = id sady, jejíž kus se vždy vylosuje
+   (jinak false), `missChance` = šance na prázdnou (malá útěcha v úlomcích `missDust`),
+   `ilvlFloor` = minimální ilvl kusu (Dračí truhla: endgame magnituda i pro slabší —
+   catch-up; viz engine._chestLevel), `cost` = cena v úlomcích (jen u kupované bedny). */
 export const CHESTS = {
-  wooden: { id: 'wooden', name: 'Bedna',           emoji: '📦', glow: '#9aa3b8', rarityFloor: null,        setBias: false, missChance: 0.10, missDust: 6 },
-  golden: { id: 'golden', name: 'Zlatá bedna',      emoji: '🟨', glow: '#ffd23f', rarityFloor: 'rare',      setBias: false, missChance: 0.05, missDust: 20 },
-  archon: { id: 'archon', name: 'Archónská truhla', emoji: '👁️', glow: '#b97aff', rarityFloor: 'legendary', setBias: true,  missChance: 0,    missDust: 0 },
-  dust:   { id: 'dust',   name: 'Vykovaná bedna',   emoji: '💠', glow: '#46d6e0', rarityFloor: 'epic',      setBias: false, missChance: 0.15, missDust: 120, cost: 600 },
+  wooden: { id: 'wooden', name: 'Bedna',           emoji: '📦', glow: '#9aa3b8', rarityFloor: null,        setBias: false,     missChance: 0.10, missDust: 6 },
+  golden: { id: 'golden', name: 'Zlatá bedna',      emoji: '🟨', glow: '#ffd23f', rarityFloor: 'rare',      setBias: false,     missChance: 0.05, missDust: 20 },
+  archon: { id: 'archon', name: 'Archónská truhla', emoji: '👁️', glow: '#b97aff', rarityFloor: 'legendary', setBias: 'eternal', missChance: 0,    missDust: 0 },
+  boss:   { id: 'boss',   name: 'Dračí truhla',     emoji: '🐉', glow: '#ff5630', rarityFloor: 'legendary', setBias: 'slayer',  missChance: 0,    missDust: 0, ilvlFloor: 8000 },
+  dust:   { id: 'dust',   name: 'Vykovaná bedna',   emoji: '💠', glow: '#46d6e0', rarityFloor: 'epic',      setBias: false,     missChance: 0.15, missDust: 120, cost: 600 },
 };
-export const CHEST_ORDER = ['wooden', 'golden', 'archon', 'dust'];
+export const CHEST_ORDER = ['wooden', 'golden', 'archon', 'boss', 'dust'];
 export const chestMissDust = (tier) => CHESTS[tier]?.missDust || 0;
 export const chestCost = (tier) => CHESTS[tier]?.cost || 0;
 
@@ -344,7 +367,7 @@ export function rollChestResult(tier, level) {
   if (!def) return { miss: false, item: rollItem(level) };
   if (def.missChance && rnd() < def.missChance) return { miss: true, item: null };
   const item = def.setBias
-    ? rollSetItem(level, 'eternal', def.rarityFloor || 'legendary')
+    ? rollSetItem(level, def.setBias, def.rarityFloor || 'legendary')
     : rollItemFloor(level, def.rarityFloor);
   return { miss: false, item };
 }
@@ -415,16 +438,21 @@ export function setBonusSum(equipment) {
 /* setId kusu (pro odznak sady v UI). */
 export const itemSet = (item) => baseDef(item)?.set || null;
 
-/* Součet všech afixů z NASAZENÝCH kusů + bonusů z dokončených sad
-   (čistá funkce nad equipment objektem). */
+/* Součet všech afixů + ZAKLÍNADEL z NASAZENÝCH kusů + bonusů z dokončených sad
+   (čistá funkce nad equipment objektem). enchant.stats jsou plain {stat:value}
+   se stejnými klíči jako afixy → čteme je přímo (žádný import enchants.js →
+   žádná cyklická závislost). */
 export function aggregateEquip(equipment) {
   const sum = ZERO();
   if (!equipment) return sum;
   for (const slot of SLOT_IDS) {
     const it = equipment[slot];
-    if (!it || !it.affixes) continue;
-    for (const a of it.affixes) {
+    if (!it) continue;
+    if (it.affixes) for (const a of it.affixes) {
       if (sum[a.stat] != null) sum[a.stat] += a.value;
+    }
+    if (it.enchant?.stats) for (const stat in it.enchant.stats) {
+      if (sum[stat] != null) sum[stat] += it.enchant.stats[stat];
     }
   }
   const setSum = setBonusSum(equipment);
@@ -438,11 +466,15 @@ export function gearPower(equipment) {
   return 1 + aggregateEquip(equipment).dmgPct;
 }
 
-/* Hrubá síla kusu pro řazení v UI a auto-rozklad nejslabšího při plném inventáři. */
+/* Hrubá síla kusu pro řazení v UI a auto-rozklad nejslabšího při plném inventáři.
+   Zahrnuje i bonusy zaklínadel (čteme it.enchant.stats přímo — viz aggregateEquip). */
 export function itemScore(item) {
   if (!item || !item.affixes) return 0;
   let s = 0;
   for (const a of item.affixes) s += a.value / (AFFIXES[a.stat]?.base || 1);
+  if (item.enchant?.stats) for (const stat in item.enchant.stats) {
+    s += item.enchant.stats[stat] / (AFFIXES[stat]?.base || 1);
+  }
   return s * (1 + (item.ilvl || 0) / 5000);
 }
 

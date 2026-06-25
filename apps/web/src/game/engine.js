@@ -26,13 +26,18 @@ import {
   comboCap, forgivenessMult, bossTimeMult, bossGoldMult, dustMult, dropChanceBonus,
 } from './formulas.js';
 import {
-  ITEMS, SLOT_IDS, itemScore,
+  ITEMS, CHESTS, SLOT_IDS, itemScore,
   salvageValue, rerollCost, rerollItem, upgradeRarityCost, upgradeRarity, nextRarity,
   rollChestResult, buildRouletteStrip, chestMissDust, chestCost, doveExchangeCost,
 } from './data/items.js';
-import { PETS_CFG, rollPetId, petLevelCap } from './data/pets.js';
+import { PETS_CFG, rollPetId, petLevelCap, allPetsMaxed } from './data/pets.js';
+import { RUNES_CFG, rollRune, mintRune, socketCount, canFuse } from './data/runes.js';
 import { ALBUM, discoveredCount, albumKeyForItem } from './data/album.js';
 import { ELIXIRS, elixirCostAt, ELIXIRS_CFG } from './data/elixirs.js';
+import {
+  ENCHANTS_CFG, canEnchant, rollEnchantOffers, applyOffer, rerollOffersCost,
+} from './data/enchants.js';
+import { MASTERY, NODE_BY_ID, TREE_BY_NODE, pointsInTree } from './data/mastery.js';
 
 let nextEnemyId = 1;
 
@@ -49,6 +54,7 @@ export class Engine {
     this._autosaveTimer = 0;
     this._openSeq = 0; // id přechodné rulety (pendingOpen)
     this._eggSeq = 0;  // id přechodného líhnutí (pendingEgg)
+    this._enchantSeq = 0; // revize přechodného zaklínacího stolu (pendingEnchant)
     this._running = false;
     this._dmg = []; // klouzavé okno pro měřené DPS: { t, src, nominal, eff }
     if (!this.state.enemy) this.spawnEnemy();
@@ -177,6 +183,10 @@ export class Engine {
     });
     this.maybeDropChest(v);
     this.maybeDropEgg(v);
+    this.maybeDropRune(v);
+    // 🔱 mistrovské body — za každou poraženou úroveň NAD prahem mřížky (∝ hloubce běhu).
+    // Body přežívají rebirth (jako prestige); utratí se v Mistrovské mřížce.
+    if (s.level >= MASTERY.unlockLevel) s.mastery.points += MASTERY.pointsPerLevel;
     s.level++;
     if (s.level > s.highestLevel) s.highestLevel = s.level;
     this.checkLevelUnlocks();
@@ -190,6 +200,29 @@ export class Engine {
     this.checkInventoryUnlock();
     this.checkElixirsUnlock();
     this.checkPetsUnlock();
+    this.checkRunesUnlock();
+    this.checkEnchantingUnlock();
+    this.checkMasteryUnlock();
+  }
+
+  /* Mistrovská mřížka 🔱 se odemkne po dosažení MASTERY.unlockLevel (nejvyšší úroveň).
+     Trvalý příznak — stejně jako výbava/elixíry/mazlíčci/runy/zaklínání. */
+  checkMasteryUnlock() {
+    const s = this.state;
+    if (!s.masteryUnlocked && s.highestLevel >= MASTERY.unlockLevel) {
+      s.masteryUnlocked = true;
+      this.emit('unlock', { feature: 'mastery' });
+    }
+  }
+
+  /* Zaklínání se odemkne po dosažení ENCHANTS_CFG.unlockLevel (nejvyšší úroveň).
+     Trvalý příznak — stejně jako výbava/elixíry/mazlíčci/runy. */
+  checkEnchantingUnlock() {
+    const s = this.state;
+    if (!s.enchantingUnlocked && s.highestLevel >= ENCHANTS_CFG.unlockLevel) {
+      s.enchantingUnlocked = true;
+      this.emit('unlock', { feature: 'enchanting' });
+    }
   }
 
   /* ---------- kořist / vybavení ---------- */
@@ -362,6 +395,64 @@ export class Engine {
     this.notify();
   }
 
+  /* ---------- zaklínací stůl (zlato → bounded-% bonusy na kusu) ----------
+     Pozdní ZLATÝ sink (odemyká se na ENCHANTS_CFG.unlockLevel). Stůl ukáže
+     ENCHANTS_CFG.offers nabídek (runové názvy + odhalený stat) → výběr zaplatí
+     ZLATEM a přidá kusu zaklínadlo (bounded %, sčítá se k afixům, max-počet
+     stropovaný). pendingEnchant je PŘECHODNÝ vizuál stolu (neukládá se — výsledek
+     každého zaklití je už zaúčtovaný v kusu). `rev` se zvyšuje při každé změně
+     nabídek → UI ví, že má překreslit. */
+  openEnchant(itemId) {
+    const s = this.state;
+    if (!s.enchantingUnlocked) return;
+    const ref = this.findItem(itemId);
+    if (!ref || !canEnchant(ref.item)) return;
+    s.pendingEnchant = { rev: ++this._enchantSeq, itemId, offers: rollEnchantOffers(ref.item) };
+    this.notify();
+  }
+
+  /* Přerol nabídek stolu za zlato (gamble o lepší runy; neaplikuje nic). */
+  enchantReroll() {
+    const s = this.state;
+    const pe = s.pendingEnchant;
+    if (!pe) return;
+    const ref = this.findItem(pe.itemId);
+    if (!ref || !canEnchant(ref.item)) return;
+    const cost = rerollOffersCost(ref.item);
+    if ((s.gold || 0) < cost) return;
+    s.gold -= cost;
+    pe.rev = ++this._enchantSeq;
+    pe.offers = rollEnchantOffers(ref.item);
+    this.afterInventory();
+  }
+
+  /* Zaplať zlato a vsaď vybranou nabídku do kusu. Po zaklití naroluje čerstvé
+     nabídky (cena dalšího zaklití roste) — nebo stůl uzavře, když je kus na maxu. */
+  enchantApply(offerId) {
+    const s = this.state;
+    const pe = s.pendingEnchant;
+    if (!pe) return;
+    const offer = pe.offers.find((o) => o.id === offerId);
+    if (!offer) return;
+    const ref = this.findItem(pe.itemId);
+    if (!ref || !canEnchant(ref.item)) return;
+    if ((s.gold || 0) < offer.cost) return;
+    s.gold -= offer.cost;
+    const next = applyOffer(ref.item, offer);
+    this.replaceItem(ref, next);
+    pe.rev = ++this._enchantSeq;
+    pe.offers = canEnchant(next) ? rollEnchantOffers(next) : [];
+    this.emit('enchant', { ench: offer.ench, stat: offer.stat, value: offer.value, maxed: !canEnchant(next) });
+    this.afterInventory();
+  }
+
+  /* Zavři zaklínací stůl (každé zaklití je dávno zaúčtované v kusu). */
+  closeEnchant() {
+    if (!this.state.pendingEnchant) return;
+    this.state.pendingEnchant = null;
+    this.notify();
+  }
+
   /* ---------- směnárna úlomků (💠 → 🕊) ---------- */
   /* Aktuální kurz: kolik úlomků stojí 1 🕊 (roste s nejvyšší úrovní). */
   doveExchangeCost() {
@@ -407,10 +498,22 @@ export class Engine {
     this._commitOpen('dust');
   }
 
+  /* ilvl kusu z bedny. Běžné bedny = úroveň běhu (kořist roste s tím, jak hluboko
+     jsi). Bedny s `ilvlFloor` (Dračí truhla) škálují na NEJVYŠŠÍ dosaženou úroveň
+     (ne na aktuální běh) a mají štědrou podlahu → endgame magnituda i pro slabšího
+     hráče (catch-up), a zároveň roste s whaly (zůstává viable v endgame). */
+  _chestLevel(tier) {
+    const s = this.state;
+    const floor = CHESTS[tier]?.ilvlFloor || 0;
+    const base = floor ? Math.max(s.level, s.highestLevel || 0) : s.level;
+    return Math.max(base, floor);
+  }
+
   /* Zaúčtuj výsledek (kus / útěcha) a postav pásek pro ruletu. */
   _commitOpen(tier) {
     const s = this.state;
-    const res = rollChestResult(tier, s.level);
+    const lvl = this._chestLevel(tier);
+    const res = rollChestResult(tier, lvl);
     if (res.miss) {
       res.refund = chestMissDust(tier);
       if (res.refund) s.dust = (s.dust || 0) + res.refund;
@@ -419,7 +522,7 @@ export class Engine {
       s.stats.itemsFound = (s.stats.itemsFound || 0) + 1;
     }
     const landingIndex = 48;
-    const strip = buildRouletteStrip(tier, s.level, res, landingIndex, 56);
+    const strip = buildRouletteStrip(tier, lvl, res, landingIndex, 56);
     s.pendingOpen = { id: ++this._openSeq, tier, strip, landingIndex, result: res };
     save(s);  // uloží ZAÚČTOVANÝ výsledek (buildSnapshot pendingOpen vynechává)
     this.notify();
@@ -439,11 +542,12 @@ export class Engine {
     const n = s.chests[tier] || 0;
     if (n < 1 || s.pendingOpen) return null;
     s.chests[tier] = 0;
+    const lvl = this._chestLevel(tier);
     const rarities = {};
     let misses = 0;
     let dust = 0;
     for (let i = 0; i < n; i++) {
-      const res = rollChestResult(tier, s.level);
+      const res = rollChestResult(tier, lvl);
       if (res.miss) {
         misses++;
         const rf = chestMissDust(tier);
@@ -477,9 +581,11 @@ export class Engine {
   maybeDropEgg(v) {
     const s = this.state;
     if (!s.petsUnlocked) return;
+    if (allPetsMaxed(s.pets)) return; // kolekce kompletní → vejce už nepadají
     let chance;
     if (v.archon) chance = 1;
-    else if (v.ultra || v.mega) chance = PETS_CFG.eggMegaDropChance;
+    else if (v.ultra) chance = PETS_CFG.eggUltraDropChance;
+    else if (v.mega) chance = PETS_CFG.eggMegaDropChance;
     else if (v.boss) chance = PETS_CFG.eggBossDropChance;
     else chance = PETS_CFG.eggDropChance;
     if (Math.random() >= chance) return;
@@ -569,6 +675,112 @@ export class Engine {
   }
   unequipPet() {
     this.state.equippedPet = null;
+    this.afterInventory();
+  }
+
+  /* ---------- runy & sokety („Pivní tácky", pozdní endgame) ---------- */
+  /* Odemkne se po dosažení RUNES_CFG.unlockLevel (nejvyšší úroveň). Trvalý
+     příznak (přežívá rebirth) — stejně jako výbava, elixíry a mazlíčci. */
+  checkRunesUnlock() {
+    const s = this.state;
+    if (!s.runesUnlocked && s.highestLevel >= RUNES_CFG.unlockLevel) {
+      s.runesUnlocked = true;
+      this.emit('unlock', { feature: 'runes' });
+    }
+  }
+
+  /* Drop runy po zabití — hlavně z Eki Archóna (zaručeně), malá šance z mega/ultra.
+     Runa padne rovnou do skladu (žádná ruleta) — socketuje se ručně ve 🔣 Runách. */
+  maybeDropRune(v) {
+    const s = this.state;
+    if (!s.runesUnlocked) return;
+    let chance;
+    if (v.archon) chance = RUNES_CFG.archonDropChance;
+    else if (v.ultra || v.mega) chance = RUNES_CFG.megaDropChance;
+    else return;
+    if (Math.random() >= chance) return;
+    this.grantRune();
+  }
+  grantRune() {
+    const s = this.state;
+    const rune = rollRune(s.level);
+    if ((s.runes?.length || 0) >= RUNES_CFG.stashCap) {
+      // plný sklad → útěcha v úlomcích (žádná runa nepřijde nazmar, jako přetečení inventáře)
+      const d = RUNES_CFG.fullDust;
+      if (d) s.dust = (s.dust || 0) + d;
+      this.emit('rune', { kind: rune.kind, tier: rune.tier, full: true, dust: d });
+      return;
+    }
+    s.runes.push(rune);
+    s.stats.runesFound = (s.stats.runesFound || 0) + 1;
+    this.emit('rune', { kind: rune.kind, tier: rune.tier });
+  }
+
+  /* Vsaď runu ze skladu do soketu kusu (nasazeného i v inventáři). Obsazený soket
+     → stávající runa se vrátí do skladu (prohození). NEMĚNÍ runGearPower — runy
+     nemají dmgPct, takže obtížnost neovlivní (na rozdíl od výbavy/mazlíčka). */
+  socketRune(itemId, socketIdx, runeId) {
+    const s = this.state;
+    const ref = this.findItem(itemId);
+    if (!ref) return;
+    const item = ref.item;
+    if (socketIdx < 0 || socketIdx >= socketCount(item)) return;
+    const ri = s.runes.findIndex((r) => r.id === runeId);
+    if (ri === -1) return;
+    if (!Array.isArray(item.runes)) item.runes = [];
+    const prev = item.runes[socketIdx] || null;
+    const [rune] = s.runes.splice(ri, 1);
+    item.runes[socketIdx] = rune;
+    if (prev) s.runes.push(prev); // prohození drží počet ve skladu → žádný strop problém
+    this.emit('socket', { kind: rune.kind });
+    this.afterInventory();
+  }
+
+  /* Vyndej runu ze soketu zpět do skladu (když je v něm místo). */
+  unsocketRune(itemId, socketIdx) {
+    const s = this.state;
+    if ((s.runes?.length || 0) >= RUNES_CFG.stashCap) return; // plný sklad
+    const ref = this.findItem(itemId);
+    if (!ref) return;
+    const item = ref.item;
+    const rune = item.runes && item.runes[socketIdx];
+    if (!rune) return;
+    item.runes[socketIdx] = null;
+    s.runes.push(rune);
+    this.afterInventory();
+  }
+
+  /* Vykuj náhodnou runu za úlomky 💠 (deep sink). */
+  craftRune() {
+    const s = this.state;
+    if (!s.runesUnlocked) return;
+    if ((s.runes?.length || 0) >= RUNES_CFG.stashCap) return;
+    const cost = RUNES_CFG.craftCost;
+    if ((s.dust || 0) < cost) return;
+    s.dust -= cost;
+    const rune = rollRune(s.level);
+    s.runes.push(rune);
+    this.emit('rune', { kind: rune.kind, tier: rune.tier, crafted: true });
+    this.afterInventory();
+  }
+
+  /* Slij fuseCount stejných run (kind+tier) + úlomky → jedna runa o tier výš. */
+  fuseRunes(kind, tier) {
+    const s = this.state;
+    if (!canFuse(s.runes, kind, tier)) return;
+    const cost = RUNES_CFG.fuseCost;
+    if ((s.dust || 0) < cost) return;
+    let need = RUNES_CFG.fuseCount;
+    const keep = [];
+    for (const r of s.runes) {
+      if (need > 0 && r.kind === kind && r.tier === tier) { need--; continue; }
+      keep.push(r);
+    }
+    if (need > 0) return; // pojistka (canFuse už prošlo)
+    s.dust -= cost;
+    s.runes = keep;
+    s.runes.push(mintRune(kind, tier + 1));
+    this.emit('fuse', { kind, tier: tier + 1 });
     this.afterInventory();
   }
 
@@ -730,6 +942,23 @@ export class Engine {
     s.prestige[key] = (s.prestige[key] || 0) + 1;
     this.afterBuy();
   }
+  /* Kup 1 rank uzlu mistrovské mřížky 🔱. Hradla: odemčená fíčura, řada
+     odemčená počtem bodů ve větvi, nepřekročený strop, dost bodů. */
+  buyMasteryNode(nodeId) {
+    const s = this.state;
+    if (!s.masteryUnlocked) return;
+    const node = NODE_BY_ID[nodeId];
+    const tree = TREE_BY_NODE[nodeId];
+    if (!node || !tree) return;
+    if (pointsInTree(s, tree.id) < (MASTERY.tierGates[node.tier] || 0)) return; // řada zamčená
+    const rank = s.mastery.nodes[nodeId] || 0;
+    if (rank >= node.max) return; // vymaxováno
+    const cost = node.cost || 1;
+    if ((s.mastery.points || 0) < cost) return; // chybí body
+    s.mastery.points -= cost;
+    s.mastery.nodes[nodeId] = rank + 1;
+    this.afterBuy();
+  }
   /* Kup elixír na sklad (spotřebka; hromadně dle buyAmount). */
   buyElixir(id) {
     const s = this.state;
@@ -863,16 +1092,37 @@ export class Engine {
     this.notify();
   }
 
-  /* Připíše odměnu za světového bosse (🕊 + 💠). Bounded, lokální grant — stejně
-     jako sezónní odměna; server jen eviduje, kdo přispěl, a odměnu označí za vyzvednutou. */
-  grantWorldBossReward({ doves = 0, dust = 0 } = {}) {
+  /* Připíše odměnu za světového bosse (🕊 + 💠 + 🐉 Dračí truhly). Bounded, lokální
+     grant — stejně jako sezónní odměna; server jen eviduje, kdo přispěl, a odměnu
+     označí za vyzvednutou. Truhly se přičtou rovnou do stavu (jeden souhrnný toast
+     místo desítek 'chest' eventů) a otevřou se přes existující ruletu. */
+  grantWorldBossReward({ doves = 0, dust = 0, chests = 0 } = {}) {
     const s = this.state;
     if (doves > 0) s.prestige.forgiveness += doves;
     if (dust > 0) s.dust = (s.dust || 0) + dust;
-    if (doves > 0 || dust > 0) {
+    if (chests > 0) {
+      s.chests.boss = (s.chests.boss || 0) + chests;
+      s.stats.chestsFound = (s.stats.chestsFound || 0) + chests;
+    }
+    if (doves > 0 || dust > 0 || chests > 0) {
       save(s);
       this.notify();
-      this.emit('worldBossReward', { doves, dust });
+      this.emit('worldBossReward', { doves, dust, chests });
+    }
+  }
+
+  /* Připíše vybraný LUP z arény (přepad / výběr trezoru). Zlato → utratitelné
+     (záměrně NE do stats.totalGold, ať nejde nafukovat zlatý žebříček přepady),
+     🕊 → odpuštění, 💠 → úlomky. Bounded grant; server už trezor odepsal. */
+  grantRaidLoot({ gold = 0, doves = 0, dust = 0 } = {}) {
+    const s = this.state;
+    if (gold > 0) s.gold += gold;
+    if (doves > 0) s.prestige.forgiveness += doves;
+    if (dust > 0) s.dust = (s.dust || 0) + dust;
+    if (gold > 0 || doves > 0 || dust > 0) {
+      save(s);
+      this.notify();
+      this.emit('raidLoot', { gold, doves, dust });
     }
   }
 

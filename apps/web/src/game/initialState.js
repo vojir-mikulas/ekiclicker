@@ -36,6 +36,12 @@ export function createAlbum() {
   return { enemies: {}, gear: {}, new: 0 };
 }
 
+/* Prázdná mistrovská mřížka (paragon strom). `points` = nevyutracené 🔱,
+   `nodes` = id uzlu -> rank. Přežívá rebirth (jako prestige), mizí jen s koncem sezóny. */
+export function createMastery() {
+  return { points: 0, nodes: {} };
+}
+
 export function createStats() {
   return {
     totalClicks: 0,
@@ -53,6 +59,7 @@ export function createStats() {
     itemsFound: 0,
     chestsFound: 0,
     eggsFound: 0,
+    runesFound: 0,
   };
 }
 
@@ -92,6 +99,15 @@ export function createState() {
     equippedPet: null,            // petId nasazeného mazlíčka | null (jeden naráz; přežívá rebirth)
     eggs: 0,                      // nevylíhnutá vejce 🥚 (přežívá rebirth)
     pendingEgg: null,             // PŘECHODNÝ vizuál líhnutí (neukládá se; výsledek je už zaúčtovaný)
+    // --- pozdní endgame: runy & sokety (odemyká se na RUNES_CFG.unlockLevel = 2500) ---
+    runesUnlocked: false,         // jednou true → zůstává (přežívá rebirth)
+    runes: [],                    // sklad nevsazených run („Pivní tácky"; přežívá rebirth)
+    // --- pozdní endgame: zaklínání (odemyká se na ENCHANTS_CFG.unlockLevel = 3000) ---
+    enchantingUnlocked: false,    // jednou true → zůstává (přežívá rebirth)
+    pendingEnchant: null,         // PŘECHODNÝ vizuál zaklínacího stolu (neukládá se; zaklití je už v kusu)
+    // --- pozdní endgame: mistrovská mřížka 🔱 (odemyká se na MASTERY.unlockLevel = 4000) ---
+    masteryUnlocked: false,       // jednou true → zůstává (přežívá rebirth)
+    mastery: createMastery(),     // { points, nodes } — paragon strom (přežívá rebirth; resetRun ho nechá být)
     buyAmount: 1,
   };
 }
@@ -111,6 +127,7 @@ export function resetRun(state, startLevel) {
   state.enemy = null;
   state.pendingOpen = null; // přechodná ruleta — rebirth ji nenese
   state.pendingEgg = null;  // přechodné líhnutí — rebirth ho nenese
+  state.pendingEnchant = null; // přechodný zaklínací stůl — rebirth ho nenese
   // vybavení/inventář/bedny/úlomky/MAZLÍČCI se NEresetují (jako prestige) → snapshot síly
   // do obtížnosti (vybavení + nasazený mazlíček, viz formulas.difficultyScale)
   state.runGearPower = gearPower(state.equipment) * petPower(state);

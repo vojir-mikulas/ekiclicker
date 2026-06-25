@@ -16,6 +16,9 @@ import {
   itemEmoji, itemName, rarityName, rarityColor, affixLabel, itemScore, itemSet,
   upgradeDelta, rerollCost, upgradeRarityCost, nextRarity,
 } from '../../game/data/items.js';
+import {
+  ENCHANTS_CFG, canEnchant, enchantTotalLvl, enchantStats,
+} from '../../game/data/enchants.js';
 import { itemImageUrl } from '../../game/data/itemImages.js';
 import { fmt } from '../../game/format.js';
 import Modal from './Modal.jsx';
@@ -31,17 +34,31 @@ function ItemIcon({ item }) {
    (dust + rarity/afixy v podpisu: kovárna mění kus „na místě" se stejným id) */
 const selectSig = (s) => ({
   unlocked: s.inventoryUnlocked,
+  ench: s.enchantingUnlocked,
   highest: s.highestLevel,
   dust: Math.floor(s.dust || 0),
   chests: CHEST_ORDER.map((t) => s.chests?.[t] || 0).join(','),
-  inv: s.inventory.map((i) => i.id + i.rarity + i.affixes.length).join(','),
-  eq: SLOT_IDS.map((id) => { const it = s.equipment[id]; return it ? it.id + it.rarity : '-'; }).join(','),
+  inv: s.inventory.map((i) => i.id + i.rarity + i.affixes.length + (i.enchant?.lvl || 0)).join(','),
+  eq: SLOT_IDS.map((id) => { const it = s.equipment[id]; return it ? it.id + it.rarity + (it.enchant?.lvl || 0) : '-'; }).join(','),
 });
 
 function Affixes({ item }) {
   return (
     <ul className="inv-affixes">
       {item.affixes.map((a, i) => <li key={i}>{affixLabel(a)}</li>)}
+    </ul>
+  );
+}
+
+/* Bonusy ze zaklínadel (zlatý sink) — vizuálně odlišené ✨ od rolovaných afixů. */
+function EnchantLines({ item }) {
+  const stats = enchantStats(item);
+  if (!stats) return null;
+  return (
+    <ul className="inv-enchants" title="Zaklínadla (zaklínací stůl)">
+      {Object.entries(stats).map(([stat, value]) => (
+        <li key={stat}>✨ {affixLabel({ stat, value })}</li>
+      ))}
     </ul>
   );
 }
@@ -75,11 +92,13 @@ function SetBadge({ item }) {
   return <span className="inv-setbadge" title={`Sada: ${SETS[setId].name}`}>{SETS[setId].emoji}</span>;
 }
 
-/* Lišta kovárny pod kusem: přerolovat afixy / povýšit vzácnost (za úlomky). */
-function ForgeBar({ item, dust, onReroll, onUpgrade }) {
+/* Lišta kovárny pod kusem: přerolovat afixy / povýšit vzácnost (úlomky) + zaklít
+   (zlatý sink, odemyká se na 3000). */
+function ForgeBar({ item, dust, onReroll, onUpgrade, enchantUnlocked, onEnchant }) {
   const rr = rerollCost(item);
   const next = nextRarity(item.rarity);
   const up = upgradeRarityCost(item);
+  const lvl = enchantTotalLvl(item);
   const stop = (e) => e.stopPropagation();
   return (
     <div className="inv-forge" onPointerDown={stop} onClick={stop}>
@@ -96,12 +115,20 @@ function ForgeBar({ item, dust, onReroll, onUpgrade }) {
         title={next ? `Povýšit na ${RARITIES[next].name}` : 'Nejvyšší vzácnost'}
         style={next ? { color: RARITIES[next].color } : undefined}
       >{next ? `⬆️ ${fmt(up)} 💠` : '⬆️ MAX'}</button>
+      {enchantUnlocked && (
+        <button
+          className="forge-btn enchant"
+          disabled={!canEnchant(item)}
+          onClick={(e) => { stop(e); onEnchant(); }}
+          title={canEnchant(item) ? 'Zaklínací stůl (za zlato 💰)' : 'Kus je plně zaklet'}
+        >{lvl > 0 ? `✨ ${lvl}/${ENCHANTS_CFG.maxLevel}` : '✨ Zaklít'}</button>
+      )}
     </div>
   );
 }
 
 /* kus v inventáři — draggable + tap na nasazení, ✕ na rozložení, kovárna dole */
-function InvCard({ item, equipped, dust, onEquip, onDiscard, onReroll, onUpgrade }) {
+function InvCard({ item, equipped, dust, onEquip, onDiscard, onReroll, onUpgrade, enchantUnlocked, onEnchant }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: item.id, data: { type: 'inv', item },
   });
@@ -134,14 +161,15 @@ function InvCard({ item, equipped, dust, onEquip, onDiscard, onReroll, onUpgrade
         <RarityLine item={item} />
         <UpgradeBadge item={item} equipped={equipped} />
         <Affixes item={item} />
+        <EnchantLines item={item} />
       </div>
-      <ForgeBar item={item} dust={dust} onReroll={onReroll} onUpgrade={onUpgrade} />
+      <ForgeBar item={item} dust={dust} onReroll={onReroll} onUpgrade={onUpgrade} enchantUnlocked={enchantUnlocked} onEnchant={onEnchant} />
     </div>
   );
 }
 
 /* slot vybavení — droppable; nasazený kus je sám draggable (sundání) + kovárna */
-function EquipSlot({ slot, item, dust, onUnequip, onReroll, onUpgrade }) {
+function EquipSlot({ slot, item, dust, onUnequip, onReroll, onUpgrade, enchantUnlocked, onEnchant }) {
   const { setNodeRef, isOver } = useDroppable({ id: 'slot-' + slot.id, data: { slot: slot.id } });
   const drag = useDraggable({ id: 'eq-' + slot.id, data: { type: 'equip', slot: slot.id }, disabled: !item });
   return (
@@ -169,8 +197,9 @@ function EquipSlot({ slot, item, dust, onUnequip, onReroll, onUpgrade }) {
             <div className="inv-name">{itemName(item)}</div>
             <RarityLine item={item} />
             <Affixes item={item} />
+            <EnchantLines item={item} />
           </div>
-          <ForgeBar item={item} dust={dust} onReroll={onReroll} onUpgrade={onUpgrade} />
+          <ForgeBar item={item} dust={dust} onReroll={onReroll} onUpgrade={onUpgrade} enchantUnlocked={enchantUnlocked} onEnchant={onEnchant} />
         </>
       ) : (
         <div className="equip-empty">prázdné</div>
@@ -201,7 +230,7 @@ function ChestPanel({ engine, dust }) {
             <span className="chest-ico" style={{ color: def.glow }}>{def.emoji}</span>
             <div className="chest-info">
               <div className="chest-name" style={{ color: def.glow }}>{def.name} ×{n}</div>
-              <div className="chest-sub">{floor}{def.setBias ? ' • sada Věčný' : ''}{def.missChance ? ` • ${Math.round(def.missChance * 100)} % prázdná` : ''}</div>
+              <div className="chest-sub">{floor}{def.setBias ? ` • sada ${SETS[def.setBias]?.name || ''}` : ''}{def.missChance ? ` • ${Math.round(def.missChance * 100)} % prázdná` : ''}</div>
             </div>
             <div className="chest-btns">
               <button className="chest-btn" onClick={() => engine.openChest(t)}>Otevřít 🎲</button>
@@ -345,6 +374,8 @@ export default function InventoryModal({ onClose }) {
               onUnequip={() => engine.unequipSlot(slot.id)}
               onReroll={() => engine.forgeReroll(s.equipment[slot.id]?.id)}
               onUpgrade={() => engine.forgeUpgrade(s.equipment[slot.id]?.id)}
+              enchantUnlocked={s.enchantingUnlocked}
+              onEnchant={() => engine.openEnchant(s.equipment[slot.id]?.id)}
             />
           ))}
           </div>
@@ -411,6 +442,8 @@ function InventoryGrid({ inv, dust, engine }) {
               onDiscard={() => engine.discardItem(item.id)}
               onReroll={() => engine.forgeReroll(item.id)}
               onUpgrade={() => engine.forgeUpgrade(item.id)}
+              enchantUnlocked={engine.state.enchantingUnlocked}
+              onEnchant={() => engine.openEnchant(item.id)}
             />
           ))}
         </div>

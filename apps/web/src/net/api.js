@@ -72,4 +72,11 @@ export const api = {
   worldBoss: () => req('/world-boss', { auth: true }),
   worldBossHit: (effort = 1) => req('/world-boss/hit', { method: 'POST', body: { effort }, auth: true }),
   worldBossClaim: () => req('/world-boss/claim', { method: 'POST', auth: true }),
+  // aréna / přepady (asynchronní PvP — útok na ducha offline hráče)
+  raids: () => req('/raids', { auth: true }),
+  raidScout: () => req('/raids/scout', { method: 'POST', auth: true }),
+  raidStrike: (defenderId, tactic) => req('/raids/strike', { method: 'POST', body: { defenderId, tactic }, auth: true }),
+  raidWithdraw: () => req('/raids/withdraw', { method: 'POST', auth: true }),
+  raidDefense: (tactic) => req('/raids/defense', { method: 'POST', body: { tactic }, auth: true }),
+  raidAck: () => req('/raids/ack', { method: 'POST', auth: true }),
 };

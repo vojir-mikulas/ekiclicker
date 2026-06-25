@@ -17,10 +17,17 @@ import { AFFIXES, affixLabel } from './items.js';
 
 export const PETS_CFG = {
   unlockLevel: 2000,   // nejvyšší dosažená úroveň, od které se mazlíčci odemknou
-  // šance na drop vejce podle typu nepřítele (Archón dává vejce zaručeně)
-  eggDropChance: 0.004,    // běžný nepřítel
-  eggBossDropChance: 0.06, // boss (Golden Eki)
-  eggMegaDropChance: 0.5,  // mega / ultra boss
+  // Šance na drop vejce podle typu nepřítele (Archón dává vejce zaručeně). ZÁMĚRNĚ
+  // NÍZKO: petsUnlocked je TRVALÝ příznak → každý rebirth běh přehrává celé pásmo
+  // 1→zeď a cestou potká ~80 mega (po 25) a ~20 ultra (po 100) bossů. Při starých
+  // sazbách (mega/ultra 0,5) to dělalo ~80 vajec za běh → mazlíček vymaxován za
+  // jediný běh a „otevírání bedny" ztratilo náboj. Sníženo ~3–4× (hlavně boss-tiery,
+  // ty objem dělají), aby vejce zůstala vzácný endgame lov. Ultra má vlastní (vyšší)
+  // sazbu — vzácnější milník = šťavnatější (zrcadlí mega/ultra rozdíl v items.js).
+  eggDropChance: 0.0015,     // běžný nepřítel (objemový zdroj — drž nízko)
+  eggBossDropChance: 0.02,   // boss (Golden Eki, po 5)
+  eggMegaDropChance: 0.12,   // mega boss (Eki Král, po 25)
+  eggUltraDropChance: 0.35,  // ultra boss (Eki Titán, po 100 — vzácnější, štědřejší)
   maxDupeDust: 250,    // útěcha v úlomcích 💠, když padne duplikát už vymaxovaného mazlíčka
 };
 
@@ -71,6 +78,18 @@ const STAT_KEYS = Object.keys(AFFIXES);
 const zeroStats = () => Object.fromEntries(STAT_KEYS.map((k) => [k, 0]));
 
 export const petLevelCap = (id) => PETS[id]?.max || 1;
+
+/* true, když hráč VLASTNÍ všechny mazlíčky a každý je na stropu úrovně → sběr je
+   kompletní. Pak vejce přestanou padat (viz engine.maybeDropEgg) — žádné další
+   vejce, jen útěchové úlomky, by stejně nic nepřinesla, tak je radši nedáváme. */
+export function allPetsMaxed(pets) {
+  if (!pets) return false;
+  for (const id of PET_IDS) {
+    const owned = pets[id];
+    if (!owned || (owned.level || 0) < petLevelCap(id)) return false;
+  }
+  return true;
+}
 
 /* Hodnota bonusu mazlíčka na dané úrovni (stropovaná na max). */
 export function petBonus(def, level) {

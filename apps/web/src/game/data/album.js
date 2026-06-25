@@ -42,6 +42,9 @@ export const ALBUM = {
       { count: 9,  stats: { weaponPct: 0.08 } },
       { count: 13, stats: { critMult: 0.12 } },
       { count: 17, stats: { punchPct: 0.10, weaponPct: 0.10 } },
+      // capstone: poslední 4 základy jsou sada Drakobijec (jen ze Světového bosse) →
+      // kompletní Arzenál odměňuje bounded bonusem (bez dmgPct → bez vlivu na obtížnost).
+      { count: 21, stats: { punchPct: 0.15, weaponPct: 0.15, critChance: 0.03 } },
     ],
   },
 };

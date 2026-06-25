@@ -123,17 +123,132 @@ export function worldBossSalvoDamage(maxHp, peakDps) {
 }
 
 /* Odměna za účast podle umístění (rank dle příspěvku) a výsledku.
-   'defeated' = boss padl (plná odměna) · 'expired' = nestihlo se (útěcha = půlka, min 1 🕊). */
+   'defeated' = boss padl (plná odměna) · 'expired' = nestihlo se (útěcha = půlka, min 1 🕊).
+   `chests` = počet „Dračích truhel" 🐉 (exkluzivní bedna jen ze Světového bosse — uvnitř
+   sada Drakobijec, nejlepší kořist ve hře). Top přispěvatelé dostanou víc; i poslední
+   v pořadí (a i když boss utekl) dostane aspoň jednu → účast se VŽDY vyplatí. */
 export function worldBossReward(rank, outcome) {
   const base =
-    rank === 1 ? { doves: 30, dust: 300 } :
-    rank <= 3  ? { doves: 18, dust: 200 } :
-    rank <= 10 ? { doves: 12, dust: 150 } :
-                 { doves: 6,  dust: 100 };
+    rank === 1 ? { doves: 30, dust: 300, chests: 4 } :
+    rank <= 3  ? { doves: 18, dust: 200, chests: 3 } :
+    rank <= 10 ? { doves: 12, dust: 150, chests: 2 } :
+                 { doves: 6,  dust: 100, chests: 1 };
   if (outcome === 'expired') {
-    return { doves: Math.max(1, Math.floor(base.doves / 2)), dust: Math.floor(base.dust / 2) };
+    return {
+      doves: Math.max(1, Math.floor(base.doves / 2)),
+      dust: Math.floor(base.dust / 2),
+      chests: Math.max(1, Math.floor(base.chests / 2)),
+    };
   }
   return base;
+}
+
+/* =========================================================================
+   PŘEPAD / ARÉNA — asynchronní PvP nájezdy. Zaútočíš na DUCHA offline hráče
+   (jeho atestovaný sezónní snímek) a když vyhraješ, ukradneš mu LUP z trezoru.
+   Filosofie je stejná jako u zbytku hry:
+     • Výsledek počítá SERVER z ATESTOVANÉHO peakDps (+ úroveň) + taktiky + hodu
+       → klient nikdy netvrdí „vyhrál jsem". Cheatovat přepad = cheatovat žebříček
+       (stejný plausibility filtr) → žádná nová díra pro cheaty.
+     • Krade se jen z TREZORU (server-authoritative), NE z lokálního save — proto
+       krádež „drží" i když je oběť offline a její klient nemůže nic přepsat.
+     • Trezor je WITHDRAW-ONLY: plní se serverem (skim zlata z atestovaného postupu
+       + uloupený lup), klient ho jen VYBÍRÁ do bezpečí. Žádný „deposit" → nejde
+       prát falešné zlato přes trezor.
+     • Lup je BOUNDED (zlomek trezoru + strop). Zlato je hlavní (běžné, regeneruje),
+       🕊/💠 jsou vzácný jackpot. Nic nenásobí poškození ani obtížnost.
+   ========================================================================= */
+export const RAIDS = {
+  ratingStart: 1000,
+  kFactor: 32,
+  minPower: 50,                  // podlaha bojové síly (i nováček má nenulovou)
+  tacticEdge: 0.25,              // protitah dá ±25 % efektivní síly útočníka
+  winClampMin: 0.06,             // i favorit občas padne
+  winClampMax: 0.94,             // i outsider občas vyhraje
+  matchPoolSize: 12,             // zvaž N nejbližších dle peakDps, vyber náhodně
+  lootGoldFrac: 0.20,            // ukradne až 20 % zlata z trezoru oběti
+  lootDovesFrac: 0.34,           // až 34 % 🕊 (vzácnější jackpot)
+  lootDustFrac: 0.25,            // až 25 % 💠
+  vaultGoldSeconds: 150,         // cíl/strop zlata v trezoru ≈ peakDps × 150
+  skimFracPerSubmit: 0.12,       // trezor se doplní o 12 % cíle za každý submit skóre
+  winBonusDust: 12,              // ražený bonus k výhře (💠), ať přepad vždy potěší
+  streakDoveEvery: 4,            // každá 4. výhra v sérii → +1 🕊 ražený bonus
+  raidCooldownMs: 90_000,        // min. prodleva mezi tvými přepady
+  targetCooldownMs: 45 * 60_000, // stejnou oběť nemůžeš hned zas (anti-farma)
+  shieldMs: 8 * 3600_000,        // po vyloupení 8 h imunita
+  newbieShieldLevel: 60,         // hráče pod touto úrovní nelze přepadnout (ani útočit)
+  dailyRaidCap: 30,              // max. přepadů za den
+};
+
+/* Tři taktiky (kámen-nůžky-papír). beats = koho poráží. */
+export const RAID_TACTICS = [
+  { id: 'utok', label: 'Útok', emoji: '⚔️', beats: 'lest' },
+  { id: 'lest', label: 'Lest', emoji: '🎭', beats: 'obrana' },
+  { id: 'obrana', label: 'Obrana', emoji: '🛡️', beats: 'utok' },
+];
+export const RAID_TACTIC_IDS = RAID_TACTICS.map((t) => t.id);
+export function isRaidTactic(id) { return RAID_TACTIC_IDS.includes(id); }
+export const DEFAULT_DEFENSE_TACTIC = 'obrana';
+
+/* Výsledek taktického střetu z pohledu útočníka: 'win' (útočník protitáhl),
+   'lose' (obránce protitáhl), 'tie' (stejná taktika). */
+export function tacticOutcome(attacker, defender) {
+  if (!isRaidTactic(attacker) || !isRaidTactic(defender) || attacker === defender) return 'tie';
+  const a = RAID_TACTICS.find((t) => t.id === attacker);
+  return a && a.beats === defender ? 'win' : 'lose';
+}
+
+/* Bojová síla z atestovaných statů. Dominuje peakDps, úroveň jen jemně.
+   (Matchmaking páruje podle peakDps, takže poměr sil je u soupeřů blízko 1 →
+   o výsledku pak rozhoduje hlavně taktika + hod → napětí.) */
+export function raidPower(score) {
+  const dps = Math.max(RAIDS.minPower, Number(score?.peakDps) || 0);
+  const lvl = Math.max(1, Number(score?.highestLevel) || 1);
+  return dps * (1 + Math.log10(lvl + 1) / 10);
+}
+
+/* Efektivní síla útočníka po taktickém protitahu (celý ±swing nese útočník). */
+export function raidEffectivePower(power, outcome) {
+  if (outcome === 'win') return power * (1 + RAIDS.tacticEdge);
+  if (outcome === 'lose') return power * (1 - RAIDS.tacticEdge);
+  return power;
+}
+
+/* Pravděpodobnost výhry útočníka z efektivních sil. Proporční poměr, ořezaný
+   do [min,max], aby šlo o napětí a ne o jistotu. */
+export function raidWinProb(attackerPower, defenderPower) {
+  const a = Math.max(1, attackerPower);
+  const d = Math.max(1, defenderPower);
+  return Math.min(RAIDS.winClampMax, Math.max(RAIDS.winClampMin, a / (a + d)));
+}
+
+/* Cíl (a strop) zlata v trezoru — škáluje s atestovaným peakDps. */
+export function raidVaultGoldTarget(peakDps) {
+  return Math.max(0, Math.max(RAIDS.minPower, Number(peakDps) || 0) * RAIDS.vaultGoldSeconds);
+}
+
+/* Kolik se ukradne z trezoru oběti (REDISTRIBUCE, žádná ražba). attackerPeakDps
+   stropuje zlato proti cross-tier (nevezmeš víc zlata, než je 20 % tvého cíle). */
+export function raidStolenLoot(defenderVault, attackerPeakDps) {
+  const v = defenderVault || {};
+  const goldCap = Math.floor(raidVaultGoldTarget(attackerPeakDps) * RAIDS.lootGoldFrac);
+  const gold = Math.min(Math.floor((Number(v.gold) || 0) * RAIDS.lootGoldFrac), goldCap);
+  const doves = Math.floor((Number(v.doves) || 0) * RAIDS.lootDovesFrac);
+  const dust = Math.floor((Number(v.dust) || 0) * RAIDS.lootDustFrac);
+  return { gold: Math.max(0, gold), doves: Math.max(0, doves), dust: Math.max(0, dust) };
+}
+
+/* Ražený bonus k výhře (ať i přepad chudého terče potěší). Hlavně 💠 + občas 🕊
+   na sérii. Bounded — vzácná měna se nenafoukne. */
+export function raidWinBonus(streakAfterWin) {
+  const doves = streakAfterWin > 0 && streakAfterWin % RAIDS.streakDoveEvery === 0 ? 1 : 0;
+  return { gold: 0, doves, dust: RAIDS.winBonusDust };
+}
+
+/* Elo: změna ratingu útočníka (celé číslo). Obránce dostane opačnou. */
+export function raidRatingDelta(attackerRating, defenderRating, attackerWon) {
+  const expected = 1 / (1 + 10 ** ((defenderRating - attackerRating) / 400));
+  return Math.round(RAIDS.kFactor * ((attackerWon ? 1 : 0) - expected));
 }
 
 /* ---------- přezdívka ---------- */

@@ -19,6 +19,18 @@ export const WEAPONS = [
   { id: 'blackhole',emoji: '🕳️', name: 'Černá díra',       baseCost: 1.6e15,    baseDmg: 2.7e10,   interval: 3000, flight: 540, unlock: 240 },
   { id: 'galaxy',  emoji: '🌌', name: 'Galaxie',           baseCost: 2.6e16,    baseDmg: 1.9e11,   interval: 3300, flight: 580, unlock: 300 },
   { id: 'nova',    emoji: '💥', name: 'Supernova',         baseCost: 4.2e17,    baseDmg: 1.4e12,   interval: 3600, flight: 620, unlock: 380 },
+  // --- pozdní hra: arzenál za Supernovou (drží stejnou geometrii ×7 dmg / ×~15,5 cena
+  // za tier, takže nové zbraně sednou do ROI křivky beze změny anti-runaway balance;
+  // vyplňují prázdné pásmo 380→2200, kde dřív nebylo co odemykat). ---
+  { id: 'starrain',  emoji: '🌠', name: 'Hvězdný déšť',      baseCost: 6.5e18,    baseDmg: 1.0e13,   interval: 3800, flight: 650, unlock: 470 },
+  { id: 'planet',    emoji: '🪐', name: 'Zatoulaná planeta', baseCost: 1.0e20,    baseDmg: 7.0e13,   interval: 4000, flight: 680, unlock: 590 },
+  { id: 'sun',       emoji: '☀️', name: 'Vzteklé slunce',    baseCost: 1.6e21,    baseDmg: 4.9e14,   interval: 4200, flight: 700, unlock: 730 },
+  { id: 'nuke',      emoji: '☢️', name: 'Atomovka',          baseCost: 2.5e22,    baseDmg: 3.4e15,   interval: 4300, flight: 720, unlock: 900 },
+  { id: 'pulsar',    emoji: '💫', name: 'Pulsar',            baseCost: 3.9e23,    baseDmg: 2.4e16,   interval: 4400, flight: 730, unlock: 1080 },
+  { id: 'nebula',    emoji: '🌫️', name: 'Mlhovina',          baseCost: 6.0e24,    baseDmg: 1.7e17,   interval: 4400, flight: 740, unlock: 1340 },
+  { id: 'ufo',       emoji: '🛸', name: 'Vesmírná invaze',   baseCost: 9.3e25,    baseDmg: 1.2e18,   interval: 4400, flight: 750, unlock: 1640 },
+  { id: 'darkmatter',emoji: '🌑', name: 'Temná hmota',       baseCost: 1.4e27,    baseDmg: 8.4e18,   interval: 4500, flight: 760, unlock: 1980 },
+  { id: 'heatdeath', emoji: '⏳', name: 'Konec vesmíru',     baseCost: 2.2e28,    baseDmg: 5.9e19,   interval: 4500, flight: 770, unlock: 2400 },
 ];
 
 export const WEAPON_BY_ID = Object.fromEntries(WEAPONS.map((w) => [w.id, w]));

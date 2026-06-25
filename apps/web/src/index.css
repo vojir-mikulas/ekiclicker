@@ -852,11 +852,88 @@ body{
   border-radius:10px; padding:8px 10px; margin:6px 0; line-height:1.45; }
 .album-foot{ font-size:11px; color:var(--muted); text-align:center; margin:6px 0 0; }
 
+/* ===== runy & sokety („Pivní tácky") ===== */
+.popup-content.runes-modal{ max-width:640px; max-height:88vh; overflow-y:auto; text-align:left; }
+.popup-content.runes-modal h2{ text-align:center; }
+
+/* legenda (zamčená obrazovka) */
+.rune-legend{ display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:8px; margin:14px 0; }
+.rune-legend.locked-preview{ opacity:.85; }
+.rune-legend-item{ display:flex; align-items:center; gap:8px; border:1px solid var(--line); border-left:3px solid var(--rune,var(--line));
+  border-radius:10px; background:var(--panel-2); padding:8px 10px; }
+.rune-legend-name{ font-size:12px; font-weight:800; }
+.rune-legend-stat{ margin-left:auto; font-size:11px; color:var(--muted); }
+
+/* sokety nasazené výbavy */
+.rune-loadout{ margin-bottom:14px; }
+.rune-armed-hint{ color:var(--gold); font-style:normal; text-transform:none; letter-spacing:0; }
+.rune-equip-list{ display:flex; flex-direction:column; gap:8px; margin-top:6px; }
+.rune-equip{ display:flex; align-items:center; gap:10px; border:1px solid var(--line); border-left:3px solid var(--rc,var(--line));
+  border-radius:12px; background:var(--panel-2); padding:9px 12px; }
+.rune-equip.empty{ opacity:.6; border-left-color:var(--line); }
+.rune-equip-slot{ font-size:12px; font-weight:800; color:var(--muted); }
+.rune-equip-hint{ margin-left:auto; font-size:11px; color:var(--muted); }
+.rune-equip-ico{ font-size:26px; line-height:1; flex:none; }
+.rune-equip-info{ display:flex; flex-direction:column; min-width:0; }
+.rune-equip-name{ font-size:13px; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.rune-equip-rar{ font-size:10px; font-weight:700; letter-spacing:.04em; }
+.rune-sockets{ display:flex; gap:6px; margin-left:auto; flex:none; }
+
+.rune-socket{ width:34px; height:34px; border-radius:9px; flex:none; cursor:pointer; font-size:18px; line-height:1;
+  display:flex; align-items:center; justify-content:center; color:var(--muted);
+  border:1.5px dashed var(--line); background:rgba(0,0,0,.22); transition:border-color .12s, transform .1s, box-shadow .12s; }
+.rune-socket.filled{ border-style:solid; border-color:var(--rune,var(--line)); color:var(--text);
+  background:color-mix(in srgb, var(--rune,#888) 16%, transparent); box-shadow:0 0 8px color-mix(in srgb, var(--rune,#888) 45%, transparent); }
+.rune-socket.armed{ border-color:var(--gold); color:var(--gold); animation:runePulse 1.1s ease-in-out infinite; }
+.rune-socket:hover{ transform:translateY(-1px); }
+@keyframes runePulse{ 0%,100%{ box-shadow:0 0 0 0 rgba(255,210,63,.0); } 50%{ box-shadow:0 0 0 3px rgba(255,210,63,.25); } }
+
+/* žeton runy */
+.rune-chip{ display:inline-flex; align-items:center; justify-content:center; line-height:1; border-radius:50%;
+  border:2px solid var(--tier,var(--rune,var(--line)));
+  background:color-mix(in srgb, var(--rune,#888) 18%, transparent);
+  box-shadow:0 0 6px color-mix(in srgb, var(--rune,#888) 40%, transparent); }
+.rune-chip.md{ width:30px; height:30px; font-size:17px; }
+.rune-chip.lg{ width:42px; height:42px; font-size:24px; }
+
+/* barevné sady */
+.rune-sets{ background:var(--panel-2); border:1px solid var(--line); border-radius:12px; padding:10px 12px; margin-bottom:14px; }
+.rune-sets-list{ display:flex; flex-wrap:wrap; gap:8px; margin-top:6px; }
+.rune-set{ font-size:12px; font-weight:700; color:var(--muted); border:1px solid var(--line);
+  border-radius:999px; padding:4px 11px; background:rgba(0,0,0,.2); }
+.rune-set b{ color:var(--text); }
+.rune-set.on{ color:var(--text); border-color:var(--rune); box-shadow:0 0 0 1px var(--rune) inset; }
+.rune-set-bonus{ color:var(--good); font-weight:800; }
+
+/* kovárna run */
+.rune-forge{ background:var(--panel-2); border:1px solid var(--line); border-radius:12px; padding:10px 12px; margin-bottom:14px; }
+.rune-forge-row{ display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-top:6px; }
+.rune-forge-hint{ font-size:11px; color:var(--muted); }
+.rune-fuse-list{ display:flex; flex-wrap:wrap; gap:6px; }
+.rune-fuse-btn{ border:1px solid var(--rune,var(--line)); border-radius:8px; background:var(--ink); color:var(--text);
+  font-size:11px; font-weight:800; padding:6px 9px; cursor:pointer; transition:background .12s, opacity .12s; }
+.rune-fuse-btn:hover:not(:disabled){ background:#11151f; }
+.rune-fuse-btn:disabled{ opacity:.5; cursor:default; }
+
+/* sklad tácků */
+.rune-stash-head{ display:flex; justify-content:space-between; align-items:baseline; margin-bottom:6px; }
+.rune-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(120px,1fr)); gap:8px; }
+.rune-card{ position:relative; border:2px solid var(--line); border-radius:12px; background:var(--panel-2);
+  padding:10px 8px; text-align:center; display:flex; flex-direction:column; align-items:center; gap:2px;
+  cursor:pointer; transition:border-color .12s, transform .1s; }
+.rune-card:hover{ transform:translateY(-1px); border-color:var(--rune); }
+.rune-card.selected{ border-color:var(--gold); box-shadow:0 0 0 1px var(--gold) inset; }
+.rune-card-name{ font-size:12px; font-weight:800; margin-top:4px; }
+.rune-card-tier{ font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.04em; }
+.rune-card-stat{ font-size:12px; font-weight:800; color:var(--good); margin-top:2px; }
+
 @media (max-width:520px){
   .equip-slots{ grid-template-columns:1fr; }
   .inv-grid{ grid-template-columns:repeat(auto-fill,minmax(130px,1fr)); }
   .pet-grid{ grid-template-columns:repeat(auto-fill,minmax(130px,1fr)); }
   .album-grid{ grid-template-columns:repeat(auto-fill,minmax(100px,1fr)); }
+  .rune-grid{ grid-template-columns:repeat(auto-fill,minmax(104px,1fr)); }
+  .rune-legend{ grid-template-columns:1fr 1fr; }
 }
 
 /* ---------- Světový boss ---------- */
@@ -883,6 +960,14 @@ body{
 .wb-hp .hpfill.expired{ background:linear-gradient(90deg,var(--red-dark),#7a1820); }
 
 .punch-btn:disabled{ opacity:.55; cursor:default; transform:none; box-shadow:0 6px 0 var(--red-dark); }
+
+/* nálož smashe — proužek pod fotkou; plní se tvými údery, při plné se odpálí celý příspěvek */
+.wb-smash{ position:relative; width:min(300px,90%); height:20px; margin:16px 0 2px; border-radius:8px;
+  background:#0a0c12; border:1px solid var(--line); overflow:hidden; }
+.wb-smash .fill{ position:absolute; inset:0; width:0; background:linear-gradient(90deg,#ff8a2b,#ffd23f);
+  transition:width .07s linear; }
+.wb-smash .num{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+  font-size:11px; font-weight:800; letter-spacing:.05em; color:#fff; text-shadow:0 1px 2px #000; z-index:1; }
 
 .wb-power{ margin-top:12px; font-size:12px; color:var(--muted); text-align:center; line-height:1.55; }
 .wb-power b{ color:var(--text); font-weight:800; }
@@ -955,5 +1040,118 @@ body{
 .wb-foot b{ color:var(--text); }
 
 @media (max-width:520px){ .wb-name{ font-size:22px; } .wb-emoji{ font-size:40px; } }
+
+/* ----------------------------- zaklínací stůl (✨ enchanting) -----------------------------
+   Tajemné runy (Starší futhark) + „interesting font" MedievalSharp + zlatý sink. */
+.forge-btn.enchant{ color:#c9b3ff; font-family:'MedievalSharp',serif; letter-spacing:.02em; }
+.forge-btn.enchant:hover:not(:disabled){ border-color:#9a7bff; background:#15101f; }
+
+.inv-enchants{ list-style:none; margin:6px 0 0; padding:0; display:flex; flex-wrap:wrap; gap:4px; }
+.inv-enchants li{ font-size:10.5px; font-weight:800; color:#d9c8ff; background:rgba(120,90,255,.16);
+  border:1px solid rgba(150,120,255,.35); border-radius:6px; padding:1px 6px; }
+
+.popup-content.enchant-modal{ max-width:560px; text-align:center;
+  background:radial-gradient(120% 100% at 50% 0%, #1a1430, var(--panel) 70%); }
+.ench-title{ font-family:'MedievalSharp',serif; color:#d9c8ff; letter-spacing:.04em;
+  text-shadow:0 0 12px rgba(150,110,255,.5); margin-bottom:14px; }
+
+.ench-item{ display:flex; align-items:center; gap:12px; text-align:left; border:1px solid var(--line);
+  border-left:4px solid var(--rc,#9a7bff); border-radius:12px; background:rgba(0,0,0,.25); padding:10px 12px; margin-bottom:14px; }
+.ench-item-img{ width:54px; height:54px; object-fit:contain; flex:none; }
+.ench-item-emoji{ font-size:42px; line-height:1; width:54px; text-align:center; flex:none; }
+.ench-item-info{ flex:1; min-width:0; }
+.ench-item-name{ font-weight:900; font-size:15px; }
+.ench-item-sub{ font-size:12px; color:var(--muted); margin-top:2px; }
+.ench-item-lvl{ margin-left:8px; color:#c9b3ff; font-weight:800; }
+.ench-item-stats{ list-style:none; margin:6px 0 0; padding:0; display:flex; flex-wrap:wrap; gap:4px; }
+.ench-item-stats li{ font-size:11px; font-weight:800; color:#d9c8ff; background:rgba(120,90,255,.16);
+  border:1px solid rgba(150,120,255,.3); border-radius:6px; padding:1px 6px; }
+
+.ench-hint{ font-size:12.5px; color:var(--muted); margin:0 0 14px; }
+
+.ench-offers{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+@media (max-width:520px){ .ench-offers{ grid-template-columns:1fr; } }
+.ench-offer{ border:1px solid var(--line); border-top:3px solid var(--glow,#9a7bff); border-radius:12px;
+  background:var(--panel-2); padding:12px 10px; display:flex; flex-direction:column; align-items:center; gap:7px; }
+.ench-offer-tier{ font-size:10px; text-transform:uppercase; letter-spacing:.1em; color:var(--muted); font-weight:800; }
+.ench-glyph{ font-family:'MedievalSharp',serif; font-size:26px; line-height:1.15; color:var(--glow,#c9b3ff);
+  word-break:break-all; letter-spacing:.08em; text-shadow:0 0 10px rgba(150,110,255,.55); min-height:34px; }
+.ench-offer-name{ font-family:'MedievalSharp',serif; font-size:13px; font-weight:700; color:var(--text); }
+.ench-offer-effect{ font-size:12px; font-weight:800; color:var(--good); }
+.ench-pick{ margin-top:auto; width:100%; border:1px solid var(--glow,#9a7bff); border-radius:9px;
+  background:rgba(120,90,255,.14); color:#e9e3ff; font-family:'Anton',sans-serif; font-size:13px; letter-spacing:.02em;
+  padding:8px 6px; cursor:pointer; transition:background .15s, transform .06s; }
+.ench-pick:hover:not(:disabled){ background:rgba(120,90,255,.3); }
+.ench-pick:active:not(:disabled){ transform:translateY(1px); }
+.ench-pick:disabled{ opacity:.4; cursor:not-allowed; }
+
+.ench-actions{ margin-top:14px; }
+.ench-reroll{ border:1px solid var(--line); border-radius:10px; background:var(--ink); color:var(--text);
+  font-weight:800; font-size:13px; padding:9px 16px; cursor:pointer; transition:border-color .15s; }
+.ench-reroll:hover:not(:disabled){ border-color:#9a7bff; }
+.ench-reroll:disabled{ opacity:.4; cursor:not-allowed; }
+
+.ench-maxed{ padding:18px 0; }
+.ench-maxed-glyph{ font-family:'MedievalSharp',serif; font-size:40px; color:#c9b3ff; letter-spacing:.1em;
+  text-shadow:0 0 14px rgba(150,110,255,.6); }
+.ench-maxed p{ font-size:13px; color:var(--muted); margin-top:6px; }
+
+.ench-footer{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:18px;
+  border-top:1px solid var(--line); padding-top:12px; }
+.ench-gold{ font-family:'Anton',sans-serif; font-size:18px; color:var(--gold); }
+.ench-done{ border:none; border-radius:10px; background:var(--red); color:#fff; font-family:'Anton',sans-serif;
+  font-size:14px; letter-spacing:.03em; padding:9px 22px; cursor:pointer; box-shadow:0 4px 0 var(--red-dark); }
+.ench-done:active{ transform:translateY(2px); box-shadow:0 2px 0 var(--red-dark); }
+
+/* ----------------------------- mistrovská mřížka (🔱 mastery tree) ----------------------------- */
+.popup-content.mastery-modal{ max-width:720px; max-height:88vh; overflow-y:auto; text-align:left; }
+.popup-content.mastery-modal h2{ text-align:center; }
+.mastery-head{ font-size:12px; color:var(--muted); text-align:center; margin:0 0 4px; }
+.mastery-head b{ color:#ffd86b; }
+.mastery-total{ font-size:13px; color:var(--text); text-align:center; margin:0 0 14px; }
+.mastery-total b{ color:#7fc8ff; }
+.mastery-foot{ font-size:10.5px; color:var(--muted); text-align:center; margin:14px 0 0; line-height:1.35; }
+
+.mastery-trees{ display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
+@media (max-width:680px){ .mastery-trees{ grid-template-columns:1fr; } }
+
+.mtree{ border:1px solid var(--line); border-top:2px solid var(--tree,#888); border-radius:12px;
+  padding:10px 9px; background:rgba(0,0,0,.18); }
+.mtree-head{ display:flex; align-items:center; gap:6px; }
+.mtree-emoji{ font-size:18px; line-height:1; }
+.mtree-name{ font-family:'Anton',sans-serif; font-size:15px; color:var(--tree,#fff); letter-spacing:.02em; }
+.mtree-pts{ margin-left:auto; font-size:11px; color:var(--muted); font-weight:700; }
+.mtree-desc{ font-size:10.5px; color:var(--muted); margin:3px 0 8px; line-height:1.3; min-height:26px; }
+
+.mtier{ padding-top:6px; margin-top:6px; border-top:1px dashed var(--line); }
+.mtier:first-of-type{ border-top:none; margin-top:0; padding-top:0; }
+.mtier.locked{ opacity:.55; }
+.mtier-gate{ font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:.08em; margin-bottom:5px; }
+.mtier.locked .mtier-gate{ color:#ff9a8a; }
+.mtier-nodes{ display:flex; flex-direction:column; gap:6px; }
+
+.mnode{ display:grid; grid-template-columns:auto 1fr auto; grid-template-rows:auto auto; column-gap:8px;
+  align-items:center; text-align:left; border:1px solid var(--line); border-radius:10px; padding:7px 9px;
+  background:rgba(255,255,255,.02); color:var(--text); cursor:pointer;
+  transition:border-color .12s, background .12s, transform .06s; }
+.mnode:hover:not(:disabled){ border-color:var(--tree,#888); background:rgba(255,255,255,.05); }
+.mnode:active:not(:disabled){ transform:translateY(1px); }
+.mnode:disabled{ cursor:default; }
+.mnode-emoji{ grid-row:1 / span 2; font-size:20px; line-height:1; }
+.mnode-name{ font-weight:800; font-size:12.5px; }
+.mnode-rank{ font-family:'Anton',sans-serif; font-size:13px; color:var(--tree,#fff); justify-self:end; }
+.mnode-bonus{ grid-column:2 / span 2; font-size:10.5px; color:var(--muted); line-height:1.25; }
+.mnode.owned{ border-color:var(--tree,#888); background:rgba(255,255,255,.045); }
+.mnode.owned .mnode-bonus{ color:#cdd3e2; }
+.mnode.keystone{ border-width:1.5px; box-shadow:inset 0 0 16px rgba(255,255,255,.04); }
+.mnode.keystone .mnode-name::after{ content:" ⭐"; }
+.mnode.maxed .mnode-rank{ color:#7ce0a3; }
+.mnode.locked{ opacity:.6; }
+.mnode.locked:hover{ border-color:var(--line); background:rgba(255,255,255,.02); }
+
+/* topbar 🔱 měna — klikací, vede do mřížky */
+.currency.mastery{ border-color:rgba(127,200,255,.35); cursor:pointer; font:inherit; text-align:left; }
+.currency.mastery .value{ color:#7fc8ff; }
+.currency.mastery:hover{ border-color:rgba(127,200,255,.6); }
 
 @media (prefers-reduced-motion: reduce){ *{animation-duration:.01ms !important;} }

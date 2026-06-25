@@ -5,7 +5,7 @@
 import { useEngine, useEngineSelector, shallowEqual } from '../../hooks/useEngine.js';
 import {
   PETS_CFG, PET_LIST, PET_COUNT,
-  petBonusLabel, petLevelCap,
+  petBonusLabel, petLevelCap, allPetsMaxed,
 } from '../../game/data/pets.js';
 import { fmt } from '../../game/format.js';
 import Modal from './Modal.jsx';
@@ -19,21 +19,27 @@ const selectSig = (s) => ({
   pets: PET_LIST.map((p) => p.id + (s.pets?.[p.id]?.level || 0)).join(','),
 });
 
-/* Panel vajec: kolik máš nevylíhnutých + vylíhnout (ruleta) / vše naráz. */
-function EggPanel({ engine, eggs }) {
+/* Panel vajec: kolik máš nevylíhnutých + vylíhnout (ruleta) / vše naráz.
+   allMaxed = sběr kompletní → vejce už nepadají (viz engine.maybeDropEgg), proto
+   místo „padají z nepřátel" ukážeme, že je hotovo. */
+function EggPanel({ engine, eggs, allMaxed }) {
   return (
     <div className="pet-eggs">
       <div className="pet-eggs-head">
         <span className="inv-summary-label">Vejce 🥚 — vylíhni mazlíčka</span>
         <span className="pet-eggs-count">{eggs}× 🥚</span>
       </div>
-      {eggs < 1 ? (
-        <p className="chest-empty">Zatím žádná vejce — padají z nepřátel (hlavně z bossů; Eki Archón dává zaručeně). Mazlíček se vylíhne až z vejce.</p>
-      ) : (
+      {eggs >= 1 && (
         <div className="chest-btns" style={{ marginTop: 6 }}>
           <button className="chest-btn" onClick={() => engine.openEgg()}>Vylíhnout 🥚</button>
           {eggs > 1 && <button className="chest-btn" onClick={() => engine.openAllEggs()} title="Vylíhnout vše bez animace">Vše ({eggs})</button>}
         </div>
+      )}
+      {eggs < 1 && !allMaxed && (
+        <p className="chest-empty">Zatím žádná vejce — padají z nepřátel (hlavně z bossů; Eki Archón dává zaručeně). Mazlíček se vylíhne až z vejce.</p>
+      )}
+      {allMaxed && (
+        <p className="chest-empty">🏆 Všichni mazlíčci na MAX — sběr kompletní, vejce už nepadají{eggs >= 1 ? ' (zbylá dají jen úlomky 💠)' : ''}.</p>
       )}
     </div>
   );
@@ -107,7 +113,7 @@ export default function PetsModal({ onClose }) {
     <Modal onClose={onClose} className="pets-modal">
       <h2>🐾 Mazlíčci <span className="pet-collected">{ownedCount}/{PET_COUNT}</span></h2>
 
-      <EggPanel engine={engine} eggs={s.eggs || 0} />
+      <EggPanel engine={engine} eggs={s.eggs || 0} allMaxed={allPetsMaxed(s.pets)} />
 
       {equippedDef ? (
         <div className="pet-active">

@@ -48,11 +48,11 @@ async function finalizeBoss(client, boss, outcome, nowMs) {
     [boss.id],
   );
   for (let i = 0; i < rows.length; i++) {
-    const { doves, dust } = worldBossReward(i + 1, outcome);
+    const { doves, dust, chests } = worldBossReward(i + 1, outcome);
     await client.query(
-      `update world_boss_contrib set reward_doves = $2, reward_dust = $3
-        where boss_id = $1 and player_id = $4`,
-      [boss.id, doves, dust, rows[i].player_id],
+      `update world_boss_contrib set reward_doves = $2, reward_dust = $3, reward_chests = $4
+        where boss_id = $1 and player_id = $5`,
+      [boss.id, doves, dust, chests, rows[i].player_id],
     );
   }
 }
@@ -207,13 +207,14 @@ export async function getWorldBossView(seasonId, playerId, nowMs = Date.now()) {
     const ur = await query(
       `select coalesce(sum(c.reward_doves), 0)::int as doves,
               coalesce(sum(c.reward_dust), 0)::int as dust,
+              coalesce(sum(c.reward_chests), 0)::int as chests,
               count(*)::int as n
          from world_boss_contrib c join world_bosses b on b.id = c.boss_id
         where b.season_id = $1 and c.player_id = $2
           and c.reward_doves is not null and c.claimed_at is null`,
       [seasonId, playerId],
     );
-    if (ur.rows[0].n > 0) unclaimed = { doves: ur.rows[0].doves, dust: ur.rows[0].dust, count: ur.rows[0].n };
+    if (ur.rows[0].n > 0) unclaimed = { doves: ur.rows[0].doves, dust: ur.rows[0].dust, chests: ur.rows[0].chests, count: ur.rows[0].n };
   }
 
   return { boss: shapeBoss(boss), top, fighters, me, unclaimed };
@@ -227,10 +228,11 @@ export async function claimWorldBossRewards(seasonId, playerId) {
        from world_bosses b
       where b.id = c.boss_id and b.season_id = $1 and c.player_id = $2
         and c.reward_doves is not null and c.claimed_at is null
-      returning c.reward_doves, c.reward_dust`,
+      returning c.reward_doves, c.reward_dust, c.reward_chests`,
     [seasonId, playerId],
   );
   const doves = rows.reduce((a, r) => a + r.reward_doves, 0);
   const dust = rows.reduce((a, r) => a + r.reward_dust, 0);
-  return { doves, dust, count: rows.length };
+  const chests = rows.reduce((a, r) => a + (r.reward_chests || 0), 0);
+  return { doves, dust, chests, count: rows.length };
 }

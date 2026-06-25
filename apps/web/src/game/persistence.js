@@ -1,6 +1,6 @@
 /* Ukládání / načítání + offline výdělek. */
 import { CONFIG } from './config.js';
-import { createState, createAlbum } from './initialState.js';
+import { createState, createAlbum, createMastery } from './initialState.js';
 import { totalDps, goldMult, enemyReward, forgivenessGain } from './formulas.js';
 import { gearPower } from './data/items.js';
 import { petPower } from './data/pets.js';
@@ -59,6 +59,15 @@ export function buildSnapshot(state) {
     pets: state.pets,
     equippedPet: state.equippedPet,
     eggs: state.eggs, // nevylíhnutá vejce (pendingEgg se ZÁMĚRNĚ neukládá — viz hydrate)
+    // runy & sokety: sklad nevsazených run (vsazené runy jedou uvnitř equipment/inventory)
+    runesUnlocked: state.runesUnlocked,
+    runes: state.runes,
+    // zaklínání: jen příznak odemčení (zaklínadla jedou uvnitř equipment/inventory;
+    // pendingEnchant se ZÁMĚRNĚ neukládá — viz hydrate)
+    enchantingUnlocked: state.enchantingUnlocked,
+    // mistrovská mřížka 🔱: nevyutracené body + ranky uzlů (aditivní — starý save = prázdná)
+    masteryUnlocked: state.masteryUnlocked,
+    mastery: state.mastery,
     runGearPower: state.runGearPower,
     // elixíry: aktivní buff (until = epoch ms) + sklad (aditivní — starý save bez nich = prázdný)
     elixir: state.elixir,
@@ -116,6 +125,17 @@ export function hydrateState(d) {
   state.equippedPet = d.equippedPet || null;
   state.eggs = d.eggs || 0;
   state.pendingEgg = null; // líhnutí je už zaúčtované (stejně jako pendingOpen) → po reloadu pryč
+  // runy & sokety (starý save → prázdné); vsazené runy se načtou uvnitř equipment/inventory
+  state.runesUnlocked = !!d.runesUnlocked;
+  state.runes = Array.isArray(d.runes) ? d.runes : [];
+  // zaklínání (zaklínadla jedou uvnitř equipment/inventory); stůl je přechodný → po reloadu pryč
+  state.enchantingUnlocked = !!d.enchantingUnlocked;
+  state.pendingEnchant = null;
+  // mistrovská mřížka 🔱 (starý save → prázdná); přežívá rebirth, mizí jen s koncem sezóny
+  state.masteryUnlocked = !!d.masteryUnlocked;
+  state.mastery = (d.mastery && typeof d.mastery === 'object' && d.mastery.nodes)
+    ? { points: d.mastery.points || 0, nodes: { ...d.mastery.nodes } }
+    : createMastery();
   state.runGearPower = d.runGearPower || gearPower(state.equipment) * petPower(state);
   // elixíry: sklad (aditivní) + běžící buff jen pokud ještě nevypršel (jinak zahodit)
   state.elixirStock = (d.elixirStock && typeof d.elixirStock === 'object') ? d.elixirStock : {};

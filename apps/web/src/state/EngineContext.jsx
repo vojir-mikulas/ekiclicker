@@ -75,6 +75,22 @@ export function EngineProvider({ children }) {
           save(engine.state);
           return engine.state.eggs;
         },
+        // Testování zaklínání: odemkne výbavu + zaklínací stůl (jinak až na lvl 3000).
+        unlockEnchant() {
+          engine.state.inventoryUnlocked = true;
+          engine.state.enchantingUnlocked = true;
+          engine.notify();
+          save(engine.state);
+          return true;
+        },
+        // Testování mřížky: odemkne Mistrovskou mřížku 🔱 + přidá n bodů (jinak až na lvl 4000).
+        addMastery(n = 100) {
+          engine.state.masteryUnlocked = true;
+          engine.state.mastery.points = (engine.state.mastery.points || 0) + Math.max(0, Math.floor(Number(n) || 0));
+          engine.notify();
+          save(engine.state);
+          return engine.state.mastery.points;
+        },
         unlock() {
           engine.state.inventoryUnlocked = true;
           engine.notify();
@@ -84,7 +100,7 @@ export function EngineProvider({ children }) {
       };
       window.eki = cheats;
       window.__eki = cheats; // zpětně kompatibilní alias
-      console.info('%c🥊 eki cheaty: eki.setMoney(1e12) · eki.setLevel(2000) · eki.dropItem(5) · eki.dropChest("golden",3) · eki.dropEgg(5)', 'color:#ffd23f;font-weight:bold');
+      console.info('%c🥊 eki cheaty: eki.setMoney(1e12) · eki.setLevel(4000) · eki.dropItem(5) · eki.dropChest("golden",3) · eki.dropEgg(5) · eki.unlockEnchant() · eki.addMastery(100)', 'color:#ffd23f;font-weight:bold');
     }
 
     return () => {

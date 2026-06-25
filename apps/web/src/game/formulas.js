@@ -10,6 +10,8 @@ import { ACHIEVEMENTS } from './data/achievements.js';
 import { aggregateEquip } from './data/items.js';
 import { equippedPetStats } from './data/pets.js';
 import { albumStats } from './data/album.js';
+import { socketStats } from './data/runes.js';
+import { masteryStats } from './data/mastery.js';
 import { elixirMods } from './data/elixirs.js';
 
 /* Součet afixů z nasazeného vybavení — sdílí ho všechny bojové formulky.
@@ -19,15 +21,18 @@ export function equipStats(s) {
 }
 
 /* Bojové bonusy = afixy výbavy + bonus nasazeného mazlíčka + milníky deníku
-   (vše BOUNDED %, sdílí klíče statů). Tohle čtou bojové formulky místo holého
-   equipStats — mazlíček i deník se tak promítnou všude, kde výbava, BEZ nového
-   exponenciálu. (Deník ZÁMĚRNĚ nemá dmgPct → žádný vliv na obtížnost/blitz.) */
+   + runy v soketech (vše BOUNDED %, sdílí klíče statů). Tohle čtou bojové formulky
+   místo holého equipStats — mazlíček, deník i runy se tak promítnou všude, kde
+   výbava, BEZ nového exponenciálu. (Deník i runy ZÁMĚRNĚ nemají dmgPct → žádný
+   vliv na obtížnost/blitz; jediný dmgPct ze snapshotu zůstává výbava + mazlíček.) */
 export function combatStats(s) {
   const gear = equipStats(s);
   const pet = equippedPetStats(s);
   const album = albumStats(s);
+  const socket = socketStats(s.equipment);
+  const mastery = masteryStats(s); // 🔱 mistrovská mřížka (afixové klíče; bez dmgPct)
   const out = {};
-  for (const k in gear) out[k] = gear[k] + (pet[k] || 0) + (album[k] || 0);
+  for (const k in gear) out[k] = gear[k] + (pet[k] || 0) + (album[k] || 0) + (socket[k] || 0) + (mastery[k] || 0);
   return out;
 }
 
@@ -103,14 +108,16 @@ const capLevel = (s, key) => (s.prestige && s.prestige[key]) || 0;
 
 /* 🕯️ Věčné odpuštění — násobič 🕊 z rebirthu. */
 export const forgivenessMult = (s) => 1 + capLevel(s, 'eternalForgiveness') * CAPS.forgivenessPerLevel;
-/* 🔗 Mistr comba — strop comba (základ + capstone). */
-export const comboCap = (s) => CONFIG.comboMax + capLevel(s, 'comboMaster') * CAPS.comboCapPerLevel;
-/* 🏹 Lovec bossů — víc času na bosse a víc jejich zlata. */
-export const bossTimeMult = (s) => 1 + capLevel(s, 'bossHunter') * CAPS.bossTimePerLevel;
-export const bossGoldMult = (s) => 1 + capLevel(s, 'bossHunter') * CAPS.bossGoldPerLevel;
-/* ⚒️ Klenotník — víc úlomků a vyšší šance na drop. */
-export const dustMult = (s) => 1 + capLevel(s, 'jeweler') * CAPS.dustPerLevel;
-export const dropChanceBonus = (s) => capLevel(s, 'jeweler') * CAPS.dropChancePerLevel;
+/* Capstone-helpery navíc sčítají bounded bonusy z 🔱 mistrovské mřížky (speciální
+   klíče comboCap/bossTime/bossGold/dustPct/dropChance — afixové klíče jedou přes combatStats). */
+/* 🔗 Mistr comba — strop comba (základ + capstone + mřížka 🥁 Rytmus). */
+export const comboCap = (s) => CONFIG.comboMax + capLevel(s, 'comboMaster') * CAPS.comboCapPerLevel + (masteryStats(s).comboCap || 0);
+/* 🏹 Lovec bossů — víc času na bosse a víc jejich zlata (+ mřížka ⏳/👑/💰). */
+export const bossTimeMult = (s) => 1 + capLevel(s, 'bossHunter') * CAPS.bossTimePerLevel + (masteryStats(s).bossTime || 0);
+export const bossGoldMult = (s) => 1 + capLevel(s, 'bossHunter') * CAPS.bossGoldPerLevel + (masteryStats(s).bossGold || 0);
+/* ⚒️ Klenotník — víc úlomků a vyšší šance na drop (+ mřížka ⚒️ Kovář / 🌟 / 🎯 / 👑). */
+export const dustMult = (s) => 1 + capLevel(s, 'jeweler') * CAPS.dustPerLevel + (masteryStats(s).dustPct || 0);
+export const dropChanceBonus = (s) => capLevel(s, 'jeweler') * CAPS.dropChancePerLevel + (masteryStats(s).dropChance || 0);
 
 export function speedMult(s) {
   const raw =

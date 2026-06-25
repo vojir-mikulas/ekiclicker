@@ -1,8 +1,10 @@
 import { useState, useCallback, useRef } from 'react';
 import { useEngineEvent } from '../hooks/useEngine.js';
 import { fmt } from '../game/format.js';
-import { CHESTS, RARITIES } from '../game/data/items.js';
+import { CHESTS, RARITIES, affixLabel } from '../game/data/items.js';
 import { albumBonusText } from '../game/data/album.js';
+import { runeName, runeTierName } from '../game/data/runes.js';
+import { ENCHANTS } from '../game/data/enchants.js';
 
 function rewardText(r) {
   const parts = [];
@@ -69,6 +71,38 @@ export default function ToastHost() {
             title: 'Odemčeni mazlíčci!',
             sub: 'Z nepřátel teď padají vejce 🥚 — vylíhni si parťáka',
           });
+        } else if (type === 'unlock' && payload.feature === 'runes') {
+          push({
+            ico: '🔣',
+            title: 'Odemčeny runy & sokety!',
+            sub: 'Z Archónů padají „Pivní tácky" — vsaď je do výbavy v 🔣 Runách',
+          });
+        } else if (type === 'rune' && !payload.crafted) {
+          push({
+            ico: '🔣',
+            title: payload.full ? 'Sklad run je plný!' : 'Tácek!',
+            sub: payload.full
+              ? `Runa se rozpustila na +${fmt(payload.dust)} 💠 — uvolni místo v 🔣 Runách`
+              : `${runeName(payload)} (${runeTierName(payload)}) — vsaď ho v 🔣 Runách`,
+          });
+        } else if (type === 'unlock' && payload.feature === 'enchanting') {
+          push({
+            ico: '✨',
+            title: 'Odemčen zaklínací stůl!',
+            sub: 'Ve Výbavě 🎒 zaklej kusy za zlato 💰 — tajemné runy, ještě lepší staty',
+          });
+        } else if (type === 'unlock' && payload.feature === 'mastery') {
+          push({
+            ico: '🔱',
+            title: 'Odemčena Mistrovská mřížka!',
+            sub: 'Úrovně nad 4000 sypou Mistrovské body 🔱 — investuj je do stromu',
+          });
+        } else if (type === 'enchant') {
+          push({
+            ico: ENCHANTS[payload.ench]?.emoji || '✨',
+            title: `Zakleto: ${ENCHANTS[payload.ench]?.name || 'runa'}!`,
+            sub: affixLabel({ stat: payload.stat, value: payload.value }) + (payload.maxed ? ' · kus je plně zaklet' : ''),
+          });
         } else if (type === 'egg') {
           push({ ico: '🥚', title: 'Vejce!', sub: 'Vylíhni ho u Mazlíčků 🐾' });
         } else if (type === 'hatchAll') {
@@ -104,9 +138,20 @@ export default function ToastHost() {
           const parts = [];
           if (payload.doves) parts.push(`+${payload.doves} 🕊`);
           if (payload.dust) parts.push(`+${fmt(payload.dust)} 💠`);
+          if (payload.chests) parts.push(`+${payload.chests}× 🐉 Dračí truhla`);
           push({
             ico: '🐲',
             title: 'Odměna za světového bosse!',
+            sub: parts.join(' • ') || '—',
+          });
+        } else if (type === 'raidLoot') {
+          const parts = [];
+          if (payload.gold) parts.push(`+${fmt(payload.gold)} 💰`);
+          if (payload.doves) parts.push(`+${payload.doves} 🕊`);
+          if (payload.dust) parts.push(`+${fmt(payload.dust)} 💠`);
+          push({
+            ico: '🏦',
+            title: 'Lup z trezoru je v bezpečí!',
             sub: parts.join(' • ') || '—',
           });
         }
