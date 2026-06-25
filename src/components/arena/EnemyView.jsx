@@ -13,7 +13,7 @@ export default function EnemyView() {
 
   useEngineEvent(
     useCallback((type) => {
-      if (type === 'hit') {
+      if (type === 'hit' || type === 'react') {
         if (imageMode) {
           setReactSrc(REACTION_IMGS[Math.floor(Math.random() * REACTION_IMGS.length)]);
           setTimeout(() => setReactSrc(null), 600);

@@ -190,6 +190,7 @@ export class FxManager {
     const fromY = window.innerHeight - 40 - Math.floor(i / 4) * 36;
     this.throwProjectile(w.emoji, fromX, fromY, w.flight, 0.8, () => {
       this.shake();
+      this.engine.emit('react'); // i zásah zbraní vymění fotku, nejen otřese
     });
   }
 
