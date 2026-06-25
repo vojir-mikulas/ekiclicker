@@ -1,44 +1,96 @@
 # 👊 Dej mu! — Eki Clicker
 
-Inkrementální „clicker" hra (mlátíš Ekiho), přepsaná z jednoho HTML souboru do
-škálovatelné React + Vite aplikace. Inspirace: Clicker Heroes & Cookie Clicker.
+Inkrementální „clicker" hra (mlátíš Ekiho) + žebříček. **Monorepo** (npm
+workspaces): React/Vite frontend, Express/Postgres backend, Docker.
+Inspirace: Clicker Heroes & Cookie Clicker.
 
 ```bash
-npm install
-npm run dev        # vývojový server
-npm run build      # produkční build (do dist/)
-npm run preview    # náhled produkčního buildu
+npm install        # nainstaluje všechny workspaces
+npm run dev        # web (:5173) + server (:3000) zároveň; /api se proxuje
+npm run build      # produkční build webu (do apps/web/dist/)
+npm run start      # spustí jen server (servíruje build + /api)
+npm run migrate    # spustí DB migrace (potřebuje DATABASE_URL)
 npm run balance    # simulátor vyvážení ekonomiky (greedy hráč)
 npm run smoke      # headless test herního jádra
 npm run lint
 ```
 
-Původní jednosouborová verze je archivovaná v `legacy/index.html`.
+Hra jde hrát **lokálně bez účtu** (výchozí). Žebříček je dobrovolný — připojení
+přezdívkou postup vynuluje (férový start). Bez serveru/DB hra normálně běží,
+jen `/api/*` vrací 503 a žebříček je „offline".
 
-## Architektura
+## Monorepo
+
+```
+apps/
+  web/      # React + Vite frontend (původní hra) — viz „Architektura webu"
+  server/   # Express backend: účty, skóre, žebříček, statika webu
+packages/
+  shared/   # sdílený kontrakt (skóre pole, validace přezdívky, meze anti-cheatu)
+Dockerfile, docker-compose.yml (+ .local) — viz „Nasazení"
+```
+
+### Backend (`apps/server`)
+
+- **Identita = tajný token** v `localStorage` (posílá se jako `Bearer`). Přežije
+  změnu IP (práce ↔ domov). „Kód pro obnovu" = ten token — zadáním na jiném
+  zařízení / po smazání dat obnovíš účet i **uložený postup** (server drží
+  poslední `save_blob`).
+- **IP** se ukládá jen pro audit + měkký limit: max **5 nových účtů / IP / den**
+  (sdílená firemní NAT tak uživí celý tým).
+- **Anti-cheat** (best-effort, ne pevnost): monotonie (skóre neklesá),
+  věrohodnost (úroveň/zabití vůči času hraní), throttle submitů, volitelný HMAC.
+- **Postgres** přes `pg`; migrace v `apps/server/migrations/*.sql` se pustí samy
+  při startu (idempotentně, tabulka `schema_migrations`). Bez `DATABASE_URL`
+  server běží dál, jen `/api/*` → 503.
+
+API: `POST /api/register|recover`, `GET|PATCH|DELETE /api/me`, `POST /api/scores`,
+`GET /api/leaderboard?board=`. Konfigurace v `apps/server/.env.example`.
+
+## Nasazení (Docker)
+
+Produkce — **externí Postgres** přes `DATABASE_URL`:
+
+```bash
+DATABASE_URL=postgres://… HMAC_SECRET=… docker compose up -d --build
+```
+
+Lokální stack i s Postgresem (vývoj):
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.local.yml up --build
+```
+
+Jeden Node proces servíruje statický web i `/api`; migrace proběhnou při startu.
+
+## Architektura webu
 
 Oddělené **herní jádro** (čistá logika, bez Reactu) a **vrstva zobrazení** (React).
 
 ```
-src/
+apps/web/src/
   game/                 # herní jádro — žádný React, žádné DOM
     config.js           #   všechna laditelná čísla + anti-lag stropy
     formulas.js         #   čistá matematika (poškození, DPS, ceny, škálování)
     engine.js           #   imperativní jádro: měnitelný stav + pevný krok smyčky
     initialState.js     #   tovární funkce stavu + reset běhu
-    persistence.js      #   ukládání / načítání / offline výdělek
+    persistence.js      #   ukládání / načítání + sdílený save „blob" (sync/obnova)
     format.js           #   formátování velkých čísel a času
     data/               #   data hry (zbraně, vylepšení, prestige, varianty, úspěchy)
   state/
     engineContext.js    #   React context (oddělený kvůli Fast Refresh)
     EngineContext.jsx   #   provider: vytvoří engine, spustí smyčku, ukládání
+    AccountContext.jsx  #   účet hráče + best-effort synchronizace skóre
+  net/                  #   API klient, builder skóre, hlášky chyb
   hooks/
     useEngine.js        #   useSyncExternalStore selektor (re-render jen při změně řezu)
   effects/
     FxManager.js        #   imperativní vizuální efekty (mimo React, na document.body)
     fxRefs.js
-  components/           #   UI; panely obchodu a modaly jsou lazy (code-splitting)
+  components/           #   UI; obchod, modaly i žebříček jsou lazy (code-splitting)
 ```
+
+Původní jednosouborová verze je archivovaná v `apps/web/legacy/index.html`.
 
 ### Jak to drží vysoký výkon (a neseká)
 

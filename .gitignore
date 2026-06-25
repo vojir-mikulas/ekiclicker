@@ -12,6 +12,10 @@ dist
 dist-ssr
 *.local
 
+# Env soubory (tajné — DATABASE_URL, HMAC_SECRET, …)
+.env
+**/.env
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

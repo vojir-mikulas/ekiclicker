@@ -1,0 +1,22 @@
+# =========================================================================
+# Produkční běh: jediná služba `app`. Postgres je EXTERNÍ (managed) —
+# připoj ho přes DATABASE_URL (v .env nebo prostředí). Migrace se pustí
+# samy při startu serveru.
+#
+#   DATABASE_URL=postgres://... docker compose up -d --build
+#
+# Lokální Postgres pro vývoj: přidej -f docker-compose.local.yml (viz tam).
+# =========================================================================
+services:
+  app:
+    build: .
+    image: ekiclicker
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      NODE_ENV: production
+      # Když DATABASE_URL chybí, server běží bez DB (/api → 503). V produkci nastav!
+      DATABASE_URL: ${DATABASE_URL:-}
+      HMAC_SECRET: ${HMAC_SECRET:-}
+      TRUST_PROXY: ${TRUST_PROXY:-1}
+    restart: unless-stopped

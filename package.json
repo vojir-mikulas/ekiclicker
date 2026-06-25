@@ -1,25 +1,23 @@
 {
-  "name": "ekiclicker",
+  "name": "ekiclicker-monorepo",
   "private": true,
   "version": "1.0.0",
   "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
+    "dev": "concurrently -n web,api -c blue,green \"npm run dev -w @ekiclicker/web\" \"npm run dev -w @ekiclicker/server\"",
+    "build": "npm run build -w @ekiclicker/web",
+    "start": "npm run start -w @ekiclicker/server",
+    "migrate": "npm run migrate -w @ekiclicker/server",
     "lint": "oxlint",
-    "preview": "vite preview",
-    "balance": "node scripts/simulate.js",
-    "smoke": "node scripts/smoke.js"
-  },
-  "dependencies": {
-    "react": "^19.2.7",
-    "react-dom": "^19.2.7"
+    "balance": "npm run balance -w @ekiclicker/web",
+    "smoke": "npm run smoke -w @ekiclicker/web"
   },
   "devDependencies": {
-    "@types/react": "^19.2.17",
-    "@types/react-dom": "^19.2.3",
-    "@vitejs/plugin-react": "^6.0.2",
-    "oxlint": "^1.69.0",
-    "vite": "^8.1.0"
+    "concurrently": "^9.1.0",
+    "oxlint": "^1.69.0"
   }
 }
