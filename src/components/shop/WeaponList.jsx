@@ -15,7 +15,7 @@ export default function WeaponList() {
   const s = engine.state;
 
   return (
-    <div>
+    <div className="shop-scroll">
       {WEAPONS.map((w) => {
         const count = s.weapons[w.id] || 0;
         const owned = count > 0;

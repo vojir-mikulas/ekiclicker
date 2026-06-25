@@ -22,7 +22,7 @@ export default function Achievements() {
         <p className="sub">Splněním získáš trvalé bonusy.</p>
         <span className="ach-progress">{unlocked} / {ACHIEVEMENT_COUNT}</span>
       </div>
-      <div className="ach-grid">
+      <div className="ach-grid shop-scroll">
         {ACHIEVEMENTS.map((a) => {
           const done = !!ach[a.id];
           return (
