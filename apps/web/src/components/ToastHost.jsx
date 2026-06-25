@@ -50,6 +50,25 @@ export default function ToastHost() {
             title: `Otevřeno ${payload.count}× ${CHESTS[payload.tier]?.name || 'bedna'}`,
             sub: parts.join(' • ') || '—',
           });
+        } else if (type === 'unlock' && payload.feature === 'pets') {
+          push({
+            ico: '🐾',
+            title: 'Odemčeni mazlíčci!',
+            sub: 'Z nepřátel teď padají vejce 🥚 — vylíhni si parťáka',
+          });
+        } else if (type === 'egg') {
+          push({ ico: '🥚', title: 'Vejce!', sub: 'Vylíhni ho u Mazlíčků 🐾' });
+        } else if (type === 'hatchAll') {
+          const parts = [];
+          if (payload.news.length) parts.push(`${payload.news.length}× nový`);
+          const ups = Object.values(payload.levels).reduce((a, b) => a + b, 0);
+          if (ups) parts.push(`${ups}× úroveň`);
+          if (payload.dust) parts.push(`+${fmt(payload.dust)} 💠`);
+          push({
+            ico: '🥚',
+            title: `Vylíhnuto ${payload.count}× vejce`,
+            sub: parts.join(' • ') || '—',
+          });
         } else if (type === 'questClaim') {
           push({
             ico: payload.emoji,

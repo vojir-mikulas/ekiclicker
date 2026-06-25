@@ -17,6 +17,8 @@ const AccountModal = lazy(() => import('./modals/AccountModal.jsx'));
 const StatsModal = lazy(() => import('./modals/StatsModal.jsx'));
 const InventoryModal = lazy(() => import('./modals/InventoryModal.jsx'));
 const RouletteModal = lazy(() => import('./modals/RouletteModal.jsx'));
+const PetsModal = lazy(() => import('./modals/PetsModal.jsx'));
+const PetRevealModal = lazy(() => import('./modals/PetRevealModal.jsx'));
 const DailyQuests = lazy(() => import('./modals/DailyQuests.jsx'));
 const Seasons = lazy(() => import('./leaderboard/Seasons.jsx'));
 const PlayerProfile = lazy(() => import('./modals/PlayerProfile.jsx'));
@@ -31,6 +33,7 @@ export default function Game() {
   const [gift, setGift] = useState(null);
   const [profileId, setProfileId] = useState(null); // otevřený profil hráče
   const pendingOpenId = useEngineSelector((s) => s.pendingOpen?.id || null); // běžící ruleta bedny
+  const pendingEggId = useEngineSelector((s) => s.pendingEgg?.id || null); // běžící líhnutí vejce
 
   // jednorázové připsání offline výdělku po načtení
   useEffect(() => {
@@ -58,6 +61,7 @@ export default function Game() {
         onOpenStats={() => setModal('stats')}
         onOpenDaily={() => setModal('daily')}
         onOpenInventory={() => setModal('inventory')}
+        onOpenPets={() => setModal('pets')}
       />
 
       {view === 'game' ? (
@@ -83,6 +87,8 @@ export default function Game() {
         {modal === 'stats' && <StatsModal onClose={() => setModal(null)} />}
         {modal === 'inventory' && <InventoryModal onClose={() => setModal(null)} />}
         {pendingOpenId && <RouletteModal key={pendingOpenId} />}
+        {modal === 'pets' && <PetsModal onClose={() => setModal(null)} />}
+        {pendingEggId && <PetRevealModal key={pendingEggId} />}
         {modal === 'daily' && <DailyQuests onClose={() => setModal(null)} />}
         {offline && <OfflineModal offline={offline} onClose={() => setOffline(null)} />}
         {gift && <GiftModal gift={gift} onClose={() => setGift(null)} />}

@@ -8,11 +8,23 @@ import { UPGRADES } from './data/upgrades.js';
 import { PRESTIGE_ALL } from './data/prestige.js';
 import { ACHIEVEMENTS } from './data/achievements.js';
 import { aggregateEquip } from './data/items.js';
+import { equippedPetStats } from './data/pets.js';
 
 /* Součet afixů z nasazeného vybavení — sdílí ho všechny bojové formulky.
    Čistá funkce nad stavem; vybavení přidává jen BOUNDED % (žádný nový exponenciál). */
 export function equipStats(s) {
   return aggregateEquip(s.equipment);
+}
+
+/* Bojové bonusy = afixy výbavy + bonus nasazeného mazlíčka (oboje BOUNDED %,
+   sdílí klíče statů). Tohle čtou bojové formulky místo holého equipStats —
+   mazlíček se tak promítne všude, kde výbava, BEZ nového exponenciálu. */
+export function combatStats(s) {
+  const gear = equipStats(s);
+  const pet = equippedPetStats(s);
+  const out = {};
+  for (const k in gear) out[k] = gear[k] + (pet[k] || 0);
+  return out;
 }
 
 const WEAPON_COST_GROWTH = 1.15;
@@ -37,7 +49,7 @@ export function achievementMult(achievements) {
 export function globalMult(s) {
   const ach = achievementMult(s.achievements).dmg;
   const frenzy = s.frenzy.active ? CONFIG.frenzyMult : 1;
-  const gear = 1 + equipStats(s).dmgPct; // vybavení: bounded % (NE nový exponenciál)
+  const gear = 1 + combatStats(s).dmgPct; // vybavení + mazlíček: bounded % (NE nový exponenciál)
   return (
     Math.pow(MULT.power, s.upgrades.power) *
     Math.pow(MULT.rage, s.prestige.rage) *
@@ -50,16 +62,16 @@ export function globalMult(s) {
 export function goldMult(s) {
   const ach = achievementMult(s.achievements).gold;
   const fortune = 1 + (s.upgrades.fortune || 0) * MULT.fortuneGoldPerLevel;
-  const gear = 1 + equipStats(s).goldPct;
+  const gear = 1 + combatStats(s).goldPct;
   return (1 + s.prestige.greed * MULT.greedPerLevel) * fortune * ach * gear;
 }
 
 export function critChance(s) {
-  return Math.min(0.9, CONFIG.critChance + s.prestige.crit * MULT.critPerLevel + equipStats(s).critChance);
+  return Math.min(0.9, CONFIG.critChance + s.prestige.crit * MULT.critPerLevel + combatStats(s).critChance);
 }
 /* Krit násobič — základ z CONFIG + gold upgrade "Tvrdý dopad" + vybavení. */
 export function critMult(s) {
-  return CONFIG.critMult + (s.upgrades.critdmg || 0) * MULT.critDmgPerLevel + equipStats(s).critMult;
+  return CONFIG.critMult + (s.upgrades.critdmg || 0) * MULT.critDmgPerLevel + combatStats(s).critMult;
 }
 export function critFactor(s) {
   return 1 + critChance(s) * (critMult(s) - 1);
@@ -67,12 +79,12 @@ export function critFactor(s) {
 
 /* Trvání zuřivosti — základ + gold upgrade "Zuřivá nálož" + vybavení. */
 export function frenzyDuration(s) {
-  return CONFIG.frenzyDurationMs + (s.upgrades.wrath || 0) * MULT.wrathDurMs + equipStats(s).frenzyDur;
+  return CONFIG.frenzyDurationMs + (s.upgrades.wrath || 0) * MULT.wrathDurMs + combatStats(s).frenzyDur;
 }
 
 /* Násobič šance na Lucky Eki — prestige "Štěstí" + vybavení (afix luck). */
 export function luckSpawnMult(s) {
-  return (1 + s.prestige.luck * MULT.luckPerLevel) * (1 + equipStats(s).luck);
+  return (1 + s.prestige.luck * MULT.luckPerLevel) * (1 + combatStats(s).luck);
 }
 
 /* Combo bonus za jeden zásah — základ + gold upgrade "Rytmus". */
@@ -112,7 +124,7 @@ export const milestoneMult = (count) =>
 export function weaponShotDamage(s, w) {
   const count = s.weapons[w.id] || 0;
   if (count <= 0) return 0;
-  return w.baseDmg * count * milestoneMult(count) * globalMult(s) * (1 + equipStats(s).weaponPct);
+  return w.baseDmg * count * milestoneMult(count) * globalMult(s) * (1 + combatStats(s).weaponPct);
 }
 
 export function weaponDps(s, w) {
@@ -132,7 +144,7 @@ export function totalWeaponDps(s) {
 export function basePunch(s) {
   const base = 1 + s.upgrades.punch * MULT.punchStep;
   const fist = 1 + s.prestige.fist * MULT.fistPerLevel;
-  const weapon = 1 + equipStats(s).punchPct;
+  const weapon = 1 + combatStats(s).punchPct;
   return Math.max(1, base * globalMult(s) * fist * weapon);
 }
 

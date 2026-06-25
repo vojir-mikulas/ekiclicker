@@ -645,9 +645,66 @@ body{
 .roul-result-affixes li{ font-size:12px; color:var(--good); font-weight:700; line-height:1.5; }
 .roul-result.miss{ border-color:#3a4258; }
 
+/* ===== Mazlíčci (pozdní endgame) ===== */
+.popup-content.pets-modal{ max-width:600px; max-height:88vh; overflow-y:auto; text-align:left; }
+.popup-content.pets-modal h2{ text-align:center; }
+.pet-collected{ font-size:13px; font-weight:800; color:var(--gold); margin-left:6px; vertical-align:middle; }
+
+/* panel vajec */
+.pet-eggs{ background:var(--panel-2); border:1px solid var(--line); border-radius:12px; padding:10px 12px; margin-bottom:14px; }
+.pet-eggs-head{ display:flex; justify-content:space-between; align-items:baseline; }
+.pet-eggs-count{ font-size:13px; font-weight:800; color:var(--gold); }
+
+/* nasazený mazlíček */
+.pet-active{ background:var(--panel-2); border:1px solid var(--line); border-radius:12px; padding:10px 12px; margin-bottom:14px; }
+.pet-active-row{ display:flex; align-items:center; gap:10px; margin-top:6px; }
+.pet-active-emoji{ font-size:30px; line-height:1; }
+.pet-active-name{ font-size:14px; font-weight:800; }
+.pet-active-name b{ color:var(--gold); }
+.pet-active-bonus{ margin-left:auto; font-size:13px; font-weight:800; color:var(--good); }
+
+/* mřížka mazlíčků */
+.pet-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:8px; margin-bottom:12px; }
+.pet-grid.locked-preview{ margin-top:14px; opacity:.7; }
+.pet-card{ position:relative; border:2px solid var(--line); border-radius:12px; background:var(--panel-2);
+  padding:12px 10px 10px; text-align:center; display:flex; flex-direction:column; align-items:center; gap:2px; }
+.pet-card.equipped{ border-color:var(--gold); box-shadow:0 0 0 1px var(--gold) inset; }
+.pet-card.locked{ opacity:.55; }
+.pet-emoji{ font-size:38px; line-height:1; }
+.pet-card.locked .pet-emoji{ filter:grayscale(1) brightness(.8); }
+.pet-name{ font-weight:800; font-size:14px; margin-top:4px; }
+.pet-sub{ font-size:11px; color:var(--muted); margin-top:2px; }
+.pet-level{ font-size:11px; color:var(--muted); margin-top:3px; }
+.pet-level b{ color:var(--text); }
+.pet-max{ color:var(--gold); font-weight:800; }
+.pet-bonus{ font-size:12px; font-weight:800; color:var(--good); margin-top:3px; }
+.pet-desc{ font-size:11px; color:var(--muted); margin-top:5px; line-height:1.4; }
+.pet-btn{ margin-top:9px; border:1px solid var(--line); border-radius:9px; background:var(--ink); color:var(--text);
+  font-size:12px; font-weight:800; padding:7px 14px; cursor:pointer; transition:background .12s, border-color .12s; }
+.pet-btn.equip:hover{ border-color:var(--gold); background:#11151f; }
+.pet-btn.unequip{ color:var(--muted); }
+.pet-foot{ font-size:11px; color:var(--muted); text-align:center; margin:4px 0 0; }
+
+/* reveal líhnutí */
+.popup-content.pet-reveal-modal{ max-width:420px; text-align:center; }
+.popup-content.pet-reveal-modal h2{ text-align:center; margin-bottom:10px; }
+.egg-stage{ min-height:200px; display:flex; align-items:center; justify-content:center; }
+.egg-shell{ font-size:96px; line-height:1; animation:eggShake .55s ease-in-out infinite; }
+@keyframes eggShake{ 0%,100%{ transform:rotate(-7deg); } 50%{ transform:rotate(7deg); } }
+.pet-reveal{ animation:roulPop .4s cubic-bezier(.2,1.2,.3,1) both; }
+.pet-reveal-emoji{ font-size:84px; line-height:1; filter:drop-shadow(0 0 16px var(--gold)); }
+.pet-reveal-name{ font-weight:900; font-size:20px; margin-top:6px; }
+.pet-reveal-tag{ display:inline-block; font-size:12px; font-weight:800; margin-top:8px; padding:3px 12px; border-radius:999px; }
+.pet-reveal-tag.new{ background:rgba(255,210,63,.16); color:var(--gold); }
+.pet-reveal-tag.up{ background:rgba(70,214,224,.16); color:var(--dust); }
+.pet-reveal-tag.maxed{ background:rgba(0,0,0,.3); color:var(--muted); }
+.pet-reveal-bonus{ font-size:14px; font-weight:800; color:var(--good); margin-top:10px; }
+.pet-reveal-desc{ font-size:12px; color:var(--muted); margin-top:6px; line-height:1.4; }
+
 @media (max-width:520px){
   .equip-slots{ grid-template-columns:1fr; }
   .inv-grid{ grid-template-columns:repeat(auto-fill,minmax(130px,1fr)); }
+  .pet-grid{ grid-template-columns:repeat(auto-fill,minmax(130px,1fr)); }
 }
 
 @media (prefers-reduced-motion: reduce){ *{animation-duration:.01ms !important;} }

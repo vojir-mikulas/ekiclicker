@@ -3,8 +3,9 @@
      - dmg:  trvalý násobič poškození (1.03 = +3 %), kompounduje se přes všechny
      - gold: trvalý násobič zlata
      - forgiveness: jednorázové Odpuštění 🕊
-   ctx = { level, highestLevel, stats, weapons, prestige }
+   ctx = { level, highestLevel, stats, weapons, prestige, pets }
    Odměny jsou malé jednotlivě, ale "každý kousek se počítá" a motivují prozkoumat hru. */
+import { PET_IDS, petLevelCap } from './pets.js';
 
 const tier = (idBase, name, emoji, descFn, valueFn, thresholds, rewardFn) =>
   thresholds.map((t, i) => ({
@@ -127,6 +128,30 @@ export const ACHIEVEMENTS = [
     desc: 'Vymaxuj Zrychlení zbraní (endgame strop)',
     check: (c) => (c.upgrades.speed || 0) >= 80,
     reward: { dmg: 1.1 },
+  },
+  {
+    id: 'pet_tamer',
+    name: 'Krotitel',
+    emoji: '🐾',
+    desc: 'Vylíhni si prvního mazlíčka (úroveň 2000+)',
+    check: (c) => c.pets && Object.keys(c.pets).length >= 1,
+    reward: { dmg: 1.15, gold: 1.15 },
+  },
+  {
+    id: 'pet_collector',
+    name: 'Plná zoo',
+    emoji: '🦉',
+    desc: 'Vlastni všech 6 mazlíčků',
+    check: (c) => c.pets && PET_IDS.every((id) => c.pets[id]),
+    reward: { dmg: 1.3, gold: 1.3 },
+  },
+  {
+    id: 'pet_master',
+    name: 'Nejlepší přítel',
+    emoji: '🐉',
+    desc: 'Vytáhni mazlíčka na maximální úroveň',
+    check: (c) => c.pets && PET_IDS.some((id) => c.pets[id] && c.pets[id].level >= petLevelCap(id)),
+    reward: { dmg: 1.25 },
   },
 ];
 

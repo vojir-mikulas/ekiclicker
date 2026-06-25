@@ -55,7 +55,7 @@ export function boardByKey(key) {
 
 /* ---------- limity proti spamu ---------- */
 export const LIMITS = {
-  perIpDailyAccountCap: 5, // max nových účtů z jedné IP za 24 h
+  perIpDailyAccountCap: 20, // max nových účtů z jedné IP za 24 h
   scoreSubmitMinIntervalMs: 10_000, // server přijme skóre nejvýš ~1×/10 s
   renameMinIntervalMs: 60 * 60 * 1000, // přejmenování max 1×/h
 };

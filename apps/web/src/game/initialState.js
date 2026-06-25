@@ -2,6 +2,7 @@ import { WEAPONS } from './data/weapons.js';
 import { UPGRADE_KEYS } from './data/upgrades.js';
 import { PRESTIGE_KEYS, CAPSTONE_KEYS } from './data/prestige.js';
 import { SLOT_IDS, gearPower } from './data/items.js';
+import { petPower } from './data/pets.js';
 
 export function createWeapons() {
   const w = {};
@@ -45,6 +46,7 @@ export function createStats() {
     peakDps: 0,
     itemsFound: 0,
     chestsFound: 0,
+    eggsFound: 0,
   };
 }
 
@@ -71,7 +73,13 @@ export function createState() {
     dust: 0,                      // úlomky 💠 z rozkladu kořisti (kovárna; přežívá rebirth)
     chests: {},                   // tier -> počet neotevřených beden (přežívá rebirth)
     pendingOpen: null,            // PŘECHODNÝ vizuál rulety (neukládá se; výsledek je už zaúčtovaný)
-    runGearPower: 1,              // snapshot síly vybavení na startu běhu → obtížnost
+    runGearPower: 1,              // snapshot síly vybavení + mazlíčka na startu běhu → obtížnost
+    // --- pozdní endgame: mazlíčci (odemyká se na PETS_CFG.unlockLevel = 2000) ---
+    petsUnlocked: false,          // jednou true → zůstává (přežívá rebirth)
+    pets: {},                     // petId -> { level } — vlastnění mazlíčci (přežívá rebirth)
+    equippedPet: null,            // petId nasazeného mazlíčka | null (jeden naráz; přežívá rebirth)
+    eggs: 0,                      // nevylíhnutá vejce 🥚 (přežívá rebirth)
+    pendingEgg: null,             // PŘECHODNÝ vizuál líhnutí (neukládá se; výsledek je už zaúčtovaný)
     buyAmount: 1,
   };
 }
@@ -89,6 +97,8 @@ export function resetRun(state, startLevel) {
   state.lucky = null;
   state.enemy = null;
   state.pendingOpen = null; // přechodná ruleta — rebirth ji nenese
-  // vybavení/inventář/bedny/úlomky se NEresetují (jako prestige) → snapshot síly do obtížnosti
-  state.runGearPower = gearPower(state.equipment);
+  state.pendingEgg = null;  // přechodné líhnutí — rebirth ho nenese
+  // vybavení/inventář/bedny/úlomky/MAZLÍČCI se NEresetují (jako prestige) → snapshot síly
+  // do obtížnosti (vybavení + nasazený mazlíček, viz formulas.difficultyScale)
+  state.runGearPower = gearPower(state.equipment) * petPower(state);
 }

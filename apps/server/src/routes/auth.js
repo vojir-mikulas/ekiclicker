@@ -26,6 +26,14 @@ import {
 const router = Router();
 const defaultBoard = boardByKey(DEFAULT_BOARD);
 
+/* Denní strop nových účtů na IP — laditelný přes env IP_DAILY_ACCOUNT_CAP,
+   fallback na sdílený LIMITS.perIpDailyAccountCap. */
+function intEnv(name, fallback) {
+  const n = Number.parseInt(process.env[name] ?? '', 10);
+  return Number.isFinite(n) && n > 0 ? n : fallback;
+}
+const PER_IP_DAILY_ACCOUNT_CAP = intEnv('IP_DAILY_ACCOUNT_CAP', LIMITS.perIpDailyAccountCap);
+
 /* Rank hráče v aktivní sezóně (nebo null, když žádná aktivní není / hráč nesoutěží). */
 async function activeRank(playerId) {
   const active = await getActiveSeason();
@@ -40,7 +48,11 @@ router.post('/register', authLimiter, async (req, res, next) => {
 
     const ip = clientIp(req);
     const recent = await countRecentAccountsByIp(ip);
-    if (recent >= LIMITS.perIpDailyAccountCap) {
+    // Diagnostika trust-proxy: rozpoznaná klientská IP u každé registrace.
+    // Když je pořád stejná/privátní adresa pro různé lidi, je špatně nastavené
+    // 'trust proxy' (server vidí proxy místo klienta) a strop pak blokuje všechny.
+    console.info(`[register] IP=${ip} (${recent} účtů/24 h, strop ${PER_IP_DAILY_ACCOUNT_CAP}).`);
+    if (recent >= PER_IP_DAILY_ACCOUNT_CAP) {
       return res.status(429).json({ error: 'Z této IP bylo založeno příliš mnoho účtů.', code: 'ip_cap' });
     }
 

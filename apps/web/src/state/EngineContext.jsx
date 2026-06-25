@@ -45,6 +45,7 @@ export function EngineProvider({ children }) {
           engine.state.level = lvl;
           engine.state.highestLevel = Math.max(engine.state.highestLevel, lvl);
           engine.checkInventoryUnlock(); // setLevel(1000) rovnou odemkne výbavu
+          engine.checkPetsUnlock();      // setLevel(2000) rovnou odemkne mazlíčky
           engine.spawnEnemy();
           engine.notify();
           save(engine.state);
@@ -67,6 +68,14 @@ export function EngineProvider({ children }) {
           save(engine.state);
           return engine.state.chests;
         },
+        // Testování mazlíčků: odemkne a přidá n vajec 🥚.
+        dropEgg(count = 1) {
+          engine.state.petsUnlocked = true;
+          for (let i = 0; i < count; i++) engine.grantEgg();
+          engine.notify();
+          save(engine.state);
+          return engine.state.eggs;
+        },
         unlock() {
           engine.state.inventoryUnlocked = true;
           engine.notify();
@@ -76,7 +85,7 @@ export function EngineProvider({ children }) {
       };
       window.eki = cheats;
       window.__eki = cheats; // zpětně kompatibilní alias
-      console.info('%c🥊 eki cheaty: eki.setMoney(1e12) · eki.setLevel(1000) · eki.dropItem(5)', 'color:#ffd23f;font-weight:bold');
+      console.info('%c🥊 eki cheaty: eki.setMoney(1e12) · eki.setLevel(2000) · eki.dropItem(5) · eki.dropChest("golden",3) · eki.dropEgg(5)', 'color:#ffd23f;font-weight:bold');
     }
 
     return () => {

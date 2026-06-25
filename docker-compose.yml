@@ -19,4 +19,5 @@ services:
       DATABASE_URL: ${DATABASE_URL:-}
       HMAC_SECRET: ${HMAC_SECRET:-}
       TRUST_PROXY: ${TRUST_PROXY:-1}
+      IP_DAILY_ACCOUNT_CAP: ${IP_DAILY_ACCOUNT_CAP:-20}
     restart: unless-stopped

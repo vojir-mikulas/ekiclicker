@@ -3,6 +3,7 @@ import { CONFIG } from './config.js';
 import { createState } from './initialState.js';
 import { totalDps, goldMult, enemyReward, forgivenessGain } from './formulas.js';
 import { gearPower } from './data/items.js';
+import { petPower } from './data/pets.js';
 
 const SAVE_KEY = 'ekiClickerSaveV3';
 /* Staré klíče z předchozích verzí hry. Když je najdeme a nový save chybí,
@@ -51,6 +52,11 @@ export function buildSnapshot(state) {
     inventoryUnlocked: state.inventoryUnlocked,
     dust: state.dust,
     chests: state.chests, // neotevřené bedny (pendingOpen se ZÁMĚRNĚ neukládá — viz hydrate)
+    // pozdní endgame: mazlíčci (aditivní — starý save bez nich se načte prázdný)
+    petsUnlocked: state.petsUnlocked,
+    pets: state.pets,
+    equippedPet: state.equippedPet,
+    eggs: state.eggs, // nevylíhnutá vejce (pendingEgg se ZÁMĚRNĚ neukládá — viz hydrate)
     runGearPower: state.runGearPower,
     buyAmount: state.buyAmount,
     t: Date.now(),
@@ -89,7 +95,13 @@ export function hydrateState(d) {
   // pendingOpen se NEnačítá: výsledek otevření je už zaúčtovaný (kus v inventáři /
   // útěcha v úlomcích) → po reloadu žádná „viselka" rulety = nejde tím nic zcheatovat.
   state.pendingOpen = null;
-  state.runGearPower = d.runGearPower || gearPower(state.equipment);
+  // pozdní endgame: mazlíčci (starý save → prázdné)
+  state.petsUnlocked = !!d.petsUnlocked;
+  state.pets = (d.pets && typeof d.pets === 'object') ? d.pets : {};
+  state.equippedPet = d.equippedPet || null;
+  state.eggs = d.eggs || 0;
+  state.pendingEgg = null; // líhnutí je už zaúčtované (stejně jako pendingOpen) → po reloadu pryč
+  state.runGearPower = d.runGearPower || gearPower(state.equipment) * petPower(state);
   state.buyAmount = d.buyAmount || 1;
   return state;
 }

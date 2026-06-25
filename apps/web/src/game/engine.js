@@ -30,6 +30,7 @@ import {
   salvageValue, rerollCost, rerollItem, upgradeRarityCost, upgradeRarity, nextRarity,
   rollChestResult, buildRouletteStrip, chestMissDust, chestCost,
 } from './data/items.js';
+import { PETS_CFG, rollPetId, petLevelCap } from './data/pets.js';
 
 let nextEnemyId = 1;
 
@@ -45,6 +46,7 @@ export class Engine {
     this._achTimer = 0;
     this._autosaveTimer = 0;
     this._openSeq = 0; // id přechodné rulety (pendingOpen)
+    this._eggSeq = 0;  // id přechodného líhnutí (pendingEgg)
     this._running = false;
     this._dmg = []; // klouzavé okno pro měřené DPS: { t, src, nominal, eff }
     if (!this.state.enemy) this.spawnEnemy();
@@ -171,9 +173,11 @@ export class Engine {
       variantId: s.enemy.variantId, loot,
     });
     this.maybeDropChest(v);
+    this.maybeDropEgg(v);
     s.level++;
     if (s.level > s.highestLevel) s.highestLevel = s.level;
     this.checkInventoryUnlock();
+    this.checkPetsUnlock();
     this.spawnEnemy();
   }
 
@@ -389,6 +393,117 @@ export class Engine {
     return summary;
   }
 
+  /* ---------- mazlíčci (pozdní endgame) ---------- */
+  /* Odemkne se po dosažení PETS_CFG.unlockLevel (nejvyšší úroveň). Trvalý příznak
+     (přežívá rebirth) — stejně jako odemčení výbavy. */
+  checkPetsUnlock() {
+    const s = this.state;
+    if (!s.petsUnlocked && s.highestLevel >= PETS_CFG.unlockLevel) {
+      s.petsUnlocked = true;
+      this.emit('unlock', { feature: 'pets' });
+    }
+  }
+
+  /* Drop vejce 🥚 po zabití — šance dle nepřítele (Archón dává zaručeně).
+     Mazlíček se vylíhne až otevřením vejce (líhnutí). */
+  maybeDropEgg(v) {
+    const s = this.state;
+    if (!s.petsUnlocked) return;
+    let chance;
+    if (v.archon) chance = 1;
+    else if (v.ultra || v.mega) chance = PETS_CFG.eggMegaDropChance;
+    else if (v.boss) chance = PETS_CFG.eggBossDropChance;
+    else chance = PETS_CFG.eggDropChance;
+    if (Math.random() >= chance) return;
+    this.grantEgg();
+  }
+  grantEgg() {
+    const s = this.state;
+    s.eggs = (s.eggs || 0) + 1;
+    s.stats.eggsFound = (s.stats.eggsFound || 0) + 1;
+    this.emit('egg', {});
+  }
+
+  /* Vylíhni jedno vejce. KLÍČOVÉ (anti-exploit, stejně jako bedny): výsledek se
+     ZAÚČTUJE HNED — vejce se spotřebuje, mazlíček se přidá/povýší a stav se uloží.
+     Reveal v UI je jen PŘEHRÁNÍ; zavření okna ani reload s ním nehne (pendingEgg
+     se neukládá → po reloadu je pryč, ale mazlíček už je tvůj a vejce spotřebované). */
+  openEgg() {
+    const s = this.state;
+    if (s.pendingEgg) return;            // jedno líhnutí naráz (anti-spam)
+    if ((s.eggs || 0) < 1) return;
+    s.eggs--;                            // spotřebuj atomicky
+    const res = this._hatchOne();
+    s.pendingEgg = { id: ++this._eggSeq, result: res };
+    save(s);
+    this.notify();
+    this.emit('hatch', res);
+  }
+
+  /* Zaúčtuj jedno líhnutí (mutuje state.pets) a vrať popis výsledku pro UI.
+     Nový mazlíček → level 1 (a auto-nasadí se, když žádný nasazený není);
+     duplikát → +1 úroveň; duplikát na maxu → útěcha v úlomcích 💠. */
+  _hatchOne() {
+    const s = this.state;
+    const petId = rollPetId();
+    const prev = s.pets[petId];
+    const cap = petLevelCap(petId);
+    if (!prev) {
+      s.pets[petId] = { level: 1 };
+      if (!s.equippedPet) s.equippedPet = petId; // první mazlíček se rovnou nasadí
+      return { petId, isNew: true, level: 1, dust: 0 };
+    }
+    if (prev.level >= cap) {
+      const d = PETS_CFG.maxDupeDust;
+      if (d) s.dust = (s.dust || 0) + d;
+      return { petId, isNew: false, level: prev.level, maxed: true, dust: d };
+    }
+    prev.level += 1;
+    return { petId, isNew: false, level: prev.level, dust: 0 };
+  }
+
+  /* Rychlé vylíhnutí VŠECH vajec naráz (bez revealu). Vrátí souhrn pro UI. */
+  openAllEggs() {
+    const s = this.state;
+    const n = s.eggs || 0;
+    if (n < 1 || s.pendingEgg) return null;
+    s.eggs = 0;
+    const news = [];     // petId nově získaných
+    const levels = {};   // petId -> kolik úrovní přibylo
+    let dust = 0;
+    for (let i = 0; i < n; i++) {
+      const res = this._hatchOne();
+      if (res.isNew) news.push(res.petId);
+      else if (!res.maxed) levels[res.petId] = (levels[res.petId] || 0) + 1;
+      dust += res.dust || 0;
+    }
+    save(s);
+    this.notify();
+    const summary = { count: n, news, levels, dust };
+    this.emit('hatchAll', summary);
+    return summary;
+  }
+
+  /* Zavři reveal líhnutí (výsledek je dávno zaúčtovaný). */
+  dismissEgg() {
+    if (!this.state.pendingEgg) return;
+    this.state.pendingEgg = null;
+    this.notify();
+  }
+
+  /* Nasaď mazlíčka (musíš ho vlastnit). NEMĚNÍ runGearPower — jako u výbavy je
+     mazlíček nalezený/posílený v běhu čistý zisk (snapshot do obtížnosti až rebirth). */
+  equipPet(petId) {
+    const s = this.state;
+    if (!s.pets[petId]) return;
+    s.equippedPet = petId;
+    this.afterInventory();
+  }
+  unequipPet() {
+    this.state.equippedPet = null;
+    this.afterInventory();
+  }
+
   /* Poklad za bosse — zlato navíc (+ 🕊 z mega/ultra). Vše laditelné v CONFIG. */
   rollBossLoot(v, reward) {
     let mult = CONFIG.bossLootMult;
@@ -530,6 +645,7 @@ export class Engine {
       weapons: s.weapons,
       upgrades: s.upgrades,
       prestige: s.prestige,
+      pets: s.pets,
       weaponDefs: Object.fromEntries(WEAPONS.map((w) => [w.id, w])),
     };
     for (const a of ACHIEVEMENTS) {
