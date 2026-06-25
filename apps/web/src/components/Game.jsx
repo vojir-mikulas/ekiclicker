@@ -59,7 +59,7 @@ export default function Game() {
       )}
 
       <SideBanners />
-      <EffectsLayer />
+      {view === 'game' && <EffectsLayer />}
       <ToastHost />
 
       <Suspense fallback={null}>
