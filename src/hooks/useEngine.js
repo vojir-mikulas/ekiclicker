@@ -31,6 +31,15 @@ export function useEngineSelector(selector, isEqual = Object.is) {
   return useSyncExternalStore(engine.subscribe, getSnapshot, getSnapshot);
 }
 
+/* Překreslí komponentu KAŽDÝ snímek (sleduje engine.version).
+   Použij pro plynulé hodnoty závislé na čase (boss časomíra, combo okno) —
+   čti `engine.state` + `performance.now()` až v renderu, NIKDY v selektoru
+   (to by rozbilo useSyncExternalStore → nekonečný re-render). */
+export function useEngineFrame() {
+  const engine = useContext(EngineContext);
+  return useSyncExternalStore(engine.subscribe, engine.getVersion, engine.getVersion);
+}
+
 /* Připojení k sémantickým eventům enginu (FX, toasty). Handler může být inline. */
 export function useEngineEvent(handler) {
   const engine = useContext(EngineContext);

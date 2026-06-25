@@ -33,7 +33,7 @@ export default function Arena({ onOpenRebirth }) {
       <button className="punch-btn" ref={(el) => (fxRefs.button = el)} onClick={punch}>
         DEJ MU!
       </button>
-      <div className="punch-hint">Klikej na Ekiho nebo na tlačítko • rychlé klikání spustí zuřivost 😡</div>
+
 
       {gain >= 1 && (
         <button className="forgive-btn" onClick={onOpenRebirth}>

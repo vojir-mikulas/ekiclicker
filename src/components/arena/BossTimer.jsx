@@ -1,17 +1,13 @@
-import { useEngineSelector, shallowEqual } from '../../hooks/useEngine.js';
-
-// remain se počítá v selektoru → mění se každý snímek → bar plyne.
-const select = (s) => {
-  const e = s.enemy;
-  if (!e || !e.deadline) return null;
-  return { remain: Math.max(0, e.deadline - performance.now()), timeLimit: e.timeLimit };
-};
+import { useEngine, useEngineFrame } from '../../hooks/useEngine.js';
 
 export default function BossTimer() {
-  const data = useEngineSelector(select, shallowEqual);
-  if (!data) return null;
-  const { remain, timeLimit } = data;
-  const pct = Math.max(0, (remain / timeLimit) * 100);
+  useEngineFrame(); // překresli každý snímek → bar plyne
+  const engine = useEngine();
+  const e = engine.state.enemy;
+  if (!e || !e.deadline) return null;
+
+  const remain = Math.max(0, e.deadline - performance.now());
+  const pct = Math.max(0, (remain / e.timeLimit) * 100);
   const danger = remain < 5000;
   return (
     <div className="boss-timer">
