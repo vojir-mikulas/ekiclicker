@@ -48,6 +48,7 @@ const ok = e.rebirth();
 assert(ok, 'rebirth proběhl');
 assert(e.state.level === 1, 'po rebirthu zpět na úroveň 1');
 assert(e.state.prestige.forgiveness === forgivenessBefore + gain, 'připsalo odpuštění');
+assert(e.state.highestLevel === e.state.level, 'po rebirthu vynulovaná nejvyšší úroveň');
 assert(e.state.weapons.glove === 0, 'po rebirthu vynulované zbraně');
 assert(e.state.prestige.rebirths === 1, 'počítá rebirthy');
 
