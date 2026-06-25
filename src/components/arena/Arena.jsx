@@ -1,4 +1,5 @@
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
+import { CONFIG } from '../../game/config.js';
 import { useEngine, useEngineSelector } from '../../hooks/useEngine.js';
 import { fxRefs } from '../../effects/fxRefs.js';
 import { fmt } from '../../game/format.js';
@@ -15,7 +16,20 @@ const selectGain = (s) => forgivenessGain(s.highestLevel);
 export default function Arena({ onOpenRebirth }) {
   const engine = useEngine();
   const gain = useEngineSelector(selectGain);
-  const punch = useCallback(() => engine.punch(), [engine]);
+  const lastPunchAt = useRef(0);
+  // Dvě obrany proti autoklikerům, obě na vstupu (engine zůstává čistý kvůli
+  // simulátoru/testům, které volají punch() ve smyčce):
+  //  1) isTrusted === false → umělý klik (el.click() / dispatchEvent) → ignoruj.
+  //  2) strop tempa (~22/s) → klik rychlejší než lidská ruka (i HW autokliker,
+  //     který posílá pravé „trusted" kliky) → ignoruj. Dropnutý klik tím pádem
+  //     nenabíjí ani combo, ani nálož zuřivosti → autoklikání nic nepřináší.
+  const punch = useCallback((e) => {
+    if (!e?.nativeEvent?.isTrusted) return;
+    const now = performance.now();
+    if (now - lastPunchAt.current < CONFIG.minClickMs) return;
+    lastPunchAt.current = now;
+    engine.punch();
+  }, [engine]);
 
   return (
     <div className="arena" ref={(el) => (fxRefs.arena = el)}>

@@ -14,6 +14,7 @@ export default function LuckyEki() {
       style={{ left: lucky.x + '%', top: lucky.y + '%' }}
       title="Lucky Eki — klikni rychle!"
       onClick={(e) => {
+        if (!e.nativeEvent?.isTrusted) return; // jen skutečný klik, ne autokliker
         e.stopPropagation();
         engine.catchLucky();
       }}

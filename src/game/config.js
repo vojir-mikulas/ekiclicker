@@ -50,6 +50,12 @@ export const CONFIG = {
   comboMax: 100, // strop comba
   comboPerHit: 0.015, // +1.5 % poškození za stupeň comba
 
+  // --- anti-cheat ---
+  // Strop tempa kliků (~22/s). Lidská ruka tohle nepřekročí; autokliker ano.
+  // Kontroluje se na vstupu (Arena.jsx) — klik rychlejší než tohle se zahodí,
+  // takže nenabíjí ani combo, ani nálož zuřivosti. Engine zůstává nedotčený.
+  minClickMs: 45,
+
   // --- herní smyčka ---
   tickMs: 100, // sim krok (DPS se aplikuje spojitě)
 

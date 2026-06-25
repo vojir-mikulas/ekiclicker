@@ -5,6 +5,7 @@ import Arena from './arena/Arena.jsx';
 import Shop from './shop/Shop.jsx';
 import EffectsLayer from './EffectsLayer.jsx';
 import ToastHost from './ToastHost.jsx';
+import SideBanners from './SideBanners.jsx';
 
 const SettingsModal = lazy(() => import('./modals/SettingsModal.jsx'));
 const OfflineModal = lazy(() => import('./modals/OfflineModal.jsx'));
@@ -40,6 +41,7 @@ export default function Game() {
         <Shop />
       </div>
 
+      <SideBanners />
       <EffectsLayer />
       <ToastHost />
 

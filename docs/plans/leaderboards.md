@@ -15,6 +15,11 @@ Add an Express backend that:
 is a thin *sync + identity* layer; the local `localStorage` save stays
 authoritative for gameplay, so the game keeps working even if the server is down.
 
+**Local-first, leaderboard opt-in.** Playing locally (no account) is the default
+and always available. Joining the leaderboard is an explicit action that
+**resets all progress to a fresh start** (with a clear warning first) — so the
+leaderboard starts everyone clean and a pre-grinded local save can't be imported.
+
 ## 2. Identity model (DECIDED ✅)
 
 `"one account per IP"` conflicts with `"user changes IP going home from work"`,
@@ -37,11 +42,21 @@ registrant. Resolution:
   migrations table. Run via the container entrypoint *before* the app starts.
 - **Per-IP account creation cap: 5/day.**
 - **Recovery code: yes.**
+- **Local mode is the default; joining the leaderboard resets progress** (DECIDED ✅) —
+  the join action shows a warning, and on confirm performs a `hardReset()` so the
+  player starts the leaderboard from scratch.
+- **Server stores the latest full save blob** (DECIDED ✅, my call — flag if you
+  disagree) — so that *recovery* (new device / cleared browser without using the
+  in-app delete) actually restores your **playable** progress, not just your name
+  on the board. The derived stat columns are still stored separately for ranking +
+  plausibility checks. (In-app "delete progress" wipes the account, so there's
+  nothing to recover after a deliberate delete — see §7.)
 
 ### Still open (non-blocking, default chosen)
 
-- **Leaderboard boards** — default: multiple tabs (level / gold / rebirths / kills).
-  Can trim to a single `highestLevel` board if preferred.
+- **Leaderboard boards** — default: multiple tabs (level / gold / rebirths / kills,
+  + optional **peak true DPS** from §11). Can trim to a single `highestLevel` board
+  if preferred.
 
 ## 4. Target structure (npm workspaces — no extra tooling)
 
@@ -102,6 +117,7 @@ players(
   max_combo       int default 0,
   play_time_ms    bigint default 0,
   achievements    int default 0,
+  save_blob       jsonb,                    -- latest synced full save (for recovery / cross-device restore)
   created_at      timestamptz default now(),
   updated_at      timestamptz default now(),
   renamed_at      timestamptz,
@@ -115,12 +131,12 @@ index on players (created_ip, created_at)
 
 | Method | Route | Purpose | Guards |
 |---|---|---|---|
-| POST | `/api/register` | `{nickname}` -> create player, return `{id, token, recoveryCode}` | nickname valid+free; per-IP cap 5/day; rate limit |
-| POST | `/api/recover` | `{code}` -> validate recovery code, return profile (client keeps code as token) | rate limit |
-| GET  | `/api/me` | profile + current rank | token |
+| POST | `/api/register` | `{nickname}` -> create player, return `{id, token, recoveryCode}` (caller resets local progress first) | nickname valid+free; per-IP cap 5/day; rate limit |
+| POST | `/api/recover` | `{code}` -> validate recovery code, return profile + `save_blob` (client keeps code as token, loads save) | rate limit |
+| GET  | `/api/me` | profile + current rank (+ `save_blob` on demand) | token |
 | PATCH| `/api/me` | rename | token; uniqueness; rename throttle (1x / N h) |
 | DELETE | `/api/me` | wipe account (used by Settings "delete progress") | token |
-| POST | `/api/scores` | push current stats | token; monotonic + plausibility; submit throttle |
+| POST | `/api/scores` | push current stats + `save_blob` | token; monotonic + plausibility; submit throttle |
 | GET  | `/api/leaderboard?board=level` | top-N for a metric | rate limit; short cache |
 | `*`  | (non-`/api`) | serve `apps/web/dist` + SPA fallback | — |
 
@@ -147,20 +163,37 @@ spam cheaply," not perfect integrity.
 
 ## 7. Frontend changes (minimal, matches Czech UI)
 
+- **Two account states**, tracked client-side:
+  - **Local** (default, no token): plays exactly as today. No forced onboarding —
+    the game just starts.
+  - **Joined** (token in `localStorage`): nickname known, stats sync.
 - **Header segmented control** in `TopBar`: `Hra | Žebříček` — drives a top-level
-  view switch in `Game.jsx`.
-- **Nickname onboarding modal**: first load with no token -> ask nickname ->
-  `POST /api/register`. Handles "taken" / "IP cap" errors. Shows **recovery code**
-  once with a "save this" prompt.
-- **Header shows nickname** + edit affordance -> rename modal (`PATCH /api/me`).
-- **Leaderboard view**: ranked table (nickname + chosen stats), tabs per board,
-  current player's row highlighted. Lazy-loaded like other panels.
-- **Sync layer** (`apps/web/src/net/sync.js`): best-effort `POST /api/scores`
-  piggybacking on existing autosave/visibility-hidden hooks; never blocks
-  gameplay; silent-fails offline.
-- **Settings**: (a) wipe (`reset`) now also `DELETE /api/me` + clears local token;
-  (b) shows the **recovery code** + a "recover account" entry field
-  (`POST /api/recover`).
+  view switch in `Game.jsx`. Always available, even in Local mode.
+- **DPS readout in `TopBar`** (auto / punch / true) — see §11. Replaces/augments the
+  current single "DPS (auto)" stat. Backend-independent; works in Local mode too.
+- **Header identity area**:
+  - Local -> shows e.g. "Hraješ lokálně" + a **"Připojit se k žebříčku"** (join) button.
+  - Joined -> shows nickname + edit affordance -> rename modal (`PATCH /api/me`).
+- **Join flow** (the reset-on-join requirement): join button -> **warning modal**
+  ("Připojením k žebříčku se tvůj postup vynuluje a začneš od začátku.") -> on
+  confirm: ask nickname -> `POST /api/register` -> on success **`engine.hardReset()`**
+  + store token -> show **recovery code** once with a "ulož si tohle" prompt.
+  Handles "taken" / "IP cap" errors before resetting (reset only after a
+  successful register).
+- **Leaderboard view**: viewable by **anyone** (read-only ranked table; nickname +
+  chosen stats; tabs per board). In Local mode it shows a "join to compete" CTA;
+  in Joined mode the current player's row is highlighted. Lazy-loaded like other panels.
+- **Sync layer** (`apps/web/src/net/sync.js`): only active when Joined. Best-effort
+  `POST /api/scores` (stats + save blob) piggybacking on existing
+  autosave/visibility-hidden hooks; never blocks gameplay; silent-fails offline.
+- **Settings**:
+  - **Delete progress** (`reset`): in Joined mode also `DELETE /api/me` + clears
+    local token (back to Local mode); in Local mode behaves as today. Warning copy
+    updated to say the leaderboard account is removed too.
+  - **Recovery**: shows the recovery code (Joined) + a "recover account" entry
+    field (`POST /api/recover`) that re-links and **loads the returned save blob**
+    into the engine — bringing back playable progress on a new device / after a
+    cleared browser.
 - **Vite**: add `server.proxy` `/api -> :3000` for dev.
 
 ## 8. Docker
@@ -190,12 +223,48 @@ spam cheaply," not perfect integrity.
 | **3** | Postgres + migrations-on-deploy wiring (schema_migrations + players) | ✅ DB ready |
 | **4** | Identity: register/recover/me/rename/delete, token+recovery code, IP recording, per-IP cap + rate limit | ✅ accounts work |
 | **5** | Score sync + leaderboard API + plausibility/monotonic checks | ✅ leaderboard data flows |
-| **6** | Frontend: segmented header, onboarding + rename + recovery UI, leaderboard view, settings wipe wiring | ✅ full feature visible |
+| **6** | Frontend: segmented header, local/joined states, **join-with-reset warning flow**, rename + recovery UI, leaderboard view, settings wipe wiring | ✅ full feature visible |
 | **7** | Hardening: HMAC, throttles, blocklist, docs | ✅ polish |
 
 Each phase keeps the game fully working; the backend is purely additive.
 
-## 11. Risks / notes
+**Backend-independent workstream — DPS readout (§11):** engine metered DPS +
+`TopBar` auto/punch/true display + `stats.peakDps`. Can land any time (even before
+Phase 1); `peakDps` only becomes a leaderboard field once Phase 5 sync exists.
+
+## 11. DPS readout: auto / punch / true
+
+Show three distinct damage-per-second numbers in `TopBar` (today there's only the
+single `totalDps` "DPS (auto)"):
+
+| Metric | Definition | Source |
+|---|---|---|
+| **Auto DPS** | Passive damage/sec from weapons + shadow fist (steady, theoretical). | `totalDps(state)` — already exists; what TopBar shows now. |
+| **Punch DPS** | Effective damage/sec contributed by *manual clicking*, measured over a short rolling window — includes combo, crit and frenzy *as actually rolled*. Decays to 0 when idle. | new metered value (measured). |
+| **True DPS** | Actual total damage/sec being dealt right now ≈ auto + punch, measured over the same window. Reflects real throughput, including overkill waste. | new metered value (measured). |
+
+### Engine support (small, isolated)
+
+- `applyDamage()` is the single funnel for all damage; `punch()` and `tick()` are
+  the two callers. Tag each call with a source (`'punch'` vs `'auto'`).
+- Maintain a short **sliding-window accumulator** (e.g. last ~1.5 s) of damage per
+  source; recompute each frame (cheap). Expose `meteredDps()` → `{ auto, punch, true }`.
+- Define **Auto DPS** as the theoretical `totalDps(state)` (steady, no jitter) and
+  **Punch/True** as measured. Subtlety to surface in code comments: measured True
+  can sit *below* auto+punch because overkill/boss-escape damage is discarded in
+  `applyDamage` — that's intended and informative.
+- Add `stats.peakDps` (monotonic max of measured True DPS) — feeds an optional
+  leaderboard board (§3) and is naturally plausibility-checkable.
+
+### UI
+
+- Compact grouping in `TopBar` (e.g. `Auto / Úder / Skutečné`), reusing existing
+  `.stat` styling. Punch/True update smoothly via the metered window.
+
+Backend-independent: this can land at any time (even before the monorepo move),
+and `peakDps` only becomes a leaderboard field once Phase 5 sync exists.
+
+## 12. Risks / notes
 
 - **Client-side score forgeability** — mitigated, not eliminated (see §6). Acceptable
   for an office leaderboard; documented.
@@ -204,3 +273,9 @@ Each phase keeps the game fully working; the backend is purely additive.
 - **Multiple app instances + migrations-on-start** — fine for single-instance office
   deploy; if scaled out, run migrations as a one-shot pre-deploy step instead.
 - **Case-insensitive nickname uniqueness** enforced via `nickname_ci` column.
+- **Reset-on-join is destructive** — must be gated behind an explicit warning modal,
+  and the `hardReset()` must run only *after* a successful `POST /api/register`
+  (never reset then fail to register).
+- **Save-blob storage** doesn't materially weaken anti-cheat (the client is already
+  trusted for stats per §6), and the queryable stat columns are still validated
+  independently. It does mean a recovered account restores whatever was last synced.

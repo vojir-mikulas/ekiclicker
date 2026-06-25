@@ -62,6 +62,19 @@ body{
 .game{ display:grid; grid-template-columns:1fr 380px; gap:18px; max-width:1080px; margin:8px auto 40px; padding:0 16px; }
 @media (max-width:880px){ .game{grid-template-columns:1fr; gap:12px; margin-top:4px;} }
 
+/* ---------- Boční bannery 300×600 ---------- */
+.side-banner{ display:none; position:fixed; top:50%; transform:translateY(-50%);
+  width:300px; height:600px; z-index:40; }
+/* zarovnáno do prázdného místa vedle obsahu (sloupec 1080px), 12px mezera od něj */
+.side-banner--left{ left:max(8px, calc(50vw - 540px - 312px)); }
+.side-banner--right{ right:max(8px, calc(50vw - 540px - 312px)); }
+.side-banner-inner{ width:100%; height:100%; border-radius:14px; overflow:hidden;
+  background:var(--panel); border:1px solid var(--line); box-shadow:0 8px 28px rgba(0,0,0,.28);
+  display:flex; align-items:center; justify-content:center; }
+.side-banner-iframe{ display:block; width:300px; height:600px; border:0; }
+/* zobraz jen když je dost místa do stran (1080 + 2×312) i na výšku */
+@media (min-width:1720px) and (min-height:680px){ .side-banner{ display:block; } }
+
 /* ---------- Arena ---------- */
 .arena{
   background:var(--panel); border:1px solid var(--line); border-radius:18px; padding:22px 18px 26px;
