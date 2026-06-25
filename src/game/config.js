@@ -37,14 +37,19 @@ export const CONFIG = {
 
   // --- herní smyčka ---
   tickMs: 100, // sim krok (DPS se aplikuje spojitě)
-  maxDefeatsPerTick: 25, // pojistka proti zamrznutí (žádné "30000 levelů naráz")
 
   // --- offline ---
   offlineCapH: 12, // strop offline výdělku (hodiny)
   offlineRate: 0.5, // offline DPS je poloviční → online hra se vyplatí víc
 
   // --- ANTI-LAG STROPY ---
-  maxProjectiles: 32, // víc létajících emoji se nikdy nezobrazí
+  // FX prvky se RECYKLUJÍ z object-poolů (žádné createElement/remove každý snímek).
+  // Tyto stropy = kolik prvků daného typu smí být živých zároveň; při překročení
+  // se recykluje nejstarší (žádné nové alokace → žádný GC tlak → žádné sekání).
+  maxProjectiles: 32, // víc létajících emoji (zbraně + pěst) se nikdy nezobrazí
+  maxCoins: 96, // strop živých mincí (jeden výbuch jich pustí 18–22)
+  maxFloaters: 40, // strop živých plovoucích čísel/textů zároveň
+  maxPows: 24, // strop živých „POW" bublin zároveň
   maxFloatersPerSec: 18, // strop plovoucích čísel za sekundu
   weaponVisualMinMs: 420, // jedna zbraň pustí projektil nejvýš ~2×/s (jen efekt)
   minWeaponInterval: 200, // logický strop rychlosti palby (ms)

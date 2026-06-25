@@ -87,22 +87,16 @@ export class Engine {
   applyDamage(amount) {
     const e = this.state.enemy;
     if (!e || amount <= 0) return 0;
-    let remaining = amount;
-    let defeats = 0;
-    while (remaining > 0 && defeats < CONFIG.maxDefeatsPerTick) {
-      if (remaining >= e.hp) {
-        remaining -= e.hp;
-        e.hp = 0;
-        this.defeat();
-        defeats++;
-        const ne = this.state.enemy;
-        if (ne.isBoss) break; // u bosse se nepřelévá damage (musí se ubít včas)
-      } else {
-        e.hp -= remaining;
-        remaining = 0;
-      }
+    // Žádné přelévání přebytečného poškození na dalšího nepřítele:
+    // jeden úder / tick porazí NEJVÝŠE jednoho nepřítele → 1 zabití = 1 úroveň
+    // (přebytek se „ztratí“, úrovně už nepřeskakují po 5).
+    if (amount >= e.hp) {
+      e.hp = 0;
+      this.defeat();
+      return 1;
     }
-    return defeats;
+    e.hp -= amount;
+    return 0;
   }
   defeat() {
     const s = this.state;
