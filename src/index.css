@@ -232,6 +232,7 @@ body{
   box-shadow:0 5px 0 var(--red-dark); transition:transform .06s ease, background .2s ease; }
 .offline-claim:hover{ background:#ff5e6b; }
 .offline-claim:active{ transform:translateY(3px); box-shadow:0 2px 0 var(--red-dark); }
+.popup-content.gift .offline-amount{ color:var(--dove); }
 
 .popup-content.settings{ max-width:380px; }
 .settings-stats{ display:flex; gap:10px; flex-wrap:wrap; justify-content:center; margin:0 0 20px; color:var(--muted); font-size:13px; }

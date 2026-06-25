@@ -1,16 +1,19 @@
 /* Ukládání / načítání + offline výdělek. */
 import { CONFIG } from './config.js';
 import { createState } from './initialState.js';
-import { totalDps, goldMult, enemyReward } from './formulas.js';
+import { totalDps, goldMult, enemyReward, forgivenessGain } from './formulas.js';
 
-const SAVE_KEY = 'ekiClickerSaveV2';
+const SAVE_KEY = 'ekiClickerSaveV3';
+/* Staré klíče z předchozích verzí hry. Když je najdeme a nový save chybí,
+   hráč musí začít znovu — ale dostane veteránský dárek za starou snahu. */
+const LEGACY_KEYS = ['ekiClickerSaveV2', 'ekiClickerSave'];
 
 export function save(state) {
   try {
     localStorage.setItem(
       SAVE_KEY,
       JSON.stringify({
-        v: 2,
+        v: 3,
         gold: state.gold,
         level: state.level,
         highestLevel: state.highestLevel,
@@ -36,7 +39,50 @@ export function clearSave() {
   }
 }
 
-/* Vrátí { state, offline } nebo null. Nový/chybějící save → null (čerstvá hra). */
+/* Najde nejlepší starý save (z předchozí verze hry), spočítá veteránský dárek
+   a staré klíče smaže — dárek se tak připíše jen jednou. Vrátí
+   { forgiveness, oldLevel, rebirths } nebo null, když žádný starý save není. */
+function claimLegacyGift() {
+  let best = null;
+  for (const key of LEGACY_KEYS) {
+    let d;
+    try {
+      d = JSON.parse(localStorage.getItem(key) || 'null');
+    } catch {
+      d = null;
+    }
+    if (d) {
+      const lvl = Math.max(Number(d.highestLevel) || 1, Number(d.level) || 1);
+      if (!best || lvl > best.oldLevel) {
+        best = {
+          oldLevel: lvl,
+          rebirths: Number(d.prestige?.rebirths) || 0,
+          leftover: Number(d.prestige?.forgiveness) || 0,
+        };
+      }
+    }
+    try {
+      localStorage.removeItem(key);
+    } catch {
+      /* ignoruj */
+    }
+  }
+  if (!best) return null;
+
+  // Dárek = nevyužité Odpuštění + přepočtený postup + bonus za rebirthy.
+  // Minimum je štědré, ať i začátečník dostane pořádný startovní balík.
+  const forgiveness = Math.max(
+    20,
+    best.leftover + forgivenessGain(best.oldLevel) + best.rebirths * 5
+  );
+  return { forgiveness, oldLevel: best.oldLevel, rebirths: best.rebirths };
+}
+
+/* Vrátí { state, offline, gift } nebo null.
+   - Platný nový save → { state, offline }.
+   - Chybí nový, ale je tu starý (jiná verze hry) → čerstvý stav + veteránský
+     dárek: { state, offline: null, gift }.
+   - Úplně nový hráč → null (čerstvá hra bez dárku). */
 export function load() {
   let d;
   try {
@@ -44,7 +90,14 @@ export function load() {
   } catch {
     return null;
   }
-  if (!d) return null;
+  if (!d) {
+    const gift = claimLegacyGift();
+    if (!gift) return null;
+    const state = createState();
+    state.prestige.forgiveness = gift.forgiveness;
+    save(state); // zamkni dárek hned (pro případ rychlého reloadu)
+    return { state, offline: null, gift };
+  }
 
   const state = createState();
   state.gold = d.gold || 0;

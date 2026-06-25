@@ -9,11 +9,13 @@ import ToastHost from './ToastHost.jsx';
 const SettingsModal = lazy(() => import('./modals/SettingsModal.jsx'));
 const OfflineModal = lazy(() => import('./modals/OfflineModal.jsx'));
 const RebirthModal = lazy(() => import('./modals/RebirthModal.jsx'));
+const GiftModal = lazy(() => import('./modals/GiftModal.jsx'));
 
 export default function Game() {
   const engine = useEngine();
   const [modal, setModal] = useState(null); // 'settings' | 'rebirth' | null
   const [offline, setOffline] = useState(null);
+  const [gift, setGift] = useState(null);
 
   // jednorázové připsání offline výdělku po načtení
   useEffect(() => {
@@ -22,6 +24,11 @@ export default function Game() {
       engine.pendingOffline = null;
       engine.creditOffline(o);
       setOffline(o);
+    }
+    // veteránský dárek (Odpuštění už je ve stavu z load()) — jen ukázat
+    if (engine.pendingGift) {
+      setGift(engine.pendingGift);
+      engine.pendingGift = null;
     }
   }, [engine]);
 
@@ -40,6 +47,7 @@ export default function Game() {
         {modal === 'settings' && <SettingsModal onClose={() => setModal(null)} />}
         {modal === 'rebirth' && <RebirthModal onClose={() => setModal(null)} />}
         {offline && <OfflineModal offline={offline} onClose={() => setOffline(null)} />}
+        {gift && <GiftModal gift={gift} onClose={() => setGift(null)} />}
       </Suspense>
     </>
   );

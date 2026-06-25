@@ -8,6 +8,7 @@ export function EngineProvider({ children }) {
     const loaded = load();
     const e = new Engine(loaded?.state);
     e.pendingOffline = loaded?.offline || null;
+    e.pendingGift = loaded?.gift || null;
     return e;
   });
 
