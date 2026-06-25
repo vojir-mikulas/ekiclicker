@@ -6,6 +6,7 @@ import { clickDamage } from '../game/formulas.js';
 import { claimableCount } from '../game/data/quests.js';
 import DpsReadout from './DpsReadout.jsx';
 import ActiveElixir from './ActiveElixir.jsx';
+import { petEmoji, petName, petBonusLabel } from '../game/data/pets.js';
 
 const select = (s) => ({
   gold: Math.floor(s.gold),
@@ -18,11 +19,13 @@ const select = (s) => ({
   chestCount: s.chests ? Object.values(s.chests).reduce((a, b) => a + b, 0) : 0,
   petsUnlocked: s.petsUnlocked,
   eggCount: s.eggs || 0,
+  equippedPet: s.equippedPet || null,
+  petLevel: (s.equippedPet && s.pets?.[s.equippedPet]?.level) || 0,
   albumNew: s.album?.new || 0,
 });
 
 export default function TopBar({ view, onView, onOpenSettings, onOpenJoin, onOpenAccount, onOpenStats, onOpenDaily, onOpenInventory, onOpenPets, onOpenAlbum }) {
-  const { gold, forgiveness, dust, level, click, daily, invUnlocked, chestCount, petsUnlocked, eggCount, albumNew } = useEngineSelector(select, shallowEqual);
+  const { gold, forgiveness, dust, level, click, daily, invUnlocked, chestCount, petsUnlocked, eggCount, equippedPet, petLevel, albumNew } = useEngineSelector(select, shallowEqual);
   const account = useAccount();
   const wb = useWorldBoss();
 
@@ -72,8 +75,13 @@ export default function TopBar({ view, onView, onOpenSettings, onOpenJoin, onOpe
             🎒{invUnlocked && chestCount > 0 && <span className="topbar-badge">{chestCount}</span>}
           </button>
           {petsUnlocked && (
-            <button className="topbar-btn badged" onClick={onOpenPets} title="Mazlíčci / vejce" aria-label="Mazlíčci">
-              🐾{eggCount > 0 && <span className="topbar-badge">{eggCount}</span>}
+            <button
+              className="topbar-btn badged"
+              onClick={onOpenPets}
+              title={equippedPet ? `${petName(equippedPet)} — ${petBonusLabel(equippedPet, petLevel)}` : 'Mazlíčci / vejce'}
+              aria-label="Mazlíčci"
+            >
+              {equippedPet ? petEmoji(equippedPet) : '🐾'}{eggCount > 0 && <span className="topbar-badge">{eggCount}</span>}
             </button>
           )}
           <button className="topbar-btn badged" onClick={onOpenAlbum} title="Sběratelský deník" aria-label="Sběratelský deník">
@@ -110,6 +118,20 @@ export default function TopBar({ view, onView, onOpenSettings, onOpenJoin, onOpe
         )}
 
         <ActiveElixir />
+
+        {petsUnlocked && equippedPet && (
+          <button
+            className="pet-active"
+            onClick={onOpenPets}
+            title={`Nasazený mazlíček: ${petName(equippedPet)} — klikni pro správu`}
+          >
+            <span className="pet-active-ico">{petEmoji(equippedPet)}</span>
+            <span className="pet-active-txt">
+              <span className="pet-active-name">{petName(equippedPet)}</span>
+              <span className="pet-active-bonus">{petBonusLabel(equippedPet, petLevel)}</span>
+            </span>
+          </button>
+        )}
 
         <div className="topbar-spacer" />
 

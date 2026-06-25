@@ -1,8 +1,8 @@
 /* Světový boss jako PLNÁ ZÁLOŽKA (vedle Hry a Žebříčku) — záměrně vypadá jako
-   hlavní aréna: stejná fotka Ekiho, stejné velké tlačítko „DEJ MU!", combo,
-   plovoucí čísla, shake. Rozdíl: boss má JEDNO sdílené HP (drží server) a tvoje
-   údery + zbraně NABÍJEJÍ tvou „salvu" až po strop daný tvým atestovaným peakDps.
-   Když je salva nabitá a uplynul cooldown, vypustíš ji na sdílené HP. */
+   hlavní aréna: stejná fotka Ekiho, stejné velké tlačítko „DEJ MU!", plovoucí
+   čísla, shake. Rozdíl: boss má JEDNO sdílené HP (drží server) a JEDEN KLIK =
+   jedna rána za tvůj plný příspěvek (strop dává atestovaný peakDps). Pak minuta
+   pauza. Žádné nabíjení salvy ani druhé tlačítko — prostle do něj jednou praštíš. */
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { WORLD_BOSS, worldBossSalvoDamage } from '@ekiclicker/shared';
 import { useWorldBoss } from '../../hooks/useWorldBoss.js';
@@ -14,11 +14,8 @@ import { CONFIG } from '../../game/config.js';
 import { PLACEHOLDER, REACTION_IMGS, REACTION_EMOJI } from '../../game/data/texts.js';
 import { worldBossVariant } from '../../game/data/worldBossVariants.js';
 
-const POLL_MS = 8_000;            // rychlejší polování, dokud je záložka otevřená
-const TICK_MS = 80;               // překreslování proužků / odpočtu / nálože
-const CHARGE_PER_PUNCH = 0.09;    // kolik nálože přidá jeden úder (≈11 úderů = plná)
-const PASSIVE_FILL_SEC = 90;      // nálož se sama (zbraněmi) naplní za ~90 s → údery se vyplatí
-const MIN_EFFORT = 0.1;           // pod tímhle salvu nepustíme (server stejně klampuje na 0,1)
+const POLL_MS = 8_000;   // rychlejší polování, dokud je záložka otevřená
+const TICK_MS = 500;     // živý překreslovák odpočtu („další rána za N s")
 
 const medal = (r) => (r === 1 ? '🥇' : r === 2 ? '🥈' : r === 3 ? '🥉' : null);
 const selectPower = (s) => ({ peakDps: s.stats?.peakDps || 0, click: clickDamage(s), dps: totalDps(s) });
@@ -27,13 +24,10 @@ const eqPower = (a, b) => a.peakDps === b.peakDps && a.click === b.click && a.dp
 export default function WorldBossView({ onJoin, onSelectPlayer }) {
   const wb = useWorldBoss();
   const account = useAccount();
-  const { peakDps, click, dps } = useEngineSelector(selectPower, eqPower);
+  const { peakDps, dps } = useEngineSelector(selectPower, eqPower);
 
-  // nálož + plovoucí čísla + reakční fotka — mimo React state kvůli výkonu
-  const chargeRef = useRef(0);
+  // plovoucí čísla + reakční fotka — mimo React state kvůli výkonu
   const lastPunchAt = useRef(0);
-  const lastTrickleAt = useRef(performance.now());
-  const comboRef = useRef({ count: 0, at: 0 });
   const reactTimer = useRef(0);
   const floatId = useRef(0);
   const wrapRef = useRef(null);
@@ -55,87 +49,46 @@ export default function WorldBossView({ onJoin, onSelectPlayer }) {
     return () => clearInterval(id);
   }, [refresh]);
 
-  // herní ticker: pasivní dobíjení nálože zbraněmi + živý překreslovák
+  // jen živý překreslovák odpočtu („další rána za N s")
   useEffect(() => {
-    lastTrickleAt.current = performance.now();
-    const id = setInterval(() => {
-      const now = performance.now();
-      const dt = (now - lastTrickleAt.current) / 1000;
-      lastTrickleAt.current = now;
-      if (active && chargeRef.current < 1) {
-        chargeRef.current = Math.min(1, chargeRef.current + dt / PASSIVE_FILL_SEC);
-      }
-      setTick((n) => (n + 1) % 1e6);
-    }, TICK_MS);
+    const id = setInterval(() => { setTick((n) => (n + 1) % 1e6); }, TICK_MS);
     return () => clearInterval(id);
-  }, [active]);
+  }, []);
 
   const maxHp = boss?.maxHp || 1;
   const capped = !!me && me.damage >= maxHp * WORLD_BOSS.perPlayerCapFrac;
-  const salvoMax = active ? worldBossSalvoDamage(maxHp, peakDps) : 0;
-  const perPunchHp = Math.max(1, Math.ceil(salvoMax * CHARGE_PER_PUNCH));
+  const salvoDmg = active ? worldBossSalvoDamage(maxHp, peakDps) : 0; // co srazí jedna rána
+  const cdMs = Math.max(0, wb.cooldownUntil - performance.now());
+  const cdReady = cdMs <= 0;
+  const canHit = active && !wb.busy && cdReady && !capped;
 
-  // jeden úder: anti-autokliker (jen trusted pointer + strop tempa), nabití + juice
-  const punch = useCallback((e) => {
-    if (e.button != null && e.button !== 0) return;
-    if (!e.nativeEvent?.isTrusted) return;
-    if (!active || capped) return;
+  // jedna rána: anti-autokliker (jen trusted pointer + strop tempa), pak rovnou
+  // vypustí plný příspěvek na sdílené HP (server effort klampuje, posíláme 1 = max).
+  const doHit = useCallback(async (e) => {
+    if (e?.button != null && e.button !== 0) return;
+    if (e && !e.nativeEvent?.isTrusted) return;
     const now = performance.now();
     if (now - lastPunchAt.current < CONFIG.minClickMs) return;
     lastPunchAt.current = now;
+    if (!active || capped || wb.busy || now < wb.cooldownUntil) return;
 
-    chargeRef.current = Math.min(1, chargeRef.current + CHARGE_PER_PUNCH);
+    const res = await wb.hit(1);
+    if (!res?.ok) return;
 
-    // combo (jen pro pocit, jako v hlavní hře)
-    const c = comboRef.current;
-    c.count = now - c.at < CONFIG.comboWindow ? c.count + 1 : 1;
-    c.at = now;
-
-    // reakční fotka + shake (restart animace přes reflow) + plovoucí „+X HP"
+    // reakční fotka + shake (restart animace přes reflow) + velké plovoucí „−X HP"
     clearTimeout(reactTimer.current);
     if (imageMode) setReactSrc(REACTION_IMGS[(Math.random() * REACTION_IMGS.length) | 0]);
     else setReactEmoji(REACTION_EMOJI[(Math.random() * REACTION_EMOJI.length) | 0]);
     reactTimer.current = setTimeout(() => { setReactSrc(null); setReactEmoji(null); }, 450);
     const el = wrapRef.current;
     if (el) { el.classList.remove('shake'); void el.offsetWidth; el.classList.add('shake'); }
-
     const id = floatId.current++;
-    const f = { id, x: 26 + Math.random() * 48, y: 28 + Math.random() * 30, text: '+' + fmt(perPunchHp) };
-    setFloats((arr) => [...arr, f]);
-    setTimeout(() => setFloats((arr) => arr.filter((x) => x.id !== id)), 760);
-    setTick((n) => (n + 1) % 1e6);
-  }, [active, capped, imageMode, perPunchHp]);
-
-  // vypusť salvu na sdílené HP (server škáluje boundovaný strop tvou náloží = effort)
-  const doFire = useCallback(async () => {
-    const charge = chargeRef.current;
-    if (charge < MIN_EFFORT) return;
-    const res = await wb.hit(charge);
-    if (res?.ok) {
-      chargeRef.current = 0;
-      const id = floatId.current++;
-      const f = { id, x: 50, y: 34, text: '−' + fmt(res.dmg || 0), big: true };
-      setFloats((arr) => [...arr, f]);
-      setTimeout(() => setFloats((arr) => arr.filter((x) => x.id !== id)), 1100);
-    }
-  }, [wb]);
-  const doClaim = useCallback(() => { void wb.claim(); }, [wb]);
-
-  // auto-salva nemá tlačítko „vypustit" — když serverový snapshot ukáže, že mi přibyl
-  // příspěvek (vypálila to auto-salva na pozadí), dej tomu stejnou šťávu jako manuálu.
-  const prevMyDmg = useRef(me?.damage || 0);
-  useEffect(() => {
-    const cur = me?.damage || 0;
-    const prev = prevMyDmg.current;
-    prevMyDmg.current = cur;
-    if (!wb.autoSalvo || cur <= prev) return;
-    const el = wrapRef.current;
-    if (el) { el.classList.remove('shake'); void el.offsetWidth; el.classList.add('shake'); }
-    const id = floatId.current++;
-    const f = { id, x: 50, y: 34, text: '−' + fmt(cur - prev), big: true };
+    const f = { id, x: 50, y: 34, text: '−' + fmt(res.dmg || 0), big: true };
     setFloats((arr) => [...arr, f]);
     setTimeout(() => setFloats((arr) => arr.filter((x) => x.id !== id)), 1100);
-  }, [me?.damage, wb.autoSalvo]);
+  }, [active, capped, imageMode, wb]);
+
+  const doClaim = useCallback(() => { void wb.claim(); }, [wb]);
 
   const claimBanner = wb.unclaimed && (
     <div className="wb-claim">
@@ -185,14 +138,7 @@ export default function WorldBossView({ onJoin, onSelectPlayer }) {
   const hp = Math.max(0, boss.hp);
   const pct = Math.max(0, Math.min(100, (hp / maxHp) * 100));
   const deadlineMs = Math.max(0, new Date(boss.endsAt).getTime() - Date.now());
-  const cdMs = Math.max(0, wb.cooldownUntil - performance.now());
-  const cdReady = cdMs <= 0;
-  const charge = chargeRef.current;
-  const currentSalvo = Math.min(hp, Math.ceil(salvoMax * charge));
-  const fireReady = active && !wb.busy && cdReady && !capped && charge >= MIN_EFFORT;
   const v = worldBossVariant(boss.number);
-  const combo = comboRef.current;
-  const comboOn = active && combo.count > 1 && performance.now() - combo.at < CONFIG.comboWindow;
 
   const tier =
     boss.status === 'defeated' ? '🎉 Komunita ho složila' :
@@ -219,9 +165,7 @@ export default function WorldBossView({ onJoin, onSelectPlayer }) {
           </div>
         )}
 
-        {active && <div className={'combo' + (comboOn ? ' on' : '')}>{comboOn ? `x${combo.count} combo` : ' '}</div>}
-
-        <div className="photo-wrap" ref={wrapRef} onPointerDown={active && !wb.autoSalvo ? punch : undefined}>
+        <div className="photo-wrap" ref={wrapRef} onPointerDown={canHit ? doHit : undefined}>
           <div className="photo-glow" style={{ background: v.glow }} />
           {imageMode ? (
             <img
@@ -245,41 +189,14 @@ export default function WorldBossView({ onJoin, onSelectPlayer }) {
 
         {active ? (
           <>
-            <label className="wb-auto">
-              <input type="checkbox" checked={wb.autoSalvo} onChange={(e) => wb.setAutoSalvo(e.target.checked)} />
-              <span>🤖 Auto salva <i>{wb.autoSalvo ? '— pálí se sama každou minutu' : '— vypnuto, nabíjej salvu údery'}</i></span>
-            </label>
-
-            {wb.autoSalvo ? (
-              <div className="wb-auto-status">
-                {capped ? '💪 Máš svůj max příspěvek'
-                  : !cdReady ? `🤖 Další salva sama za ${Math.ceil(cdMs / 1000)} s`
-                  : '🤖 Pálím salvu…'}
-              </div>
-            ) : (
-              <>
-                {/* salva: kolik HP máš nabito (roste s údery + tvými zbraněmi) */}
-                <div className="wb-salvo">
-                  <span className="lbl">Salva</span>
-                  <div className="fill" style={{ width: Math.round(charge * 100) + '%' }} />
-                  <span className="num">{fmt(currentSalvo)} / {fmt(salvoMax)} HP</span>
-                </div>
-
-                <button className="punch-btn" tabIndex={-1} onPointerDown={punch} disabled={capped}>
-                  {capped ? '💪 MÁŠ MAX' : 'DEJ MU!'}
-                </button>
-
-                <button className="wb-fire" disabled={!fireReady} onClick={doFire}>
-                  {capped ? '💪 Tvůj max příspěvek'
-                    : !cdReady ? `⏱ Salva za ${Math.ceil(cdMs / 1000)} s`
-                    : charge < MIN_EFFORT ? '👊 Nabij salvu údery'
-                    : `💥 Vypustit salvu — ${fmt(currentSalvo)} HP`}
-                </button>
-              </>
-            )}
+            <button className="punch-btn" tabIndex={-1} onPointerDown={canHit ? doHit : undefined} disabled={!canHit}>
+              {capped ? '💪 MÁŠ MAX'
+                : !cdReady ? `⏱ Další rána za ${Math.ceil(cdMs / 1000)} s`
+                : `👊 DEJ MU! − ${fmt(salvoDmg)} HP`}
+            </button>
 
             <div className="wb-power">
-              👊 Úder <b>{fmt(click)}</b> · ⚔️ DPS <b>{fmt(dps)}</b> → strop salvy <b>{fmt(salvoMax)} HP</b>
+              👊 Tvá rána <b>{fmt(salvoDmg)} HP</b> · jednou za minutu · strop dává tvé DPS <b>{fmt(dps)}</b>
               {me && <> · příspěvek <b>{fmt(me.damage)}</b>{me.rank ? <> (#{me.rank})</> : null}</>}
             </div>
           </>
@@ -291,9 +208,8 @@ export default function WorldBossView({ onJoin, onSelectPlayer }) {
       {board}
 
       <p className="wb-foot">
-        Boss má jedno <b>sdílené HP</b> — sejměte ho společně, než vyprší čas. Strop tvé salvy
-        dává tvé nejlepší DPS; vypálit ji jde jednou za minutu. S <b>auto salvou</b> se pálí sama
-        i mimo tuhle záložku — stačí být připojen. Chceš klikat? Vypni ji a nabíjej salvu <b>údery</b>.
+        Boss má jedno <b>sdílené HP</b> — sejměte ho společně, než vyprší čas. Jednou za minutu
+        do něj <b>jednou praštíš</b> za svůj plný příspěvek (strop dává tvé nejlepší DPS).
         Odměny dostane každý, kdo přispěl.
       </p>
     </div>

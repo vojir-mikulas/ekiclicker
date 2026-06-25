@@ -46,6 +46,17 @@ export const FORGE = {
   upgradeGrowth: 2.4,  // cena povýšení × growth^cílový_tier (mythic je drahý)
 };
 
+/* Směnárna úlomků → 🕊 odpuštění (pozdní ODVOD přebytku 💠). Kurz roste s postupem
+   (nejvyšší úroveň), takže zůstává jen TOP-UP, ne náhrada rebirthu (ten dává řádově
+   víc 🕊, viz forgivenessGain). Bezpečné vůči anti-blitz: 🕊→hněv→obtížnost se
+   přiškáluje zpět, takže přebytek úlomků nezpůsobí runaway. */
+export const EXCHANGE = {
+  doveBase: 60,           // minimální cena 1 🕊 v úlomcích (early floor)
+  doveCostPerLevel: 0.5,  // cena 1 🕊 = nejvyšší úroveň × tohle (drahne s postupem)
+};
+export const doveExchangeCost = (level) =>
+  Math.max(EXCHANGE.doveBase, Math.round(Math.max(1, level || 1) * EXCHANGE.doveCostPerLevel));
+
 /* ----------------------------- sady (set bonusy) -----------------------------
    Sada = několik konkrétních základů (po jednom na slot) označených stejným `set`
    v BASES. Nasazení 2/4 kusů přidá bounded-% bonus (počítá se přes aggregateEquip

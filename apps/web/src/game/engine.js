@@ -28,7 +28,7 @@ import {
 import {
   ITEMS, SLOT_IDS, itemScore,
   salvageValue, rerollCost, rerollItem, upgradeRarityCost, upgradeRarity, nextRarity,
-  rollChestResult, buildRouletteStrip, chestMissDust, chestCost,
+  rollChestResult, buildRouletteStrip, chestMissDust, chestCost, doveExchangeCost,
 } from './data/items.js';
 import { PETS_CFG, rollPetId, petLevelCap } from './data/pets.js';
 import { ALBUM, discoveredCount, albumKeyForItem } from './data/album.js';
@@ -360,6 +360,27 @@ export class Engine {
   afterInventory() {
     save(this.state);
     this.notify();
+  }
+
+  /* ---------- směnárna úlomků (💠 → 🕊) ---------- */
+  /* Aktuální kurz: kolik úlomků stojí 1 🕊 (roste s nejvyšší úrovní). */
+  doveExchangeCost() {
+    return doveExchangeCost(this.state.highestLevel);
+  }
+  /* Směň přebytečné úlomky na 🕊 odpuštění. count = počet 🕊, nebo 'max'.
+     Vrací skutečně získané 🕊 (0 = málo úlomků / zamčeno). */
+  exchangeDust(count) {
+    const s = this.state;
+    if (!s.inventoryUnlocked) return 0;
+    const cost = this.doveExchangeCost();
+    const affordable = Math.floor((s.dust || 0) / cost);
+    const n = count === 'max' ? affordable : Math.min(count, affordable);
+    if (n <= 0) return 0;
+    s.dust -= n * cost;
+    s.prestige.forgiveness += n;
+    this.emit('exchange', { doves: n, dust: n * cost });
+    this.afterInventory();
+    return n;
   }
 
   /* ---------- bedny / rulety ---------- */

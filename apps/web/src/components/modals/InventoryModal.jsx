@@ -109,7 +109,7 @@ function InvCard({ item, equipped, dust, onEquip, onDiscard, onReroll, onUpgrade
     <div
       ref={setNodeRef}
       className={'inv-card' + (isDragging ? ' dragging' : '')}
-      style={{ borderColor: rarityColor(item) }}
+      style={{ '--rc': rarityColor(item) }}
     >
       <button
         className="inv-discard"
@@ -130,7 +130,7 @@ function InvCard({ item, equipped, dust, onEquip, onDiscard, onReroll, onUpgrade
       >
         <SetBadge item={item} />
         <ItemIcon item={item} />
-        <div className="inv-name" style={{ color: rarityColor(item) }}>{itemName(item)}</div>
+        <div className="inv-name">{itemName(item)}</div>
         <RarityLine item={item} />
         <UpgradeBadge item={item} equipped={equipped} />
         <Affixes item={item} />
@@ -148,7 +148,7 @@ function EquipSlot({ slot, item, dust, onUnequip, onReroll, onUpgrade }) {
     <div
       ref={setNodeRef}
       className={'equip-slot' + (isOver ? ' over' : '') + (item ? ' filled' : '')}
-      style={item ? { borderColor: rarityColor(item) } : undefined}
+      style={item ? { '--rc': rarityColor(item) } : undefined}
     >
       <div className="equip-slot-head">{slot.emoji} {slot.name}</div>
       {item ? (
@@ -166,7 +166,7 @@ function EquipSlot({ slot, item, dust, onUnequip, onReroll, onUpgrade }) {
           >
             <SetBadge item={item} />
             <ItemIcon item={item} />
-            <div className="inv-name" style={{ color: rarityColor(item) }}>{itemName(item)}</div>
+            <div className="inv-name">{itemName(item)}</div>
             <RarityLine item={item} />
             <Affixes item={item} />
           </div>
@@ -218,6 +218,33 @@ function ChestPanel({ engine, dust }) {
         </div>
         <div className="chest-btns">
           <button className="chest-btn buy" disabled={dust < dustCost} onClick={() => engine.buyDustChest()}>Vykovat 💠{fmt(dustCost)}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* Směnárna: přebytečné úlomky 💠 → 🕊 odpuštění (prestige). Kurz roste s úrovní,
+   takže je to odvod přebytku, ne hlavní zdroj 🕊 (rebirth dává řádově víc). */
+function DustExchange({ engine, dust }) {
+  const cost = engine.doveExchangeCost();
+  const max = Math.floor(dust / cost);
+  return (
+    <div className="inv-exchange">
+      <div className="exch-head">
+        <span className="inv-summary-label">Směnárna úlomků</span>
+        <span className="exch-rate">{fmt(cost)} 💠 = 1 🕊</span>
+      </div>
+      <div className="exch-row">
+        <span className="exch-desc">Přebytečné úlomky na <b>🕊 odpuštění</b> (prestige). Skvělé na zbylou hromadu.</span>
+        <div className="exch-btns">
+          <button className="exch-btn" disabled={max < 1} onClick={() => engine.exchangeDust(1)}>+1 🕊</button>
+          <button
+            className="exch-btn buy"
+            disabled={max < 1}
+            onClick={() => engine.exchangeDust('max')}
+            title={max > 0 ? `Směnit vše: ${fmt(max)} 🕊 za ${fmt(max * cost)} 💠` : 'Málo úlomků'}
+          >Vše ({fmt(max)} 🕊)</button>
         </div>
       </div>
     </div>
@@ -295,13 +322,20 @@ export default function InventoryModal({ onClose }) {
 
       <ChestPanel engine={engine} dust={dust} />
 
+      <DustExchange engine={engine} dust={dust} />
+
       <DndContext
         sensors={sensors}
         onDragStart={({ active }) => setDragItem(active.data.current?.item || s.equipment[active.data.current?.slot] || null)}
         onDragEnd={onDragEnd}
         onDragCancel={() => setDragItem(null)}
       >
-        <div className="equip-slots">
+        <div className="inv-loadout">
+          <div className="inv-loadout-head">
+            <span className="inv-summary-label">Nasazeno</span>
+            <span className="inv-gearpower" title="Násobič poškození z nasazené výbavy (1 + Σ poškození %)">⚔️ ×{(1 + (agg.dmgPct || 0)).toFixed(2)}</span>
+          </div>
+          <div className="equip-slots">
           {SLOTS.map((slot) => (
             <EquipSlot
               key={slot.id}
@@ -313,6 +347,7 @@ export default function InventoryModal({ onClose }) {
               onUpgrade={() => engine.forgeUpgrade(s.equipment[slot.id]?.id)}
             />
           ))}
+          </div>
         </div>
 
         <SetPanel equipment={s.equipment} />
@@ -328,9 +363,9 @@ export default function InventoryModal({ onClose }) {
 
         <DragOverlay>
           {dragItem ? (
-            <div className="inv-card drag-ghost" style={{ borderColor: rarityColor(dragItem) }}>
+            <div className="inv-card drag-ghost" style={{ '--rc': rarityColor(dragItem) }}>
               <ItemIcon item={dragItem} />
-              <div className="inv-name" style={{ color: rarityColor(dragItem) }}>{itemName(dragItem)}</div>
+              <div className="inv-name">{itemName(dragItem)}</div>
             </div>
           ) : null}
         </DragOverlay>
