@@ -14,6 +14,9 @@ const RebirthModal = lazy(() => import('./modals/RebirthModal.jsx'));
 const GiftModal = lazy(() => import('./modals/GiftModal.jsx'));
 const JoinModal = lazy(() => import('./modals/JoinModal.jsx'));
 const AccountModal = lazy(() => import('./modals/AccountModal.jsx'));
+const StatsModal = lazy(() => import('./modals/StatsModal.jsx'));
+const InventoryModal = lazy(() => import('./modals/InventoryModal.jsx'));
+const DailyQuests = lazy(() => import('./modals/DailyQuests.jsx'));
 const Seasons = lazy(() => import('./leaderboard/Seasons.jsx'));
 const PlayerProfile = lazy(() => import('./modals/PlayerProfile.jsx'));
 const SeasonEndModal = lazy(() => import('./modals/SeasonEndModal.jsx'));
@@ -50,6 +53,9 @@ export default function Game() {
         onOpenSettings={() => setModal('settings')}
         onOpenJoin={() => setModal('join')}
         onOpenAccount={() => setModal('account')}
+        onOpenStats={() => setModal('stats')}
+        onOpenDaily={() => setModal('daily')}
+        onOpenInventory={() => setModal('inventory')}
       />
 
       {view === 'game' ? (
@@ -72,6 +78,9 @@ export default function Game() {
         {modal === 'rebirth' && <RebirthModal onClose={() => setModal(null)} />}
         {modal === 'join' && <JoinModal onClose={() => setModal(null)} />}
         {modal === 'account' && <AccountModal onClose={() => setModal(null)} />}
+        {modal === 'stats' && <StatsModal onClose={() => setModal(null)} />}
+        {modal === 'inventory' && <InventoryModal onClose={() => setModal(null)} />}
+        {modal === 'daily' && <DailyQuests onClose={() => setModal(null)} />}
         {offline && <OfflineModal offline={offline} onClose={() => setOffline(null)} />}
         {gift && <GiftModal gift={gift} onClose={() => setGift(null)} />}
         {profileId && <PlayerProfile id={profileId} onClose={() => setProfileId(null)} />}

@@ -12,6 +12,8 @@ import { CONFIG } from '../game/config.js';
 import { WEAPONS } from '../game/data/weapons.js';
 import { PUNCH_TEXTS } from '../game/data/texts.js';
 import { weaponShotDamage, shadowDps } from '../game/formulas.js';
+import { equippedWeaponEmoji } from '../game/data/items.js';
+import { itemImageUrl } from '../game/data/itemImages.js';
 import { fmt } from '../game/format.js';
 import { fxRefs } from './fxRefs.js';
 
@@ -160,12 +162,12 @@ export class FxManager {
     }
   }
 
-  onDefeat({ reward, boss, mega, ultra, loot }) {
+  onDefeat({ reward, boss, mega, ultra, archon, loot }) {
     const c = this.enemyCenter();
     if (this.canFloat()) this.floatText('+' + fmt(reward) + ' 🪙', 'var(--gold)', c.x, c.y - 30);
     if (!boss) return;
     this.screenShake();
-    this.coinBurst(c.x, c.y, ultra ? 48 : mega ? 34 : 22);
+    this.coinBurst(c.x, c.y, archon ? 64 : ultra ? 48 : mega ? 34 : 22);
     if (!loot) return;
     // poklad: zlatý balík + (u mega/ultra) holubice 🕊
     this.floatText('💰 +' + fmt(loot.gold) + ' 🪙', 'var(--gold)', c.x + 46, c.y - 64);
@@ -226,11 +228,16 @@ export class FxManager {
   punchProjectile({ amount, kind }) {
     const btn = fxRefs.button;
     const r = btn ? btn.getBoundingClientRect() : { left: window.innerWidth / 2, width: 0, top: window.innerHeight - 120 };
-    this.throwProjectile('👊', r.left + r.width / 2, r.top, 240, 1, (x, y) => {
+    // letící úder = nasazená zbraň: obrázek (když je nahraný), jinak emoji (👊 → 🥊 → ⚔️ …)
+    const s = this.engine.state;
+    const w = s.equipment?.weapon;
+    const imgUrl = w ? itemImageUrl(w.base) : null;
+    const emoji = equippedWeaponEmoji(s);
+    this.throwProjectile(emoji, r.left + r.width / 2, r.top, 240, 1, (x, y) => {
       this.floatDamage(amount, kind, x, y);
       this.shake();
       this.hitText();
-    });
+    }, imgUrl);
   }
 
   hitText() {
@@ -245,7 +252,7 @@ export class FxManager {
   }
 
   /* --- nízkoúrovňové DOM efekty (recyklované z poolů) --- */
-  throwProjectile(emoji, fromX, fromY, flight, scale, onHit) {
+  throwProjectile(emoji, fromX, fromY, flight, scale, onHit, imgUrl) {
     const c = this.enemyCenter();
     if (c.x < 0 || c.x > window.innerWidth || c.y < 0 || c.y > window.innerHeight) {
       try { onHit(c.x, c.y); } catch { /* ignoruj */ }
@@ -254,7 +261,18 @@ export class FxManager {
 
     const p = this._proj.acquire();
     const token = p._token;
-    p.textContent = emoji;
+    if (imgUrl) {
+      // obrázek zbraně místo emoji (inline styly — pool je při recyklaci smaže)
+      p.textContent = '';
+      p.style.width = '56px';
+      p.style.height = '56px';
+      p.style.backgroundImage = `url("${imgUrl}")`;
+      p.style.backgroundSize = 'contain';
+      p.style.backgroundRepeat = 'no-repeat';
+      p.style.backgroundPosition = 'center';
+    } else {
+      p.textContent = emoji;
+    }
     p.style.left = fromX + 'px';
     p.style.top = fromY + 'px';
     p.style.opacity = '1';

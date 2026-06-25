@@ -131,6 +131,12 @@ body{
 .punch-btn:active{transform:translateY(4px); box-shadow:0 2px 0 var(--red-dark);}
 .punch-hint{font-size:12px; color:var(--muted); margin-top:8px;}
 
+/* Hlavní terče klikání: na mobilu nesmí tah po fotce/tlačítku rozscrollovat
+   stránku. `manipulation` (viz globální pravidlo nahoře) jen ruší zoom-delay, ale
+   pan gesto pořád pustí — `none` vypne scroll i zoom právě na těchto prvcích.
+   (Pozadí scrolluješ tahem mimo ně, terče jsou čistě na ťukání.) */
+.photo-wrap, .punch-btn{ touch-action:none; }
+
 .combo{ position:absolute; top:16px; right:18px; font-family:'Anton',sans-serif; font-size:30px; color:var(--orange);
   opacity:0; transition:opacity .2s; text-shadow:0 2px 6px rgba(0,0,0,.6); }
 .combo.on{opacity:1;}
@@ -277,6 +283,12 @@ body{
 .forgive-btn:hover{background:linear-gradient(180deg,#46347a,#33265a); border-color:#7a64bc;}
 .forgive-btn:active{transform:translateY(3px); box-shadow:0 1px 0 #1f1733;}
 
+/* obtížnost (HP Ekiů z prestige) — chip pod tlačítkem, kde se hráč rozhoduje o rebirthu */
+.arena-diff{ margin-top:14px; display:inline-flex; align-items:center; gap:6px; cursor:help;
+  font-size:12px; font-weight:700; color:var(--muted); text-align:center;
+  background:rgba(0,0,0,.22); border:1px solid var(--line); border-radius:999px; padding:5px 13px; }
+.arena-diff b{ color:var(--dove); font-family:'Anton',sans-serif; font-weight:400; letter-spacing:.02em; }
+
 /* ---------- Toasts ---------- */
 .toast-host{ position:fixed; top:14px; left:50%; transform:translateX(-50%); z-index:2000; display:flex; flex-direction:column; gap:8px; align-items:center; pointer-events:none; }
 .toast{ display:flex; align-items:center; gap:10px; background:linear-gradient(180deg,#22283a,#171b28);
@@ -375,9 +387,9 @@ body{
 }
 
 /* ---------- Sezóny (showcase) ---------- */
-.seasons{ max-width:680px; margin:0 auto; }
+.seasons{ max-width:680px; margin:22px auto 0; }
 .seasons .board{ margin-top:0; }
-.season-strip{ display:flex; gap:8px; overflow-x:auto; padding:14px 16px 4px; max-width:680px; margin:0 auto; scrollbar-width:thin; }
+.season-strip{ display:flex; gap:8px; overflow-x:auto; padding:0 16px 10px; scrollbar-width:thin; }
 .season-chip{ flex:0 0 auto; display:flex; flex-direction:column; gap:2px; align-items:flex-start; min-width:120px;
   background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:9px 13px; cursor:pointer;
   color:var(--text); text-align:left; transition:border-color .15s, background .15s; }
@@ -386,6 +398,34 @@ body{
 .season-chip.live .sc-meta{ color:var(--good); }
 .season-chip .sc-name{ font-weight:800; font-size:14px; }
 .season-chip .sc-meta{ font-size:11px; color:var(--muted); white-space:nowrap; }
+
+/* ---------- Banner sezóny (velký nadpis + pódium top 3) ---------- */
+.season-banner{ position:relative; margin:0 16px 14px; padding:18px 16px 16px; border-radius:18px;
+  border:1px solid var(--line); text-align:center; overflow:hidden;
+  background:radial-gradient(130% 150% at 50% 0%, rgba(255,210,63,.10), transparent 62%), var(--panel); }
+.season-banner.closed{ background:radial-gradient(130% 150% at 50% 0%, rgba(192,168,255,.10), transparent 62%), var(--panel); }
+.sb-kicker{ font-size:11px; letter-spacing:.18em; text-transform:uppercase; color:var(--muted); }
+.season-banner.live .sb-kicker{ color:var(--good); }
+.sb-title{ font-family:'Anton',sans-serif; font-size:clamp(34px,9vw,52px); letter-spacing:.06em; line-height:1;
+  margin:4px 0 2px; color:var(--gold); text-shadow:0 3px 0 rgba(0,0,0,.35); }
+.season-banner.closed .sb-title{ color:var(--dove); }
+.sb-sub{ font-size:12px; color:var(--muted); }
+.sb-podium-label{ font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); margin:14px 0 8px; }
+
+.podium{ display:flex; justify-content:center; align-items:flex-end; gap:10px; }
+.podium-spot{ flex:0 1 132px; display:flex; flex-direction:column; align-items:center; gap:2px;
+  background:var(--panel-2); border:1px solid var(--line); border-radius:14px; padding:10px 8px; color:var(--text);
+  font:inherit; cursor:default; }
+.podium-spot.clickable{ cursor:pointer; transition:border-color .15s, transform .12s; }
+.podium-spot.clickable:hover{ border-color:#3a445c; transform:translateY(-2px); }
+.podium-spot.rank-1{ padding-top:18px; border-color:rgba(255,210,63,.55); background:rgba(255,210,63,.08); }
+.podium-spot.rank-2{ border-color:rgba(200,210,230,.4); }
+.podium-spot.rank-3{ border-color:rgba(205,127,50,.4); }
+.podium-medal{ font-size:30px; line-height:1; }
+.podium-spot.rank-1 .podium-medal{ font-size:38px; }
+.podium-nick{ font-weight:800; font-size:14px; max-width:118px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.podium-place{ font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); }
+.podium-val{ font-family:'Anton',sans-serif; font-size:14px; color:var(--gold); }
 
 /* klikatelné řádky žebříčku → profil */
 .board-table tr.clickable{ cursor:pointer; }
@@ -397,6 +437,15 @@ body{
 .profile-head{ text-align:center; margin-bottom:12px; }
 .profile-name{ font-family:'Anton',sans-serif; color:var(--gold); font-size:26px; margin:0; }
 .profile-sub{ display:block; font-size:12px; color:var(--muted); margin-top:4px; }
+.profile-medals{ display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-bottom:10px; }
+.medal{ display:flex; flex-direction:column; align-items:center; gap:1px; min-width:88px;
+  background:var(--panel-2); border:1px solid var(--line); border-radius:14px; padding:8px 12px; }
+.medal.rank-1{ border-color:rgba(255,210,63,.55); background:rgba(255,210,63,.08); }
+.medal.rank-2{ border-color:rgba(200,210,230,.4); }
+.medal.rank-3{ border-color:rgba(205,127,50,.4); }
+.medal .m-emoji{ font-size:26px; line-height:1; }
+.medal .m-place{ font-size:11px; font-weight:800; color:var(--gold); }
+.medal .m-season{ font-size:10px; color:var(--muted); letter-spacing:.04em; }
 .profile-trophies{ display:flex; flex-wrap:wrap; gap:6px; justify-content:center; margin-bottom:14px; }
 .trophy{ font-size:12px; font-weight:700; background:var(--panel-2); border:1px solid var(--line); border-radius:999px; padding:4px 10px; color:var(--muted); }
 .trophy.top{ border-color:rgba(255,210,63,.5); color:var(--gold); }
@@ -411,6 +460,11 @@ body{
 .ps-row b{ font-family:'Anton',sans-serif; font-weight:400; }
 .profile-ach-grid{ max-height:240px; overflow-y:auto; grid-template-columns:1fr 1fr; }
 
+/* ---------- Statistiky (popup) ---------- */
+.popup-content.stats-modal{ max-width:520px; max-height:88vh; overflow-y:auto; text-align:left; }
+.popup-content.stats-modal h2{ text-align:center; }
+.stats-modal .profile-section-head{ margin-top:6px; }
+
 /* ---------- Konec sezóny ---------- */
 .popup-content.season-end{ text-align:center; max-width:420px; }
 .season-end .se-emoji{ font-size:56px; }
@@ -422,6 +476,122 @@ body{
 @media (max-width:880px){
   .profile-statcol, .profile-ach-grid{ grid-template-columns:1fr; }
   .popup-content.profile{ max-width:94vw; }
+}
+
+/* ---------- Denní úkoly ---------- */
+.topbar-btn.badged{ position:relative; overflow:visible; }
+.topbar-badge{ position:absolute; top:-5px; right:-5px; min-width:18px; height:18px; padding:0 4px;
+  border-radius:9px; background:var(--red); color:#fff; font-size:11px; font-weight:800; line-height:18px;
+  text-align:center; box-shadow:0 1px 4px rgba(0,0,0,.5); animation:badgePulse 1.6s ease-in-out infinite; }
+@keyframes badgePulse{ 0%,100%{ transform:scale(1); } 50%{ transform:scale(1.18); } }
+
+.popup-content.daily-modal{ max-width:440px; }
+.daily-streak{ display:flex; align-items:center; gap:9px; background:rgba(0,0,0,.22); border:1px solid var(--line);
+  border-radius:12px; padding:9px 13px; font-size:13px; color:var(--muted); margin:4px 0 14px; }
+.daily-streak .ico{ font-size:22px; }
+.daily-streak b{ color:var(--text); }
+.daily-list{ display:flex; flex-direction:column; gap:9px; }
+.dq{ display:flex; align-items:center; gap:11px; background:var(--panel-2); border:1px solid var(--line);
+  border-radius:12px; padding:10px 12px; transition:border-color .2s; }
+.dq.done{ border-color:var(--good); }
+.dq.claimed{ opacity:.6; }
+.dq .ico{ font-size:24px; width:32px; text-align:center; flex:none; }
+.dq .body{ flex:1; min-width:0; }
+.dq .name{ font-weight:800; font-size:13px; margin-bottom:5px; }
+.dq-bar{ height:6px; border-radius:4px; background:rgba(0,0,0,.35); overflow:hidden; }
+.dq-fill{ height:100%; background:linear-gradient(90deg,var(--orange),var(--good)); border-radius:4px; transition:width .3s ease; }
+.dq-prog{ font-size:10px; color:var(--muted); margin-top:3px; }
+.dq-side{ display:flex; flex-direction:column; align-items:flex-end; gap:6px; flex:none; }
+.dq-side .rew{ font-size:10px; font-weight:800; color:var(--good); text-align:right; line-height:1.3; white-space:nowrap; }
+.dq-claim{ border:0; border-radius:9px; padding:6px 11px; font-weight:800; font-size:12px; cursor:pointer;
+  background:var(--good); color:#0c1014; min-width:90px; transition:filter .15s, transform .1s; }
+.dq-claim:hover:not(:disabled){ filter:brightness(1.1); }
+.dq-claim:active:not(:disabled){ transform:translateY(1px); }
+.dq-claim:disabled{ background:rgba(0,0,0,.3); color:var(--muted); cursor:default; }
+.dq-tag{ font-size:11px; font-weight:800; color:var(--good); }
+.daily-foot{ text-align:center; color:var(--muted); font-size:12px; margin:14px 0 0; }
+
+/* ===== Výbava / inventář (pozdní hra) ===== */
+.popup-content.inventory-modal{ max-width:640px; max-height:88vh; overflow-y:auto; text-align:left; }
+.popup-content.inventory-modal h2{ text-align:center; }
+
+.inv-locked-text{ font-size:13px; line-height:1.5; color:var(--text); }
+.inv-unlock-bar{ height:10px; border-radius:6px; background:rgba(0,0,0,.35); overflow:hidden; margin:10px 0 4px; border:1px solid var(--line); }
+.inv-unlock-bar span{ display:block; height:100%; background:linear-gradient(90deg,var(--orange),var(--gold)); border-radius:6px; transition:width .3s ease; }
+
+/* sloty vybavení */
+.equip-slots{ display:grid; grid-template-columns:repeat(2,1fr); gap:8px; margin-bottom:14px; }
+.equip-slot{ border:1px dashed var(--line); border-radius:12px; background:var(--panel-2); padding:8px 10px; min-height:74px; transition:border-color .15s, background .15s; }
+.equip-slot.over{ border-style:solid; border-color:var(--gold); background:#23283a; }
+.equip-slot.filled{ border-style:solid; }
+.equip-slot-head{ font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin-bottom:4px; }
+.equip-empty{ font-size:12px; color:var(--muted); opacity:.6; padding:6px 0; }
+.equip-item{ cursor:grab; display:flex; flex-direction:column; }
+.equip-item.dragging{ opacity:.4; }
+
+/* souhrn bonusů */
+.inv-summary{ background:var(--panel-2); border:1px solid var(--line); border-radius:12px; padding:10px 12px; margin-bottom:14px; }
+.inv-summary-label{ font-size:10px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); }
+.inv-summary-list{ display:flex; flex-wrap:wrap; gap:6px 12px; margin-top:6px; }
+.inv-summary-list span{ font-size:12px; font-weight:700; color:var(--good); }
+
+/* mřížka inventáře */
+.inv-grid-wrap{ border:1px dashed transparent; border-radius:12px; transition:border-color .15s, background .15s; padding:2px; }
+.inv-grid-wrap.over{ border-color:var(--gold); background:rgba(255,210,63,.05); }
+.inv-grid-head{ display:flex; justify-content:space-between; align-items:baseline; font-size:13px; font-weight:800; margin:0 2px 8px; }
+.inv-count{ font-size:11px; color:var(--muted); font-weight:600; }
+.inv-empty{ font-size:12px; color:var(--muted); padding:14px 4px; }
+.inv-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:8px; }
+
+.inv-card{ position:relative; border:2px solid var(--line); border-radius:12px; background:var(--panel-2);
+  padding:10px 10px 8px; cursor:grab; text-align:left; touch-action:none; transition:transform .1s, box-shadow .15s; }
+.inv-card:hover{ box-shadow:0 0 0 1px currentColor inset; }
+.inv-card.dragging{ opacity:.4; }
+.inv-card.drag-ghost{ cursor:grabbing; box-shadow:0 8px 24px rgba(0,0,0,.5); }
+.inv-emoji{ font-size:28px; line-height:1; }
+.inv-img{ width:54px; height:54px; object-fit:contain; border-radius:8px; display:block; pointer-events:none; }
+.inv-name{ font-weight:800; font-size:13px; margin-top:4px; }
+.inv-ilvl{ font-size:10px; color:var(--muted); margin-top:1px; }
+.inv-affixes{ list-style:none; margin:6px 0 0; padding:0; }
+.inv-affixes li{ font-size:11px; color:var(--text); opacity:.85; line-height:1.45; }
+.inv-discard{ position:absolute; top:4px; right:5px; width:20px; height:20px; border:0; border-radius:6px; background:rgba(0,0,0,.35);
+  color:var(--muted); font-size:15px; line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center; z-index:2; }
+.inv-discard:hover{ background:var(--red-dark); color:#fff; }
+.inv-card-grab{ cursor:grab; touch-action:none; display:flex; flex-direction:column; }
+
+/* úlomky 💠 (kovárna) */
+:root{ --dust:#46d6e0; }
+.inv-dust{ font-size:13px; font-weight:800; color:var(--dust); margin-left:6px; vertical-align:middle; }
+.currency.dust{ border-color:rgba(70,214,224,.35); }
+.currency.dust .value{ color:var(--dust); }
+
+/* odznak sady na kusu */
+.inv-setbadge{ position:absolute; top:4px; left:5px; font-size:14px; line-height:1; filter:drop-shadow(0 0 4px rgba(70,214,224,.6)); z-index:2; }
+
+/* lišta kovárny pod kusem */
+.inv-forge{ display:flex; gap:5px; margin-top:8px; }
+.forge-btn{ flex:1; border:1px solid var(--line); border-radius:8px; background:var(--ink); color:var(--text);
+  font-size:11px; font-weight:700; padding:5px 4px; cursor:pointer; white-space:nowrap; transition:background .12s, border-color .12s; }
+.forge-btn:hover:not(:disabled){ border-color:var(--dust); background:#11151f; }
+.forge-btn.upgrade{ font-weight:800; }
+.forge-btn:disabled{ opacity:.4; cursor:not-allowed; }
+
+/* přehled sad */
+.inv-sets{ background:var(--panel-2); border:1px solid var(--line); border-radius:12px; padding:10px 12px; margin-bottom:14px; }
+.set-row{ margin-top:6px; }
+.set-row:first-of-type{ margin-top:6px; }
+.set-name{ display:block; font-size:13px; font-weight:800; }
+.set-name b{ color:var(--dust); }
+.set-tiers{ display:flex; flex-wrap:wrap; gap:4px 12px; margin-top:2px; }
+.set-tier{ font-size:11px; color:var(--muted); opacity:.6; }
+.set-tier.on{ color:var(--good); opacity:1; font-weight:700; }
+
+/* mistrovství (tier-2 prestige) */
+.capstone-head{ margin-top:14px !important; color:var(--gold) !important; font-weight:800 !important; border-top:1px solid var(--line); padding-top:12px; }
+
+@media (max-width:520px){
+  .equip-slots{ grid-template-columns:1fr; }
+  .inv-grid{ grid-template-columns:repeat(auto-fill,minmax(130px,1fr)); }
 }
 
 @media (prefers-reduced-motion: reduce){ *{animation-duration:.01ms !important;} }

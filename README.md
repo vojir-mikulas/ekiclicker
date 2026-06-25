@@ -136,6 +136,13 @@ Oprava:
    zpomalí do „zdi" → motivace k **rebirthu** (Clicker Heroes treadmill).
 3. **Stropy proti lagu**: limit projektilů a plovoucích čísel, podlaha intervalu
    palby a strop levelu „Zrychlení" (endgame), pojistka kill/​tick.
+4. **Obtížnost škáluje s prestige silou (anti-blitz)** — po rebirthu si neseš
+   veškerou prestige sílu (hlavně Věčný hněv, ×1,16/level), takže čerstvý běh
+   jinak instakilluje stovku levelů „o ničem" až ke zdi. HP nepřítele proto dostane
+   násobič `(prestige damage power)^difficultyExp` (exp `0.78`, `< 1`). Každý
+   rebirth pořád posune zeď **dál** (prestige se vyplatí), ale blitz je **omezený**,
+   ne neomezený. První běh (bez prestige) je nedotčený. Lze ladit:
+   `npm run balance --blitz` ukáže délku blitzu i polohu zdi pro různé `difficultyExp`.
 
 Ověřeno simulátorem `npm run balance` — greedy hráč nemá runaway (žádné
 desítky úrovní za vteřinu mimo krátký dojezd po rebirthu) a postup je plynulý.
@@ -155,5 +162,9 @@ desítky úrovní za vteřinu mimo krátký dojezd po rebirthu) a postup je plyn
 - **Lucky Eki** 🍀 — občas vyskočí klikací bonus (jako zlatá sušenka): balík
   zlata + spustí zuřivost.
 - **Rozšířený prestige strom** (Přesnost, Štěstí, …) a více laditelných čísel.
+- **Denní úkoly** 📜 — 3 úkoly denně (zabití, bossové, kliky, Lucky Eki, …) za
+  Odpuštění 🕊 + balík zlata; splnění všech drží **sérii** 🔥 s rostoucím bonusem.
+  Úkoly měří denní přírůstek statistik (rebirth-proof), výběr je deterministický
+  ze seedu dne (stejné po reloadu i po obnově účtu). Lehký důvod vrátit se každý den.
 - Všechny ceny **zvednuté**, takže každý nákup má váhu.
 ```

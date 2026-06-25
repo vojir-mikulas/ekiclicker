@@ -12,3 +12,31 @@ export const PRESTIGE = {
 };
 
 export const PRESTIGE_KEYS = Object.keys(PRESTIGE);
+
+/* TIER-2 PRESTIGE (capstones) — odemknou se až po hluboké investici do rodiče
+   (`unlock`). Dražší (vyšší base/growth) a stropované (`max`) → pozdní sink na 🕊.
+   Vše BOUNDED/aditivní; magnitudy za level jsou v config.CAPS (formulas je čtou).
+   Levely se ukládají do stejného `state.prestige` objektu (klíče níž). */
+export const CAPSTONES = {
+  eternalForgiveness: {
+    name: 'Věčné odpuštění', emoji: '🕯️', baseCost: 40, growth: 1.8, max: 25,
+    unlock: { key: 'rage', level: 20 }, desc: '+8 % Odpuštění 🕊 z rebirthu',
+  },
+  comboMaster: {
+    name: 'Mistr comba', emoji: '🔗', baseCost: 30, growth: 1.7, max: 30,
+    unlock: { key: 'crit', level: 12 }, desc: '+5 ke stropu comba',
+  },
+  bossHunter: {
+    name: 'Lovec bossů', emoji: '🏹', baseCost: 35, growth: 1.7, max: 20,
+    unlock: { key: 'factory', level: 12 }, desc: '+8 % času na bosse a +12 % jejich zlata',
+  },
+  jeweler: {
+    name: 'Klenotník', emoji: '⚒️', baseCost: 50, growth: 1.9, max: 20,
+    unlock: { key: 'headstart', level: 8 }, desc: '+20 % úlomků 💠 a +0,3 % šance na drop',
+  },
+};
+
+export const CAPSTONE_KEYS = Object.keys(CAPSTONES);
+
+/* Sloučená mapa pro ceny/dohled (prestigeCost, buyPrestige). */
+export const PRESTIGE_ALL = { ...PRESTIGE, ...CAPSTONES };

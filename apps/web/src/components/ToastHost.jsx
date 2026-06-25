@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef } from 'react';
 import { useEngineEvent } from '../hooks/useEngine.js';
+import { fmt } from '../game/format.js';
 
 function rewardText(r) {
   const parts = [];
@@ -30,9 +31,27 @@ export default function ToastHost() {
           });
         } else if (type === 'defeat' && payload.loot?.forgiveness) {
           push({
-            ico: payload.ultra ? '🌟' : '👑',
-            title: payload.ultra ? 'Poklad Eki Titána!' : 'Poklad Eki Krále!',
+            ico: payload.archon ? '👁️' : payload.ultra ? '🌟' : '👑',
+            title: payload.archon ? 'Poklad Eki Archóna!' : payload.ultra ? 'Poklad Eki Titána!' : 'Poklad Eki Krále!',
             sub: `+${payload.loot.forgiveness} 🕊 Odpuštění`,
+          });
+        } else if (type === 'loot' && payload.archon) {
+          push({
+            ico: '♾️',
+            title: 'Kus sady Věčný!',
+            sub: 'Archón shodil kořist sady — nasaď ji ve Výbavě 🎒',
+          });
+        } else if (type === 'questClaim') {
+          push({
+            ico: payload.emoji,
+            title: 'Denní úkol splněn!',
+            sub: `+${fmt(payload.gold)} 🪙 • +${payload.doves} 🕊`,
+          });
+        } else if (type === 'questAllDone') {
+          push({
+            ico: '🔥',
+            title: `Všechny denní úkoly! Série ${payload.streak}`,
+            sub: `Bonus +${payload.bonus} 🕊`,
           });
         }
       },

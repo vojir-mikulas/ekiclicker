@@ -15,13 +15,14 @@ import { VARIANTS } from '../src/game/data/variants.js';
 import { createState, resetRun } from '../src/game/initialState.js';
 import {
   totalDps, clickDamage, goldMult, enemyMaxHp, enemyReward,
-  upgradeCost, weaponCost, prestigeCost, forgivenessGain,
+  upgradeCost, weaponCost, prestigeCost, forgivenessGain, difficultyScale,
 } from '../src/game/formulas.js';
 
 const CLICK_RATE = 3.5; // průměrné kliky/s aktivního hráče
 const SPEND_EVERY = 0.5; // jak často přehodnotí nákupy (s)
 
 function variantForLevel(level) {
+  if (level % CONFIG.archonBossEvery === 0) return { id: 'archon', ...VARIANTS.archon };
   if (level % CONFIG.ultraBossEvery === 0) return { id: 'titan', ...VARIANTS.titan };
   if (level % CONFIG.megaBossEvery === 0) return { id: 'king', ...VARIANTS.king };
   if (level % CONFIG.bossEvery === 0) return { id: 'gold', ...VARIANTS.gold };
@@ -81,8 +82,9 @@ function spendForgiveness(s) {
     for (const key of PRESTIGE_KEYS) {
       const cost = prestigeCost(key, s.prestige[key]);
       if (s.prestige.forgiveness < cost) continue;
-      // jednoduché váhy: damage/gold motory první
-      const weight = { rage: 5, greed: 3, fist: 2, factory: 2, shadow: 2, crit: 1, luck: 1, headstart: 1 }[key] || 1;
+      // Rage (×1,16 NÁSOBNĚ) je dominantní motor — rozumný hráč do něj sype nejvíc,
+      // jinak prestige síla nenaroste a zeď se neposune (důležité od anti-blitz fixu).
+      const weight = { rage: 20, greed: 4, fist: 3, factory: 2, shadow: 2, crit: 1, luck: 1, headstart: 1 }[key] || 1;
       const score = weight / cost;
       if (!best || score > best.score) best = { score, cost, key };
     }
@@ -100,6 +102,7 @@ function run(minutes) {
   let sinceSpend = 0;
   let stuck = 0;
   let rebirths = 0;
+  let runStartLevel = 1; // úroveň, na které začal aktuální běh (kvůli rozumnému rebirthu)
   const checkpoints = arguments[1] || [1, 5, 10, 20, 30, 45, 60, 90, 120, 180, 240];
   const log = {};
   let maxLevelPerSec = 0;
@@ -118,9 +121,16 @@ function run(minutes) {
         const rew = enemyReward(s.level, s.enemy.variant, goldMult(s));
         s.gold += rew;
         if (s.enemy.variant.boss) {
-          const m = s.enemy.variant.ultra ? CONFIG.ultraBossLootMult
-            : s.enemy.variant.mega ? CONFIG.megaBossLootMult : CONFIG.bossLootMult;
+          const v = s.enemy.variant;
+          const m = v.archon ? CONFIG.archonBossLootMult
+            : v.ultra ? CONFIG.ultraBossLootMult
+            : v.mega ? CONFIG.megaBossLootMult : CONFIG.bossLootMult;
           s.gold += Math.ceil(rew * m); // boss loot (zlato) — ať sim sedí s hrou
+          // boss loot 🕊 — stejně jako engine.rollBossLoot; bez tohohle sim podhodnotí
+          // dove příjem (mega/ultra/archon po cestě) → vypadá to, že prestige roste pomaleji než ve hře.
+          if (v.archon) s.prestige.forgiveness += CONFIG.archonBossDoves;
+          else if (v.ultra) s.prestige.forgiveness += CONFIG.ultraBossDoves;
+          else if (v.mega && Math.random() < CONFIG.megaBossDoveChance) s.prestige.forgiveness += 1;
         }
         s.stats.totalGold += 1;
         s.level++;
@@ -146,13 +156,21 @@ function run(minutes) {
     sinceSpend += dt;
     if (sinceSpend >= SPEND_EVERY) { spend(s); sinceSpend = 0; }
 
-    // rebirth, když se to zaseklo (boss utekl víckrát) a vyplatí se
-    if (!process.argv.includes('--norebirth') && stuck >= 4 && forgivenessGain(s.level) >= 3) {
-      s.prestige.forgiveness += forgivenessGain(s.level);
+    // Rebirth jen když se VYPLATÍ. Pozn.: od zavedení obtížnosti škálované prestige
+    // je čerstvý běh tvrdší → rebirth „hned jak boss uteče" je past (zacyklíš se na
+    // stejné úrovni). Rozumný hráč rebirthne, až udělá reálný postup; když je
+    // beznadějně zaseklý a nikam to nevede, rebirthne i tak (jiná investice 🕊).
+    // Push deeper: čerstvý běh teď stojí víc, takže se vyplatí jet dlouho a nabrat
+    // velkou dávku 🕊 najednou (ne se cyklit na nízké úrovni). ~zdvojnásob start.
+    const progressed = s.highestLevel >= Math.max(runStartLevel + 70, runStartLevel * 2);
+    const wantRebirth = (stuck >= 4 && progressed) || stuck >= 20;
+    if (!process.argv.includes('--norebirth') && wantRebirth && forgivenessGain(s.highestLevel) >= 3) {
+      s.prestige.forgiveness += forgivenessGain(s.highestLevel);
       s.prestige.rebirths++;
       rebirths++;
       spendForgiveness(s);
-      resetRun(s, 1 + s.prestige.headstart * 3);
+      runStartLevel = 1 + s.prestige.headstart * 3;
+      resetRun(s, runStartLevel);
       s.enemy = newEnemy(s);
       stuck = 0;
     }
@@ -183,9 +201,9 @@ function run(minutes) {
 
 function newEnemy(s) {
   const variant = variantForLevel(s.level);
-  const hp = enemyMaxHp(s.level, variant);
+  const hp = enemyMaxHp(s.level, variant, difficultyScale(s));
   const e = { variant, hp, maxHp: hp };
-  if (variant.boss) e.timer = (variant.ultra ? CONFIG.ultraBossTime : variant.mega ? CONFIG.megaBossTime : CONFIG.bossTime) / 1000;
+  if (variant.boss) e.timer = (variant.archon ? CONFIG.archonBossTime : variant.ultra ? CONFIG.ultraBossTime : variant.mega ? CONFIG.megaBossTime : CONFIG.bossTime) / 1000;
   return e;
 }
 
@@ -196,6 +214,68 @@ function fmtN(n) {
   let i = -1; let x = n;
   while (x >= 1000 && i < u.length - 1) { x /= 1000; i++; }
   return x.toFixed(1) + u[i];
+}
+
+/* ---------------------------------------------------------------------------
+   BLITZ MÓD  —  `npm run balance --blitz`
+   Měří „post-rebirth blitz": jak dlouhý souvislý úsek úrovní hráč instakilluje
+   na ČERSTVÉM běhu (level 1) s danou prestige silou. Bez anti-blitz škálování je
+   tenhle úsek klidně 150+ levelů „o ničem". Sweepuje CONFIG.difficultyExp, takže
+   slouží přímo k ladění toho čísla (kompromis: kratší blitz vs. menší přínos
+   prestige). „zeď" = první level, kde kill > 8 s (běh se reálně zpomalí). */
+function measureBlitz(prestige, exp) {
+  const saved = CONFIG.difficultyExp;
+  CONFIG.difficultyExp = exp;
+  const s = createState();
+  Object.assign(s.prestige, prestige);
+  let blitz = 0;
+  let blitzOpen = true;
+  let wall = null;
+  for (s.level = 1; s.level <= 2000; s.level++) {
+    const variant = variantForLevel(s.level);
+    const hp = enemyMaxHp(s.level, variant, difficultyScale(s));
+    spend(s); // koupí, co si může dovolit, než zaútočí
+    const killS = hp / effDps(s);
+    if (!variant.boss) {
+      if (blitzOpen && killS < 0.3) blitz = s.level;
+      else if (killS >= 0.3) blitzOpen = false;
+      if (wall == null && killS > 8) wall = s.level;
+    }
+    const rew = enemyReward(s.level, variant, goldMult(s));
+    let gain = rew;
+    if (variant.boss) {
+      const m = variant.archon ? CONFIG.archonBossLootMult : variant.ultra ? CONFIG.ultraBossLootMult : variant.mega ? CONFIG.megaBossLootMult : CONFIG.bossLootMult;
+      gain += Math.ceil(rew * m);
+    }
+    s.gold += gain;
+    if (wall != null && s.level > wall + 30) break;
+  }
+  CONFIG.difficultyExp = saved;
+  return { blitz, wall: wall || '∞' };
+}
+
+if (process.argv.includes('--blitz')) {
+  const LOADOUTS = {
+    'modest  (rage25)': { rage: 25, fist: 12, factory: 10, crit: 8, greed: 12 },
+    'strong  (rage45)': { rage: 45, fist: 25, factory: 18, crit: 15, greed: 20, shadow: 10 },
+    'deep    (rage70)': { rage: 70, fist: 35, factory: 25, crit: 20, greed: 30, shadow: 15 },
+  };
+  const EXPS = [0, 0.5, 0.65, 0.78, 0.9, 1.0];
+  console.log('=== EKI CLICKER — blitz sim (délka post-rebirth instakill úseku) ===\n');
+  console.log('Aktuální CONFIG.difficultyExp =', CONFIG.difficultyExp, '\n');
+  console.log('prestige loadout  |', EXPS.map((e) => `exp${e}`.padStart(8)).join(' '));
+  console.log('------------------|' + '-'.repeat(EXPS.length * 9));
+  for (const [name, p] of Object.entries(LOADOUTS)) {
+    const cells = EXPS.map((e) => {
+      const { blitz, wall } = measureBlitz(p, e);
+      return `${blitz}/${wall}`.padStart(8);
+    });
+    console.log(`${name} |`, cells.join(' '));
+  }
+  console.log('\nbuňka = blitz / zeď   (blitz = poslední instakill level od startu, zeď = kde kill>8 s)');
+  console.log('exp0 = vypnuto (původní chování). Rozdíl zdí mezi loadouty = kolik reach navíc prestige koupí.');
+  console.log('Cíl: blitz „dost na pocit síly, ne 150 o ničem" + prestige pořád posouvá zeď dál.');
+  process.exit(0);
 }
 
 const FINE = process.argv.includes('--fine');

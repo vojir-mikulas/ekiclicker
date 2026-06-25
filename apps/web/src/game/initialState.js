@@ -1,6 +1,7 @@
 import { WEAPONS } from './data/weapons.js';
 import { UPGRADE_KEYS } from './data/upgrades.js';
-import { PRESTIGE_KEYS } from './data/prestige.js';
+import { PRESTIGE_KEYS, CAPSTONE_KEYS } from './data/prestige.js';
+import { SLOT_IDS, gearPower } from './data/items.js';
 
 export function createWeapons() {
   const w = {};
@@ -17,7 +18,15 @@ export function createUpgrades() {
 export function createPrestige() {
   const p = { forgiveness: 0, rebirths: 0 };
   for (const k of PRESTIGE_KEYS) p[k] = 0;
+  for (const k of CAPSTONE_KEYS) p[k] = 0; // tier-2 capstones (stejný objekt)
   return p;
+}
+
+/* Prázdné sloty vybavení (slot -> nasazený kus nebo null). */
+export function createEquipment() {
+  const e = {};
+  for (const id of SLOT_IDS) e[id] = null;
+  return e;
 }
 
 export function createStats() {
@@ -27,12 +36,14 @@ export function createStats() {
     kills: 0,
     bossKills: 0,
     ultraKills: 0,
+    archonKills: 0,
     lootDoves: 0,
     maxCombo: 0,
     frenzies: 0,
     luckyClicks: 0,
     playTimeMs: 0,
     peakDps: 0,
+    itemsFound: 0,
   };
 }
 
@@ -51,11 +62,19 @@ export function createState() {
     combo: { count: 0, lastClickAt: 0 },
     frenzy: { active: false, until: 0, charge: 0 },
     lucky: null,
+    daily: null, // denní úkoly — narolují se při startu/změně dne (engine.refreshDaily)
+    // --- pozdní hra: kořist / vybavení (odemyká se na ITEMS.unlockLevel) ---
+    inventory: [],               // nenasazené kusy
+    equipment: createEquipment(), // slot -> nasazený kus | null (přežívá rebirth)
+    inventoryUnlocked: false,     // jednou true → zůstává (přežívá rebirth)
+    dust: 0,                      // úlomky 💠 z rozkladu kořisti (kovárna; přežívá rebirth)
+    runGearPower: 1,              // snapshot síly vybavení na startu běhu → obtížnost
     buyAmount: 1,
   };
 }
 
-/* Reset jen "běhu" (po rebirthu) — prestige, achievementy a staty zůstávají. */
+/* Reset jen "běhu" (po rebirthu) — prestige, achievementy, staty a VYBAVENÍ
+   zůstávají. Síla vybavení se zaúčtuje do obtížnosti tohoto běhu (snapshot). */
 export function resetRun(state, startLevel) {
   state.gold = 0;
   state.level = startLevel;
@@ -66,4 +85,6 @@ export function resetRun(state, startLevel) {
   state.frenzy = { active: false, until: 0, charge: 0 };
   state.lucky = null;
   state.enemy = null;
+  // vybavení/inventář se NEresetují (jako prestige) → snapshot jeho síly do obtížnosti
+  state.runGearPower = gearPower(state.equipment);
 }

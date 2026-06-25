@@ -1,6 +1,7 @@
 /* Rychlý headless smoke test herního enginu (bez DOM/Reactu). */
 import { Engine } from '../src/game/engine.js';
 import { totalDps } from '../src/game/formulas.js';
+import { questDef } from '../src/game/data/quests.js';
 
 let fail = 0;
 const assert = (cond, msg) => { if (!cond) { console.error('❌', msg); fail++; } else { console.log('✅', msg); } };
@@ -59,9 +60,25 @@ e.catchLucky();
 assert(e.state.gold > g2, 'lucky eki dal zlato');
 assert(e.state.lucky === null, 'lucky eki po chycení zmizel');
 
+// denní úkoly
+assert(e.state.daily && e.state.daily.quests.length === 3, `narolovaly se denní úkoly (${e.state.daily?.quests.length})`);
+const q0 = e.state.daily.quests[0];
+const def0 = questDef(q0.id);
+e.state.stats[def0.stat] = q0.start + q0.target; // dotáhni první úkol na cíl
+const dovesBefore = e.state.prestige.forgiveness;
+const goldBefore = e.state.gold;
+e.claimQuest(q0.id);
+assert(q0.claimed, 'splněný úkol šel vyzvednout');
+assert(e.state.prestige.forgiveness > dovesBefore, 'úkol dal Odpuštění 🕊');
+assert(e.state.gold > goldBefore, 'úkol dal zlato');
+const dovesAfter = e.state.prestige.forgiveness;
+e.claimQuest(q0.id); // dvojí vyzvednutí nesmí projít
+assert(e.state.prestige.forgiveness === dovesAfter, 'úkol nejde vyzvednout dvakrát');
+
 // hard reset
 e.hardReset();
 assert(e.state.level === 1 && e.state.prestige.rebirths === 0, 'hard reset vynuloval vše');
+assert(e.state.daily && e.state.daily.quests.length === 3, 'po hard resetu jsou čerstvé denní úkoly');
 
 console.log(fail === 0 ? '\n🎉 VŠE OK' : `\n💥 ${fail} CHYB`);
 process.exit(fail === 0 ? 0 : 1);

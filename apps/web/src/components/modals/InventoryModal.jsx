@@ -1,0 +1,305 @@
+/* Inventář + vybavení + KOVÁRNA (pozdní hra). Drag&drop přes @dnd-kit:
+   - táhni kus z inventáře na slot → nasadí se (předchozí se vrátí),
+   - táhni nasazený kus do inventáře → sundá se,
+   - TAP funguje jako záloha (mobil): klepnutí na kus = nasadit, na slot = sundat.
+   Kovárna (úlomky 💠): každý kus jde přerolovat (nové afixy) nebo povýšit vzácnost.
+   Re-render řízený kompaktním podpisem (engine mutuje pole na místě). */
+import { useState } from 'react';
+import {
+  DndContext, DragOverlay, PointerSensor, useSensor, useSensors,
+  useDraggable, useDroppable,
+} from '@dnd-kit/core';
+import { useEngine, useEngineSelector, shallowEqual } from '../../hooks/useEngine.js';
+import {
+  SLOTS, SLOT_IDS, ITEMS, SETS, RARITIES, aggregateEquip, activeSets,
+  itemEmoji, itemName, rarityName, rarityColor, affixLabel, itemScore, itemSet,
+  rerollCost, upgradeRarityCost, nextRarity,
+} from '../../game/data/items.js';
+import { itemImageUrl } from '../../game/data/itemImages.js';
+import { fmt } from '../../game/format.js';
+import Modal from './Modal.jsx';
+
+/* ikona kusu = nahraný obrázek (src/assets/items/<base>.png), jinak emoji */
+function ItemIcon({ item }) {
+  const url = itemImageUrl(item.base);
+  if (url) return <img className="inv-img" src={url} alt="" draggable={false} />;
+  return <div className="inv-emoji">{itemEmoji(item)}</div>;
+}
+
+/* kompaktní podpis stavu inventáře → re-render jen při skutečné změně
+   (dust + rarity/afixy v podpisu: kovárna mění kus „na místě" se stejným id) */
+const selectSig = (s) => ({
+  unlocked: s.inventoryUnlocked,
+  highest: s.highestLevel,
+  dust: Math.floor(s.dust || 0),
+  inv: s.inventory.map((i) => i.id + i.rarity + i.affixes.length).join(','),
+  eq: SLOT_IDS.map((id) => { const it = s.equipment[id]; return it ? it.id + it.rarity : '-'; }).join(','),
+});
+
+function Affixes({ item }) {
+  return (
+    <ul className="inv-affixes">
+      {item.affixes.map((a, i) => <li key={i}>{affixLabel(a)}</li>)}
+    </ul>
+  );
+}
+
+/* štítek vzácnosti + ilvl (vzácnost zvlášť kvůli českým koncovkám) */
+function RarityLine({ item }) {
+  return (
+    <div className="inv-ilvl"><b style={{ color: rarityColor(item) }}>{rarityName(item)}</b> · ilvl {item.ilvl}</div>
+  );
+}
+
+/* odznak sady na kusu (pokud do nějaké patří) */
+function SetBadge({ item }) {
+  const setId = itemSet(item);
+  if (!setId) return null;
+  return <span className="inv-setbadge" title={`Sada: ${SETS[setId].name}`}>{SETS[setId].emoji}</span>;
+}
+
+/* Lišta kovárny pod kusem: přerolovat afixy / povýšit vzácnost (za úlomky). */
+function ForgeBar({ item, dust, onReroll, onUpgrade }) {
+  const rr = rerollCost(item);
+  const next = nextRarity(item.rarity);
+  const up = upgradeRarityCost(item);
+  const stop = (e) => e.stopPropagation();
+  return (
+    <div className="inv-forge" onPointerDown={stop} onClick={stop}>
+      <button
+        className="forge-btn reroll"
+        disabled={dust < rr}
+        onClick={(e) => { stop(e); onReroll(); }}
+        title="Nové afixy (drží vzácnost i ilvl)"
+      >🎲 {fmt(rr)} 💠</button>
+      <button
+        className="forge-btn upgrade"
+        disabled={!next || dust < up}
+        onClick={(e) => { stop(e); onUpgrade(); }}
+        title={next ? `Povýšit na ${RARITIES[next].name}` : 'Nejvyšší vzácnost'}
+        style={next ? { color: RARITIES[next].color } : undefined}
+      >{next ? `⬆️ ${fmt(up)} 💠` : '⬆️ MAX'}</button>
+    </div>
+  );
+}
+
+/* kus v inventáři — draggable + tap na nasazení, ✕ na rozložení, kovárna dole */
+function InvCard({ item, dust, onEquip, onDiscard, onReroll, onUpgrade }) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: item.id, data: { type: 'inv', item },
+  });
+  return (
+    <div
+      ref={setNodeRef}
+      className={'inv-card' + (isDragging ? ' dragging' : '')}
+      style={{ borderColor: rarityColor(item) }}
+    >
+      <button
+        className="inv-discard"
+        onPointerDown={(e) => e.stopPropagation()}
+        onClick={(e) => { e.stopPropagation(); onDiscard(); }}
+        title="Rozložit na úlomky 💠"
+        aria-label="Rozložit na úlomky"
+      >×</button>
+      <div
+        {...listeners}
+        {...attributes}
+        role="button"
+        tabIndex={0}
+        className="inv-card-grab"
+        onClick={onEquip}
+        onKeyDown={(e) => { if (e.key === 'Enter') onEquip(); }}
+        title="Klepni / přetáhni pro nasazení"
+      >
+        <SetBadge item={item} />
+        <ItemIcon item={item} />
+        <div className="inv-name" style={{ color: rarityColor(item) }}>{itemName(item)}</div>
+        <RarityLine item={item} />
+        <Affixes item={item} />
+      </div>
+      <ForgeBar item={item} dust={dust} onReroll={onReroll} onUpgrade={onUpgrade} />
+    </div>
+  );
+}
+
+/* slot vybavení — droppable; nasazený kus je sám draggable (sundání) + kovárna */
+function EquipSlot({ slot, item, dust, onUnequip, onReroll, onUpgrade }) {
+  const { setNodeRef, isOver } = useDroppable({ id: 'slot-' + slot.id, data: { slot: slot.id } });
+  const drag = useDraggable({ id: 'eq-' + slot.id, data: { type: 'equip', slot: slot.id }, disabled: !item });
+  return (
+    <div
+      ref={setNodeRef}
+      className={'equip-slot' + (isOver ? ' over' : '') + (item ? ' filled' : '')}
+      style={item ? { borderColor: rarityColor(item) } : undefined}
+    >
+      <div className="equip-slot-head">{slot.emoji} {slot.name}</div>
+      {item ? (
+        <>
+          <div
+            ref={drag.setNodeRef}
+            {...drag.listeners}
+            {...drag.attributes}
+            role="button"
+            tabIndex={0}
+            className={'equip-item' + (drag.isDragging ? ' dragging' : '')}
+            onClick={onUnequip}
+            onKeyDown={(e) => { if (e.key === 'Enter') onUnequip(); }}
+            title="Klepni / přetáhni do inventáře pro sundání"
+          >
+            <SetBadge item={item} />
+            <ItemIcon item={item} />
+            <div className="inv-name" style={{ color: rarityColor(item) }}>{itemName(item)}</div>
+            <RarityLine item={item} />
+            <Affixes item={item} />
+          </div>
+          <ForgeBar item={item} dust={dust} onReroll={onReroll} onUpgrade={onUpgrade} />
+        </>
+      ) : (
+        <div className="equip-empty">prázdné</div>
+      )}
+    </div>
+  );
+}
+
+/* Přehled sad: kolik kusů nasazeno a které stupně bonusu jsou aktivní. */
+function SetPanel({ equipment }) {
+  const sets = activeSets(equipment).filter((s) => s.pieces >= 2 || s.tiers.some((t) => t.active));
+  if (sets.length === 0) return null;
+  return (
+    <div className="inv-sets">
+      <span className="inv-summary-label">Sady</span>
+      {sets.map((set) => (
+        <div key={set.id} className="set-row">
+          <span className="set-name">{set.emoji} {set.name} <b>{set.pieces}/{set.total}</b></span>
+          <span className="set-tiers">
+            {set.tiers.map((t, i) => (
+              <span key={i} className={'set-tier' + (t.active ? ' on' : '')}>
+                ({t.pieces}) {Object.entries(t.stats).map(([stat, value]) => affixLabel({ stat, value })).join(', ')}
+              </span>
+            ))}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export default function InventoryModal({ onClose }) {
+  const engine = useEngine();
+  useEngineSelector(selectSig, shallowEqual); // trigger re-renderu
+  const s = engine.state;
+  const dust = Math.floor(s.dust || 0);
+  const [dragItem, setDragItem] = useState(null);
+
+  // distance constraint → krátké klepnutí projde jako klik (tap-to-equip na mobilu)
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
+
+  if (!s.inventoryUnlocked) {
+    return (
+      <Modal onClose={onClose} className="inventory-modal">
+        <h2>🎒 Výbava</h2>
+        <p className="inv-locked-text">
+          Kořist a vybavení se odemknou, jakmile <b>porazíš prvního bosse</b> (Golden Eki — každá
+          5. úroveň). Nepřátelé pak začnou upouštět zbraně, rukavice, talismany a aury, které posílí
+          tvé poškození. Zahozené kusy se rozloží na <b>úlomky 💠</b> a v kovárně z nich vykouzlíš
+          lepší výbavu. Vybavení i úlomky přežívají rebirth!
+        </p>
+        <p className="sub" style={{ textAlign: 'center' }}>Nejvyšší úroveň: {s.highestLevel}</p>
+      </Modal>
+    );
+  }
+
+  const inv = [...s.inventory].sort((a, b) => itemScore(b) - itemScore(a));
+  const agg = aggregateEquip(s.equipment);
+  const summary = Object.entries(agg).filter(([, v]) => v > 0).map(([stat, value]) => affixLabel({ stat, value }));
+
+  function onDragEnd({ active, over }) {
+    setDragItem(null);
+    if (!over) return;
+    const a = active.data.current;
+    const overId = over.id;
+    if (typeof overId === 'string' && overId.startsWith('slot-')) {
+      const slot = overId.slice(5);
+      if (a?.type === 'inv' && a.item.slot === slot) engine.equipItem(a.item.id);
+    } else if (overId === 'inv-zone' && a?.type === 'equip') {
+      engine.unequipSlot(a.slot);
+    }
+  }
+
+  return (
+    <Modal onClose={onClose} className="inventory-modal">
+      <h2>🎒 Výbava <span className="inv-dust" title="Úlomky z rozkladu kořisti — kovárna">💠 {fmt(dust)}</span></h2>
+
+      <DndContext
+        sensors={sensors}
+        onDragStart={({ active }) => setDragItem(active.data.current?.item || s.equipment[active.data.current?.slot] || null)}
+        onDragEnd={onDragEnd}
+        onDragCancel={() => setDragItem(null)}
+      >
+        <div className="equip-slots">
+          {SLOTS.map((slot) => (
+            <EquipSlot
+              key={slot.id}
+              slot={slot}
+              item={s.equipment[slot.id]}
+              dust={dust}
+              onUnequip={() => engine.unequipSlot(slot.id)}
+              onReroll={() => engine.forgeReroll(s.equipment[slot.id]?.id)}
+              onUpgrade={() => engine.forgeUpgrade(s.equipment[slot.id]?.id)}
+            />
+          ))}
+        </div>
+
+        <SetPanel equipment={s.equipment} />
+
+        {summary.length > 0 && (
+          <div className="inv-summary">
+            <span className="inv-summary-label">Bonusy z výbavy</span>
+            <div className="inv-summary-list">{summary.map((t, i) => <span key={i}>{t}</span>)}</div>
+          </div>
+        )}
+
+        <InventoryGrid inv={inv} dust={dust} engine={engine} />
+
+        <DragOverlay>
+          {dragItem ? (
+            <div className="inv-card drag-ghost" style={{ borderColor: rarityColor(dragItem) }}>
+              <ItemIcon item={dragItem} />
+              <div className="inv-name" style={{ color: rarityColor(dragItem) }}>{itemName(dragItem)}</div>
+            </div>
+          ) : null}
+        </DragOverlay>
+      </DndContext>
+    </Modal>
+  );
+}
+
+/* mřížka inventáře = drop zóna pro sundání (přetažení nasazeného kusu sem) */
+function InventoryGrid({ inv, dust, engine }) {
+  const { setNodeRef, isOver } = useDroppable({ id: 'inv-zone' });
+  return (
+    <div ref={setNodeRef} className={'inv-grid-wrap' + (isOver ? ' over' : '')}>
+      <div className="inv-grid-head">
+        <span>Inventář</span>
+        <span className="inv-count">{inv.length} / {ITEMS.invCap}</span>
+      </div>
+      {inv.length === 0 ? (
+        <p className="inv-empty">Zatím žádná kořist — poraz nepřátele (hlavně bosse) a kusy začnou padat.</p>
+      ) : (
+        <div className="inv-grid">
+          {inv.map((item) => (
+            <InvCard
+              key={item.id}
+              item={item}
+              dust={dust}
+              onEquip={() => engine.equipItem(item.id)}
+              onDiscard={() => engine.discardItem(item.id)}
+              onReroll={() => engine.forgeReroll(item.id)}
+              onUpgrade={() => engine.forgeUpgrade(item.id)}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}

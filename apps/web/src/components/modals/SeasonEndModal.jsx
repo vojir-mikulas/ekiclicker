@@ -5,6 +5,8 @@ import Modal from './Modal.jsx';
 import { useAccount } from '../../hooks/useAccount.js';
 import { fmt } from '../../game/format.js';
 
+const MEDAL = { 1: '🥇', 2: '🥈', 3: '🥉' };
+
 export default function SeasonEndModal() {
   const account = useAccount();
   const ps = account.pendingSeason; // { endedNumber, activeNumber, reward }
@@ -13,6 +15,7 @@ export default function SeasonEndModal() {
 
   if (!ps) return null;
   const reward = ps.reward;
+  const gotMedal = reward && reward.rank <= 3; // top 3 → trvalá medaile na profilu
 
   const confirm = async () => {
     setBusy(true);
@@ -27,11 +30,12 @@ export default function SeasonEndModal() {
 
   return (
     <Modal showClose={false} className="season-end">
-      <div className="se-emoji">🏁</div>
+      <div className="se-emoji">{gotMedal ? MEDAL[reward.rank] : '🏁'}</div>
       <h2 className="se-title">Sezóna {ps.endedNumber} skončila!</h2>
       {reward ? (
         <p className="se-desc">
-          Umístil ses na <b>#{reward.rank}</b>. 🎉<br />
+          Umístil ses na <b>#{reward.rank}</b>
+          {gotMedal ? ' — získáváš medaili na profil!' : '.'} 🎉<br />
           Začíná <b>Sezóna {ps.activeNumber}</b> — všem se postup resetuje, ale za snahu si
           odnášíš <b>{fmt(reward.forgiveness)} 🕊</b> do nového startu
           {reward.rank === 1 ? ' a 👑 trofej šampiona' : ''}.

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useEngine } from '../../hooks/useEngine.js';
 import { fmt } from '../../game/format.js';
+import { difficultyScale } from '../../game/formulas.js';
 import { FORGIVE_IMG } from '../../game/data/texts.js';
 import Modal from './Modal.jsx';
 
@@ -9,6 +10,7 @@ export default function RebirthModal({ onClose }) {
   const [step, setStep] = useState('confirm');
   const [imgOk, setImgOk] = useState(true);
   const gain = engine.forgivenessGain();
+  const diff = difficultyScale(engine.state);
 
   const confirm = () => {
     if (engine.rebirth()) setStep('done');
@@ -24,6 +26,14 @@ export default function RebirthModal({ onClose }) {
           <p className="rebirth-desc">
             Vynuluje se <b>peníze, úroveň, zbraně i vylepšení</b>.<br />
             Odpuštění, prestige bonusy i úspěchy zůstávají napořád.
+            {diff > 1.05 && (
+              <>
+                <br /><small>
+                  Čím silnější prestige, tím tužší Ekiové: teď drží <b>×{fmt(diff)} HP</b>.
+                  Pořád postoupíš dál než dřív — jen ne „zadarmo".
+                </small>
+              </>
+            )}
           </p>
           <div className="rebirth-actions">
             <button className="rebirth-cancel" onClick={onClose}>Ještě ne</button>

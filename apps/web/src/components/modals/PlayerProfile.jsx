@@ -14,6 +14,7 @@ function formatValue(field, value) {
 }
 
 const medal = (rank) => (rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '🏅');
+const PLACE = { 1: 'Šampion', 2: '2. místo', 3: '3. místo' };
 
 function StatGrid({ score }) {
   return (
@@ -76,6 +77,9 @@ export default function PlayerProfile({ id, onClose }) {
   }, [id]);
 
   const isChampion = data?.trophies?.some((t) => t.rank === 1);
+  // medaile = umístění do 3. místa (síň slávy); nižší umístění zůstávají drobné účastnické odznaky
+  const medals = (data?.trophies || []).filter((t) => t.rank <= 3);
+  const otherTrophies = (data?.trophies || []).filter((t) => t.rank > 3);
   const selected = data && tab !== 'all' ? data.seasons.find((s) => s.number === tab) : null;
   // souhrn úspěchů přes všechny sezóny (co kdy hráč získal)
   const allAch = useMemo(() => {
@@ -97,11 +101,23 @@ export default function PlayerProfile({ id, onClose }) {
             </span>
           </div>
 
-          {data.trophies?.length > 0 && (
+          {medals.length > 0 && (
+            <div className="profile-medals">
+              {medals.map((t) => (
+                <div key={t.season} className={'medal rank-' + t.rank}>
+                  <span className="m-emoji">{medal(t.rank)}</span>
+                  <span className="m-place">{PLACE[t.rank]}</span>
+                  <span className="m-season">Sezóna {t.season}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {otherTrophies.length > 0 && (
             <div className="profile-trophies">
-              {data.trophies.map((t) => (
-                <span key={t.season} className={'trophy' + (t.rank <= 3 ? ' top' : '')}>
-                  {medal(t.rank)} Sezóna {t.season} · #{t.rank}
+              {otherTrophies.map((t) => (
+                <span key={t.season} className="trophy">
+                  Sezóna {t.season} · #{t.rank}
                 </span>
               ))}
             </div>

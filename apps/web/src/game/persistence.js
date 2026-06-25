@@ -2,6 +2,7 @@
 import { CONFIG } from './config.js';
 import { createState } from './initialState.js';
 import { totalDps, goldMult, enemyReward, forgivenessGain } from './formulas.js';
+import { gearPower } from './data/items.js';
 
 const SAVE_KEY = 'ekiClickerSaveV3';
 /* Staré klíče z předchozích verzí hry. Když je najdeme a nový save chybí,
@@ -43,6 +44,13 @@ export function buildSnapshot(state) {
     prestige: state.prestige,
     achievements: state.achievements,
     stats: state.stats,
+    daily: state.daily, // denní úkoly + streak (přenese se i přes obnovu účtu)
+    // pozdní hra: kořist/vybavení (aditivní — starý save bez nich se načte prázdný)
+    inventory: state.inventory,
+    equipment: state.equipment,
+    inventoryUnlocked: state.inventoryUnlocked,
+    dust: state.dust,
+    runGearPower: state.runGearPower,
     buyAmount: state.buyAmount,
     t: Date.now(),
   };
@@ -70,6 +78,13 @@ export function hydrateState(d) {
   Object.assign(state.prestige, d.prestige);
   Object.assign(state.stats, d.stats);
   state.achievements = d.achievements || {};
+  state.daily = d.daily || null; // engine.refreshDaily() narolí, když chybí / je z jiného dne
+  // pozdní hra: kořist/vybavení (starý save → prázdné, vše null)
+  state.inventory = Array.isArray(d.inventory) ? d.inventory : [];
+  if (d.equipment) Object.assign(state.equipment, d.equipment);
+  state.inventoryUnlocked = !!d.inventoryUnlocked;
+  state.dust = d.dust || 0;
+  state.runGearPower = d.runGearPower || gearPower(state.equipment);
   state.buyAmount = d.buyAmount || 1;
   return state;
 }

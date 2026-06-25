@@ -22,9 +22,11 @@ export const CONFIG = {
   bossEvery: 5, // každá 5. úroveň = boss (Golden Eki)
   megaBossEvery: 25, // každá 25. = mega boss (Eki Král)
   ultraBossEvery: 100, // každá 100. = ultra boss (Eki Titán) — endgame milník
+  archonBossEvery: 500, // každá 500. = Eki Archón — pozdní endgame, zdroj sady „Věčný"
   bossTime: 30000, // limit na zabití bosse (ms), jinak uteče
   megaBossTime: 40000,
   ultraBossTime: 60000,
+  archonBossTime: 90000,
   maxDefeatsPerTick: 50, // pojistka kill/tick (anti-lag) — nejvíc tolik porážek za krok
 
   // --- BOSS LOOT (poklad za zabití bosse) ---
@@ -38,10 +40,22 @@ export const CONFIG = {
   megaBossDoveChance: 0.4, // …a šance upustit 1 🕊
   ultraBossLootMult: 3, // Eki Titán: balík zlata…
   ultraBossDoves: 2, // …a zaručeně 2 🕊 (odměna za velký milník)
+  archonBossLootMult: 8, // Eki Archón: obří balík zlata…
+  archonBossDoves: 5, // …a zaručeně 5 🕊 + jeden kus sady „Věčný" (rollSetItem)
 
   // --- pozdní hra (graduální ztížení) ---
   hardenFrom: 80, // od této úrovně se HP začne ztěžovat navíc
   hardenRamp: 1.012, // +1.2 % HP/úroveň nad hardenFrom (kumulativně)
+
+  // --- obtížnost škáluje s prestige silou (ANTI-BLITZ) ---
+  // Problém: po rebirthu si neseš veškerou prestige sílu (hlavně Věčný hněv,
+  // ×1,16/level NÁSOBNĚ). Čerstvý běh pak instakilluje VŠECHNO až ke zdi — klidně
+  // 150 levelů „o ničem". Řešení: HP nepřítele × (prestige damage power)^difficultyExp.
+  // exp<1 → každý rebirth pořád posune zeď dál (prestige se VYPLATÍ), ale blitz je
+  // OMEZENÝ, ne neomezený. První běh (bez prestige) je nedotčený (power=1 → ×1).
+  // Laděno simulátorem (`npm run balance --blitz`). Vyšší exp = kratší blitz, ale
+  // menší přínos prestige; 0 = vypnuto (původní chování).
+  difficultyExp: 0.78,
 
   // --- souboj ---
   critChance: 0.1,
@@ -112,4 +126,16 @@ export const MULT = {
   fortuneGoldPerLevel: 0.08, // gold "Chamtivost": +8 % zlata za level (lineárně)
   rhythmPerLevel: 0.004, // gold "Rytmus": +0,4 % combo poškození/zásah za level
   wrathDurMs: 600, // gold "Zuřivá nálož": +0,6 s trvání zuřivosti za level
+};
+
+/* Tier-2 prestige (capstones) — odemykají se po hluboké investici do rodiče.
+   Vše BOUNDED/aditivní (žádný nový exponenciál — ten zůstává jen power/rage).
+   Magnitudy za level; popisky v data/prestige.js z nich vychází. */
+export const CAPS = {
+  forgivenessPerLevel: 0.08, // 🕯️ Věčné odpuštění: +8 % 🕊 z rebirthu / level
+  comboCapPerLevel: 5,       // 🔗 Mistr comba: +5 ke stropu comba / level
+  bossTimePerLevel: 0.08,    // 🏹 Lovec bossů: +8 % času na bosse / level
+  bossGoldPerLevel: 0.12,    // 🏹 Lovec bossů: +12 % zlata z bossů / level
+  dustPerLevel: 0.20,        // ⚒️ Klenotník: +20 % úlomků / level
+  dropChancePerLevel: 0.003, // ⚒️ Klenotník: +0,3 p.b. šance na drop / level
 };

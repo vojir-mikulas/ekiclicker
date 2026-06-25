@@ -12,7 +12,10 @@
     "smoke": "node scripts/smoke.js"
   },
   "dependencies": {
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/utilities": "^3.2.2",
     "@ekiclicker/shared": "*",
+    "@floating-ui/react": "^0.27.19",
     "react": "^19.2.7",
     "react-dom": "^19.2.7"
   },

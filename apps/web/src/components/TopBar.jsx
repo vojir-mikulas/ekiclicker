@@ -2,17 +2,22 @@ import { useEngineSelector, shallowEqual } from '../hooks/useEngine.js';
 import { useAccount } from '../hooks/useAccount.js';
 import { fmt } from '../game/format.js';
 import { clickDamage } from '../game/formulas.js';
+import { claimableCount } from '../game/data/quests.js';
 import DpsReadout from './DpsReadout.jsx';
 
 const select = (s) => ({
   gold: Math.floor(s.gold),
   forgiveness: s.prestige.forgiveness,
+  dust: Math.floor(s.dust || 0),
   level: s.level,
   click: Math.floor(clickDamage(s)),
+  daily: claimableCount(s),
+  invUnlocked: s.inventoryUnlocked,
+  invCount: s.inventory.length,
 });
 
-export default function TopBar({ view, onView, onOpenSettings, onOpenJoin, onOpenAccount }) {
-  const { gold, forgiveness, level, click } = useEngineSelector(select, shallowEqual);
+export default function TopBar({ view, onView, onOpenSettings, onOpenJoin, onOpenAccount, onOpenStats, onOpenDaily, onOpenInventory }) {
+  const { gold, forgiveness, dust, level, click, daily, invUnlocked, invCount } = useEngineSelector(select, shallowEqual);
   const account = useAccount();
 
   return (
@@ -46,6 +51,13 @@ export default function TopBar({ view, onView, onOpenSettings, onOpenJoin, onOpe
           ) : (
             <span className="identity loading">…</span>
           )}
+          <button className="topbar-btn badged" onClick={onOpenDaily} title="Denní úkoly" aria-label="Denní úkoly">
+            📜{daily > 0 && <span className="topbar-badge">{daily}</span>}
+          </button>
+          <button className="topbar-btn badged" onClick={onOpenInventory} title="Výbava" aria-label="Výbava">
+            🎒{invUnlocked && invCount > 0 && <span className="topbar-badge">{invCount}</span>}
+          </button>
+          <button className="topbar-btn" onClick={onOpenStats} title="Statistiky" aria-label="Statistiky">📊</button>
           <button className="topbar-btn" onClick={onOpenSettings} title="Nastavení" aria-label="Nastavení">⚙️</button>
         </div>
       </div>
@@ -65,6 +77,15 @@ export default function TopBar({ view, onView, onOpenSettings, onOpenJoin, onOpe
             <span className="value">{fmt(forgiveness)}</span>
           </span>
         </div>
+        {invUnlocked && (
+          <div className="currency dust" title="Úlomky z rozkladu kořisti — kovárna výbavy">
+            <span className="icon">💠</span>
+            <span className="txt">
+              <span className="label">Úlomky</span>
+              <span className="value">{fmt(dust)}</span>
+            </span>
+          </div>
+        )}
 
         <div className="topbar-spacer" />
 

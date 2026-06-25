@@ -18,6 +18,7 @@ export const VARIANTS = {
   gold:    { name: 'Golden Eki',   tier: '★ BOSS ★',         hp: 11,   gold: 18,   glow: '#ffd23f', tint: 'rgba(255,200,40,.55)',    filter: 'sepia(.6) saturate(2) brightness(1.1)',           boss: true },
   king:    { name: 'Eki Král',     tier: '👑 MEGA BOSS',     hp: 38,   gold: 70,   glow: '#ff2bd0', tint: 'rgba(255,40,200,.5)',     filter: 'saturate(1.8) hue-rotate(285deg) brightness(1.15)', boss: true, mega: true },
   titan:   { name: 'Eki Titán',    tier: '🌟 ULTRA BOSS',    hp: 140,  gold: 320,  glow: '#ff7a18', tint: 'rgba(255,120,20,.55)',    filter: 'saturate(2.2) contrast(1.25) brightness(1.1) drop-shadow(0 0 12px #ff7a18)', boss: true, mega: true, ultra: true },
+  archon:  { name: 'Eki Archón',   tier: '👁️ ARCHÓN',        hp: 600,  gold: 1400, glow: '#b97aff', tint: 'rgba(150,80,255,.55)',    filter: 'saturate(2.4) contrast(1.35) brightness(1.12) drop-shadow(0 0 18px #b97aff)', boss: true, mega: true, ultra: true, archon: true },
 };
 
 /* Lucky Eki (zlatá sušenka) — neobjevuje se v aréně, je to klikací bonus. */

@@ -1,10 +1,14 @@
 import { useEngine, useEngineSelector, shallowEqual } from '../../hooks/useEngine.js';
-import { PRESTIGE, PRESTIGE_KEYS } from '../../game/data/prestige.js';
+import { PRESTIGE, PRESTIGE_KEYS, CAPSTONES, CAPSTONE_KEYS } from '../../game/data/prestige.js';
 import { prestigeCost } from '../../game/formulas.js';
 import { fmt } from '../../game/format.js';
 import ShopItem from './ShopItem.jsx';
 
-const trigger = (s) => [s.prestige.forgiveness, s.prestige.rebirths, ...PRESTIGE_KEYS.map((k) => s.prestige[k])];
+const trigger = (s) => [
+  s.prestige.forgiveness, s.prestige.rebirths,
+  ...PRESTIGE_KEYS.map((k) => s.prestige[k]),
+  ...CAPSTONE_KEYS.map((k) => s.prestige[k] || 0),
+];
 
 export default function PrestigeList() {
   const engine = useEngine();
@@ -31,6 +35,33 @@ export default function PrestigeList() {
             meta={p.desc}
             cost={`${fmt(cost)} 🕊`}
             costClass="dove"
+            disabled={!can}
+            onClick={() => engine.buyPrestige(key)}
+          />
+        );
+      })}
+
+      <p className="sub capstone-head">⭐ Mistrovství — odemkne se hlubokou investicí</p>
+      {CAPSTONE_KEYS.map((key) => {
+        const c = CAPSTONES[key];
+        const lvl = s.prestige[key] || 0;
+        const parentLvl = s.prestige[c.unlock.key] || 0;
+        const unlocked = parentLvl >= c.unlock.level;
+        const maxed = lvl >= c.max;
+        const cost = prestigeCost(key, lvl);
+        const can = unlocked && !maxed && s.prestige.forgiveness >= cost;
+        const reqName = PRESTIGE[c.unlock.key].name;
+        return (
+          <ShopItem
+            key={key}
+            emoji={c.emoji}
+            name={c.name}
+            lvl={maxed ? 'MAX' : `Lv ${lvl}/${c.max}`}
+            lvlColor={unlocked ? '#ffd86b' : '#7a7f95'}
+            meta={unlocked ? c.desc : `🔒 Vyžaduje ${reqName} Lv ${c.unlock.level} (máš ${parentLvl})`}
+            cost={maxed ? '✓' : unlocked ? `${fmt(cost)} 🕊` : '🔒'}
+            costClass="dove"
+            locked={!unlocked}
             disabled={!can}
             onClick={() => engine.buyPrestige(key)}
           />

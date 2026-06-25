@@ -97,6 +97,14 @@ export const ACHIEVEMENTS = [
     reward: { dmg: 1.25, gold: 1.25 },
   },
   {
+    id: 'archon_slayer',
+    name: 'Zabiják Archónů',
+    emoji: '👁️',
+    desc: 'Sejmi Eki Archóna (každá 500. úroveň) — zdroj sady Věčný',
+    check: (c) => (c.stats.archonKills || 0) >= 1,
+    reward: { dmg: 1.4, gold: 1.4 },
+  },
+  {
     id: 'arsenal_full',
     name: 'Plný arzenál',
     emoji: '⚔️',

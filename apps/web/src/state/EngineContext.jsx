@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Engine } from '../game/engine.js';
 import { load, save } from '../game/persistence.js';
+import { rollItem } from '../game/data/items.js';
 import { EngineContext } from './engineContext.js';
 
 export function EngineProvider({ children }) {
@@ -21,32 +22,57 @@ export function EngineProvider({ children }) {
     window.addEventListener('beforeunload', onHide);
     document.addEventListener('visibilitychange', onVisibility);
 
-    // Ladicí pomocník JEN v devu (import.meta.env.DEV) — do produkčního buildu
-    // se nedostane, takže to není cheat vektor na žebříček. Mění ŽIVÝ stav
-    // enginu (ne localStorage), pak notify() překreslí UI a save() to uloží —
-    // takže to přežije i reload (beforeunload jinak edit v localStorage přepíše).
-    // Použití v konzoli:  __eki.giveGold()   nebo  __eki.setLevel(500)
-    if (import.meta.env.DEV) {
-      window.__eki = {
-        engine,
-        giveGold(n = 1e30) { engine.state.gold = n; engine.notify(); save(engine.state); return n; },
-        setLevel(n = 500) {
-          engine.state.level = n;
-          engine.state.highestLevel = Math.max(engine.state.highestLevel, n);
-          engine.spawnEnemy();
-          engine.notify();
-          save(engine.state);
-          return n;
-        },
-      };
-    }
+    // Konzolové cheaty — ZÁMĚRNĚ i v produkci (na vlastní žádost, kvůli testování
+    // pozdní hry). Mění ŽIVÝ stav enginu (ne localStorage), pak notify() překreslí
+    // UI a save() to uloží → přežije i reload. Žebříček je tím neohrožený: server
+    // má sezónně-relativní monotonii + věrohodnostní strop tempa (checkPlausibility),
+    // takže skok úrovně/zlata se do ranku stejně neprotlačí.
+    // Použití:  eki.setMoney(1e12)   eki.setLevel(1000)   eki.dropItem(5)
+    const cheats = {
+      engine,
+      setMoney(n = 1e12) {
+        engine.state.gold = Math.max(0, Number(n) || 0);
+        engine.notify();
+        save(engine.state);
+        return engine.state.gold;
+      },
+      setLevel(n = 1000) {
+        const lvl = Math.max(1, Math.floor(Number(n) || 1));
+        engine.state.level = lvl;
+        engine.state.highestLevel = Math.max(engine.state.highestLevel, lvl);
+        engine.checkInventoryUnlock(); // setLevel(1000) rovnou odemkne výbavu
+        engine.spawnEnemy();
+        engine.notify();
+        save(engine.state);
+        return lvl;
+      },
+      // Testování kořisti: vyrobí n kusů na aktuální (nebo zadané) úrovni.
+      dropItem(count = 1, level) {
+        engine.state.inventoryUnlocked = true;
+        const ilvl = level || engine.state.level;
+        for (let i = 0; i < count; i++) engine.addItem(rollItem(ilvl));
+        engine.notify();
+        save(engine.state);
+        return engine.state.inventory.length;
+      },
+      unlock() {
+        engine.state.inventoryUnlocked = true;
+        engine.notify();
+        save(engine.state);
+        return true;
+      },
+    };
+    window.eki = cheats;
+    window.__eki = cheats; // zpětně kompatibilní alias
+    console.info('%c🥊 eki cheaty: eki.setMoney(1e12) · eki.setLevel(1000) · eki.dropItem(5)', 'color:#ffd23f;font-weight:bold');
 
     return () => {
       engine.stop();
       save(engine.state);
       window.removeEventListener('beforeunload', onHide);
       document.removeEventListener('visibilitychange', onVisibility);
-      if (import.meta.env.DEV) delete window.__eki;
+      delete window.eki;
+      delete window.__eki;
     };
   }, [engine]);
 
