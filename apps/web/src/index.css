@@ -589,6 +589,62 @@ body{
 /* mistrovství (tier-2 prestige) */
 .capstone-head{ margin-top:14px !important; color:var(--gold) !important; font-weight:800 !important; border-top:1px solid var(--line); padding-top:12px; }
 
+/* ---------- bedny (panel v inventáři) ---------- */
+.inv-chests{ background:var(--panel-2); border:1px solid var(--line); border-radius:12px; padding:10px 12px; margin-bottom:14px; }
+.chest-row{ display:flex; align-items:center; gap:10px; padding:6px 0; }
+.chest-row + .chest-row{ border-top:1px solid var(--line); }
+.chest-ico{ font-size:24px; line-height:1; filter:drop-shadow(0 0 6px currentColor); }
+.chest-info{ flex:1; min-width:0; }
+.chest-name{ font-size:13px; font-weight:800; }
+.chest-sub{ font-size:11px; color:var(--muted); }
+.chest-btns{ display:flex; gap:5px; flex:0 0 auto; }
+.chest-btn{ border:1px solid var(--line); border-radius:8px; background:var(--ink); color:var(--text);
+  font-size:11px; font-weight:800; padding:6px 9px; cursor:pointer; white-space:nowrap; transition:background .12s, border-color .12s; }
+.chest-btn:hover:not(:disabled){ border-color:var(--gold); background:#11151f; }
+.chest-btn.buy{ color:var(--dust); }
+.chest-btn.buy:hover:not(:disabled){ border-color:var(--dust); }
+.chest-btn:disabled{ opacity:.4; cursor:not-allowed; }
+.chest-empty{ font-size:12px; color:var(--muted); padding:4px 0; }
+
+/* ---------- ruleta ---------- */
+.popup-content.roulette-modal{ max-width:600px; text-align:center; }
+.popup-content.roulette-modal h2{ text-align:center; margin-bottom:14px; }
+.roul-viewport{ position:relative; overflow:hidden; height:112px; border:1px solid var(--line); border-radius:12px;
+  background:linear-gradient(180deg, #0c0f18, #14182400); cursor:pointer;
+  -webkit-mask-image:linear-gradient(90deg, transparent, #000 9%, #000 91%, transparent);
+          mask-image:linear-gradient(90deg, transparent, #000 9%, #000 91%, transparent); }
+.roul-marker{ position:absolute; top:0; bottom:0; left:50%; width:3px; transform:translateX(-50%); z-index:3;
+  background:linear-gradient(180deg, var(--gold), var(--orange)); box-shadow:0 0 12px var(--gold); border-radius:2px; }
+.roul-marker::before, .roul-marker::after{ content:""; position:absolute; left:50%; transform:translateX(-50%);
+  border-left:7px solid transparent; border-right:7px solid transparent; }
+.roul-marker::before{ top:-1px; border-top:9px solid var(--gold); }
+.roul-marker::after{ bottom:-1px; border-bottom:9px solid var(--gold); }
+.roul-track{ display:flex; height:100%; align-items:center; padding:8px 0; will-change:transform; }
+.roul-cell{ flex:0 0 80px; width:80px; height:92px; margin:0 4px; border:2px solid var(--line); border-radius:10px;
+  background:var(--panel-2); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; position:relative; }
+.roul-cell-emoji{ font-size:34px; line-height:1; }
+.roul-cell-bar{ width:60%; height:4px; border-radius:2px; }
+.roul-cell.win{ transform:scale(1.06); }
+.roul-cell.miss .roul-cell-emoji{ opacity:.7; }
+
+.roul-actions{ display:flex; gap:10px; justify-content:center; margin-top:16px; }
+.roul-skip, .roul-again, .roul-close{ border:0; border-radius:10px; padding:11px 22px; font-size:14px; font-weight:800; cursor:pointer; }
+.roul-skip{ background:var(--panel-2); color:var(--muted); border:1px solid var(--line); }
+.roul-skip:hover{ color:var(--text); }
+.roul-again{ background:var(--panel-2); color:var(--dust); border:1px solid rgba(70,214,224,.4); }
+.roul-close{ background:linear-gradient(180deg, var(--orange), #e06a18); color:#fff; }
+
+.roul-result{ margin-top:18px; border:2px solid var(--line); border-radius:14px; background:var(--panel-2); padding:16px; display:inline-block; min-width:200px;
+  animation:roulPop .35s cubic-bezier(.2,1.2,.3,1) both; }
+@keyframes roulPop{ from{ transform:scale(.6); opacity:0; } to{ transform:scale(1); opacity:1; } }
+.roul-result-emoji{ font-size:52px; line-height:1; }
+.roul-result-img{ width:72px; height:72px; object-fit:contain; }
+.roul-result-name{ font-weight:900; font-size:17px; margin-top:6px; }
+.roul-result-sub{ font-size:12px; color:var(--muted); margin-top:2px; }
+.roul-result-affixes{ list-style:none; margin:8px 0 0; padding:0; }
+.roul-result-affixes li{ font-size:12px; color:var(--good); font-weight:700; line-height:1.5; }
+.roul-result.miss{ border-color:#3a4258; }
+
 @media (max-width:520px){
   .equip-slots{ grid-template-columns:1fr; }
   .inv-grid{ grid-template-columns:repeat(auto-fill,minmax(130px,1fr)); }

@@ -26,8 +26,9 @@ import {
   comboCap, forgivenessMult, bossTimeMult, bossGoldMult, dustMult, dropChanceBonus,
 } from './formulas.js';
 import {
-  ITEMS, SLOT_IDS, rollItem, rollSetItem, itemScore,
+  ITEMS, SLOT_IDS, itemScore,
   salvageValue, rerollCost, rerollItem, upgradeRarityCost, upgradeRarity, nextRarity,
+  rollChestResult, buildRouletteStrip, chestMissDust, chestCost,
 } from './data/items.js';
 
 let nextEnemyId = 1;
@@ -43,6 +44,7 @@ export class Engine {
     this._acc = 0;
     this._achTimer = 0;
     this._autosaveTimer = 0;
+    this._openSeq = 0; // id přechodné rulety (pendingOpen)
     this._running = false;
     this._dmg = []; // klouzavé okno pro měřené DPS: { t, src, nominal, eff }
     if (!this.state.enemy) this.spawnEnemy();
@@ -168,14 +170,7 @@ export class Engine {
       reward, boss: !!v.boss, mega: !!v.mega, ultra: !!v.ultra, archon: !!v.archon,
       variantId: s.enemy.variantId, loot,
     });
-    this.maybeDropItem(v);
-    // Eki Archón: zaručený kus sady „Věčný" (legendary+) — hlavní zdroj sady.
-    if (v.archon && s.inventoryUnlocked) {
-      const setItem = rollSetItem(s.level, 'eternal', 'legendary');
-      this.addItem(setItem);
-      s.stats.itemsFound = (s.stats.itemsFound || 0) + 1;
-      this.emit('loot', { item: setItem, archon: true });
-    }
+    this.maybeDropChest(v);
     s.level++;
     if (s.level > s.highestLevel) s.highestLevel = s.level;
     this.checkInventoryUnlock();
@@ -193,19 +188,24 @@ export class Engine {
     }
   }
 
-  /* Drop kusu po zabití — šance dle typu nepřítele (+ ⚒️ Klenotník), ilvl = aktuální úroveň. */
-  maybeDropItem(v) {
+  /* Drop BEDNY po zabití — typ a šance dle nepřítele (+ ⚒️ Klenotník na šanci).
+     Kus se vyloupne až otevřením bedny (ruleta). Archón dává truhlu zaručeně. */
+  maybeDropChest(v) {
     const s = this.state;
     if (!s.inventoryUnlocked) return;
-    const base = v.ultra ? ITEMS.ultraDropChance
-      : v.mega ? ITEMS.megaDropChance
-      : v.boss ? ITEMS.bossDropChance
-      : ITEMS.dropChance;
-    if (Math.random() >= base + dropChanceBonus(s)) return;
-    const item = rollItem(s.level);
-    this.addItem(item);
-    s.stats.itemsFound = (s.stats.itemsFound || 0) + 1;
-    this.emit('loot', { item });
+    let tier, chance;
+    if (v.archon) { tier = 'archon'; chance = 1; }
+    else if (v.ultra || v.mega) { tier = 'golden'; chance = 1; }
+    else if (v.boss) { tier = 'golden'; chance = ITEMS.bossDropChance; }
+    else { tier = 'wooden'; chance = ITEMS.dropChance + dropChanceBonus(s); }
+    if (Math.random() >= chance) return;
+    this.grantChest(tier);
+  }
+  grantChest(tier) {
+    const s = this.state;
+    s.chests[tier] = (s.chests[tier] || 0) + 1;
+    s.stats.chestsFound = (s.stats.chestsFound || 0) + 1;
+    this.emit('chest', { tier });
   }
 
   /* Rozlož kus na úlomky 💠 (× ⚒️ Klenotník). Volá se při zahození i přetečení
@@ -309,6 +309,84 @@ export class Engine {
   afterInventory() {
     save(this.state);
     this.notify();
+  }
+
+  /* ---------- bedny / rulety ---------- */
+  /* Otevři bednu daného typu. KLÍČOVÉ (anti-exploit): výsledek se ZAÚČTUJE HNED —
+     bedna se spotřebuje, kus se přidá do inventáře (nebo se připíše útěcha za
+     prázdnou) a stav se uloží. Ruleta v UI je jen PŘEHRÁNÍ už rozhodnutého výsledku;
+     zavření okna ani reload stránky s ním nehne (pendingOpen se neukládá → po reloadu
+     je pryč, ale kus už je v inventáři a bedna spotřebovaná). Jedna animace naráz. */
+  openChest(tier) {
+    const s = this.state;
+    if (s.pendingOpen) return;             // jedna ruleta naráz (anti-spam)
+    if ((s.chests[tier] || 0) < 1) return;
+    s.chests[tier]--;                      // spotřebuj atomicky
+    this._commitOpen(tier);
+  }
+
+  /* Kup a otevři „vykovanou" bednu za úlomky 💠 (gamble sink). */
+  buyDustChest() {
+    const s = this.state;
+    if (s.pendingOpen) return;
+    const cost = chestCost('dust');
+    if ((s.dust || 0) < cost) return;
+    s.dust -= cost;
+    this._commitOpen('dust');
+  }
+
+  /* Zaúčtuj výsledek (kus / útěcha) a postav pásek pro ruletu. */
+  _commitOpen(tier) {
+    const s = this.state;
+    const res = rollChestResult(tier, s.level);
+    if (res.miss) {
+      res.refund = chestMissDust(tier);
+      if (res.refund) s.dust = (s.dust || 0) + res.refund;
+    } else {
+      this.addItem(res.item);
+      s.stats.itemsFound = (s.stats.itemsFound || 0) + 1;
+    }
+    const landingIndex = 48;
+    const strip = buildRouletteStrip(tier, s.level, res, landingIndex, 56);
+    s.pendingOpen = { id: ++this._openSeq, tier, strip, landingIndex, result: res };
+    save(s);  // uloží ZAÚČTOVANÝ výsledek (buildSnapshot pendingOpen vynechává)
+    this.notify();
+    this.emit('open', { tier, result: res });
+  }
+
+  /* Zavři ruletu (po doběhnutí / skipu / zavření okna). Výsledek je dávno zaúčtovaný. */
+  dismissOpen() {
+    if (!this.state.pendingOpen) return;
+    this.state.pendingOpen = null;
+    this.notify();
+  }
+
+  /* Rychlé otevření VŠECH beden daného typu naráz (bez rulety). Vrátí souhrn pro UI. */
+  openAll(tier) {
+    const s = this.state;
+    const n = s.chests[tier] || 0;
+    if (n < 1 || s.pendingOpen) return null;
+    s.chests[tier] = 0;
+    const rarities = {};
+    let misses = 0;
+    let dust = 0;
+    for (let i = 0; i < n; i++) {
+      const res = rollChestResult(tier, s.level);
+      if (res.miss) {
+        misses++;
+        const rf = chestMissDust(tier);
+        if (rf) { s.dust = (s.dust || 0) + rf; dust += rf; }
+      } else {
+        this.addItem(res.item);
+        s.stats.itemsFound = (s.stats.itemsFound || 0) + 1;
+        rarities[res.item.rarity] = (rarities[res.item.rarity] || 0) + 1;
+      }
+    }
+    save(s);
+    this.notify();
+    const summary = { tier, count: n, rarities, misses, dust };
+    this.emit('openAll', summary);
+    return summary;
   }
 
   /* Poklad za bosse — zlato navíc (+ 🕊 z mega/ultra). Vše laditelné v CONFIG. */

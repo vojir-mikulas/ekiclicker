@@ -11,7 +11,8 @@ import {
 } from '@dnd-kit/core';
 import { useEngine, useEngineSelector, shallowEqual } from '../../hooks/useEngine.js';
 import {
-  SLOTS, SLOT_IDS, ITEMS, SETS, RARITIES, aggregateEquip, activeSets,
+  SLOTS, SLOT_IDS, ITEMS, SETS, RARITIES, CHESTS, CHEST_ORDER, chestCost,
+  aggregateEquip, activeSets,
   itemEmoji, itemName, rarityName, rarityColor, affixLabel, itemScore, itemSet,
   rerollCost, upgradeRarityCost, nextRarity,
 } from '../../game/data/items.js';
@@ -32,6 +33,7 @@ const selectSig = (s) => ({
   unlocked: s.inventoryUnlocked,
   highest: s.highestLevel,
   dust: Math.floor(s.dust || 0),
+  chests: CHEST_ORDER.map((t) => s.chests?.[t] || 0).join(','),
   inv: s.inventory.map((i) => i.id + i.rarity + i.affixes.length).join(','),
   eq: SLOT_IDS.map((id) => { const it = s.equipment[id]; return it ? it.id + it.rarity : '-'; }).join(','),
 });
@@ -161,6 +163,51 @@ function EquipSlot({ slot, item, dust, onUnequip, onReroll, onUpgrade }) {
   );
 }
 
+/* Panel beden: co máš neotevřeného + gamble „vykovaná bedna" za úlomky.
+   Otevření spustí ruletu (engine.openChest → pendingOpen → RouletteModal). */
+function ChestPanel({ engine, dust }) {
+  const s = engine.state;
+  const owned = CHEST_ORDER.filter((t) => t !== 'dust' && (s.chests?.[t] || 0) > 0);
+  const dustCost = chestCost('dust');
+  const dustDef = CHESTS.dust;
+  return (
+    <div className="inv-chests">
+      <span className="inv-summary-label">Bedny — otevři a roztoč ruletu</span>
+      {owned.length === 0 && (
+        <p className="chest-empty">Zatím žádné bedny — padají z nepřátel (hlavně z bossů). Kus se vyloupne až otevřením.</p>
+      )}
+      {owned.map((t) => {
+        const def = CHESTS[t];
+        const n = s.chests[t];
+        const floor = def.rarityFloor ? `min. ${RARITIES[def.rarityFloor].name}` : 'náhodná kořist';
+        return (
+          <div key={t} className="chest-row">
+            <span className="chest-ico" style={{ color: def.glow }}>{def.emoji}</span>
+            <div className="chest-info">
+              <div className="chest-name" style={{ color: def.glow }}>{def.name} ×{n}</div>
+              <div className="chest-sub">{floor}{def.setBias ? ' • sada Věčný' : ''}{def.missChance ? ` • ${Math.round(def.missChance * 100)} % prázdná` : ''}</div>
+            </div>
+            <div className="chest-btns">
+              <button className="chest-btn" onClick={() => engine.openChest(t)}>Otevřít 🎲</button>
+              {n > 1 && <button className="chest-btn" onClick={() => engine.openAll(t)} title="Otevřít vše bez rulety">Vše ({n})</button>}
+            </div>
+          </div>
+        );
+      })}
+      <div className="chest-row">
+        <span className="chest-ico" style={{ color: dustDef.glow }}>{dustDef.emoji}</span>
+        <div className="chest-info">
+          <div className="chest-name" style={{ color: dustDef.glow }}>{dustDef.name}</div>
+          <div className="chest-sub">Vsaď úlomky na náhodný kus (min. {RARITIES[dustDef.rarityFloor].name}) • {Math.round(dustDef.missChance * 100)} % prázdná</div>
+        </div>
+        <div className="chest-btns">
+          <button className="chest-btn buy" disabled={dust < dustCost} onClick={() => engine.buyDustChest()}>Vykovat 💠{fmt(dustCost)}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* Přehled sad: kolik kusů nasazeno a které stupně bonusu jsou aktivní. */
 function SetPanel({ equipment }) {
   const sets = activeSets(equipment).filter((s) => s.pieces >= 2 || s.tiers.some((t) => t.active));
@@ -229,6 +276,8 @@ export default function InventoryModal({ onClose }) {
   return (
     <Modal onClose={onClose} className="inventory-modal">
       <h2>🎒 Výbava <span className="inv-dust" title="Úlomky z rozkladu kořisti — kovárna">💠 {fmt(dust)}</span></h2>
+
+      <ChestPanel engine={engine} dust={dust} />
 
       <DndContext
         sensors={sensors}

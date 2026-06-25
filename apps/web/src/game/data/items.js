@@ -294,6 +294,71 @@ export function upgradeRarity(item) {
   return { ...item, rarity: next, affixes };
 }
 
+/* ----------------------------- bedny / rulety (CS:GO styl) -----------------------------
+   Kořist nepadá jako kus rovnou — padají BEDNY (counts ve state.chests). Otevření
+   spustí ruletu (vizuál), ale VÝSLEDEK SE ZAÚČTUJE HNED při otevření (engine) → zavření
+   ani reload nic nezmění (anti-exploit). Tady jsou jen ČISTÁ data + losování.
+   `rarityFloor` = podlaha vzácnosti, `setBias` = losuje kus sady „Věčný",
+   `missChance` = šance na prázdnou (malá útěcha v úlomcích `missDust`),
+   `cost` = cena v úlomcích (jen u kupované „vykované" bedny). */
+export const CHESTS = {
+  wooden: { id: 'wooden', name: 'Bedna',           emoji: '📦', glow: '#9aa3b8', rarityFloor: null,        setBias: false, missChance: 0.10, missDust: 6 },
+  golden: { id: 'golden', name: 'Zlatá bedna',      emoji: '🟨', glow: '#ffd23f', rarityFloor: 'rare',      setBias: false, missChance: 0.05, missDust: 20 },
+  archon: { id: 'archon', name: 'Archónská truhla', emoji: '👁️', glow: '#b97aff', rarityFloor: 'legendary', setBias: true,  missChance: 0,    missDust: 0 },
+  dust:   { id: 'dust',   name: 'Vykovaná bedna',   emoji: '💠', glow: '#46d6e0', rarityFloor: 'epic',      setBias: false, missChance: 0.15, missDust: 120, cost: 600 },
+};
+export const CHEST_ORDER = ['wooden', 'golden', 'archon', 'dust'];
+export const chestMissDust = (tier) => CHESTS[tier]?.missDust || 0;
+export const chestCost = (tier) => CHESTS[tier]?.cost || 0;
+
+function rollRarityFloor(level, floor) {
+  const r = rollRarity(level);
+  return floor && RARITY_ORDER.indexOf(r) < RARITY_ORDER.indexOf(floor) ? floor : r;
+}
+
+/* Jeden kus s podlahou vzácnosti (pro bedny). */
+export function rollItemFloor(level, floor) {
+  const slot = SLOT_IDS[Math.floor(rnd() * SLOT_IDS.length)];
+  const rarity = rollRarityFloor(level, floor);
+  const base = rollBase(slot, level);
+  return { id: makeId(), slot, base: base.id, rarity, ilvl: level, affixes: rollAffixesFor(slot, level, rarity) };
+}
+
+/* Výsledek otevření bedny: { miss, item }. Volá engine PŘI otevření (zaúčtuje hned). */
+export function rollChestResult(tier, level) {
+  const def = CHESTS[tier];
+  if (!def) return { miss: false, item: rollItem(level) };
+  if (def.missChance && rnd() < def.missChance) return { miss: true, item: null };
+  const item = def.setBias
+    ? rollSetItem(level, 'eternal', def.rarityFloor || 'legendary')
+    : rollItemFloor(level, def.rarityFloor);
+  return { miss: false, item };
+}
+
+/* Pásek pro ruletu (jen VIZUÁL). Výhra je na pevném `landingIndex`; okolo decoye,
+   v sousedních buňkách občas „skoro" vysoká vzácnost (near-miss napětí). */
+export function buildRouletteStrip(tier, level, result, landingIndex, length) {
+  const def = CHESTS[tier] || {};
+  const decoy = (nearMiss) => {
+    const slot = SLOT_IDS[Math.floor(rnd() * SLOT_IDS.length)];
+    let rarity = rollRarityFloor(level, def.rarityFloor);
+    if (nearMiss && rnd() < 0.6) rarity = RARITY_ORDER[Math.min(RARITY_ORDER.length - 1, RARITY_ORDER.indexOf(rarity) + 2)];
+    const base = rollBase(slot, level);
+    return { rarity, emoji: BASE_BY[slot][base.id].emoji, color: RARITIES[rarity].color };
+  };
+  const cells = [];
+  for (let i = 0; i < length; i++) {
+    if (i === landingIndex) {
+      cells.push(result.miss
+        ? { miss: true, emoji: '💨', color: '#6a7185' }
+        : { rarity: result.item.rarity, emoji: itemEmoji(result.item), color: rarityColor(result.item), win: true });
+    } else {
+      cells.push(decoy(Math.abs(i - landingIndex) === 1));
+    }
+  }
+  return cells;
+}
+
 /* ----------------------------- agregace / síla ----------------------------- */
 const ZERO = () => ({
   dmgPct: 0, punchPct: 0, weaponPct: 0, critChance: 0, critMult: 0, goldPct: 0, luck: 0, frenzyDur: 0,

@@ -44,6 +44,7 @@ export function createStats() {
     playTimeMs: 0,
     peakDps: 0,
     itemsFound: 0,
+    chestsFound: 0,
   };
 }
 
@@ -68,6 +69,8 @@ export function createState() {
     equipment: createEquipment(), // slot -> nasazený kus | null (přežívá rebirth)
     inventoryUnlocked: false,     // jednou true → zůstává (přežívá rebirth)
     dust: 0,                      // úlomky 💠 z rozkladu kořisti (kovárna; přežívá rebirth)
+    chests: {},                   // tier -> počet neotevřených beden (přežívá rebirth)
+    pendingOpen: null,            // PŘECHODNÝ vizuál rulety (neukládá se; výsledek je už zaúčtovaný)
     runGearPower: 1,              // snapshot síly vybavení na startu běhu → obtížnost
     buyAmount: 1,
   };
@@ -85,6 +88,7 @@ export function resetRun(state, startLevel) {
   state.frenzy = { active: false, until: 0, charge: 0 };
   state.lucky = null;
   state.enemy = null;
-  // vybavení/inventář se NEresetují (jako prestige) → snapshot jeho síly do obtížnosti
+  state.pendingOpen = null; // přechodná ruleta — rebirth ji nenese
+  // vybavení/inventář/bedny/úlomky se NEresetují (jako prestige) → snapshot síly do obtížnosti
   state.runGearPower = gearPower(state.equipment);
 }

@@ -50,6 +50,7 @@ export function buildSnapshot(state) {
     equipment: state.equipment,
     inventoryUnlocked: state.inventoryUnlocked,
     dust: state.dust,
+    chests: state.chests, // neotevřené bedny (pendingOpen se ZÁMĚRNĚ neukládá — viz hydrate)
     runGearPower: state.runGearPower,
     buyAmount: state.buyAmount,
     t: Date.now(),
@@ -84,6 +85,10 @@ export function hydrateState(d) {
   if (d.equipment) Object.assign(state.equipment, d.equipment);
   state.inventoryUnlocked = !!d.inventoryUnlocked;
   state.dust = d.dust || 0;
+  state.chests = (d.chests && typeof d.chests === 'object') ? d.chests : {};
+  // pendingOpen se NEnačítá: výsledek otevření je už zaúčtovaný (kus v inventáři /
+  // útěcha v úlomcích) → po reloadu žádná „viselka" rulety = nejde tím nic zcheatovat.
+  state.pendingOpen = null;
   state.runGearPower = d.runGearPower || gearPower(state.equipment);
   state.buyAmount = d.buyAmount || 1;
   return state;

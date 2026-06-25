@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
-import { useEngine } from '../hooks/useEngine.js';
+import { useEngine, useEngineSelector } from '../hooks/useEngine.js';
 import { useAccount } from '../hooks/useAccount.js';
 import TopBar from './TopBar.jsx';
 import Arena from './arena/Arena.jsx';
@@ -16,6 +16,7 @@ const JoinModal = lazy(() => import('./modals/JoinModal.jsx'));
 const AccountModal = lazy(() => import('./modals/AccountModal.jsx'));
 const StatsModal = lazy(() => import('./modals/StatsModal.jsx'));
 const InventoryModal = lazy(() => import('./modals/InventoryModal.jsx'));
+const RouletteModal = lazy(() => import('./modals/RouletteModal.jsx'));
 const DailyQuests = lazy(() => import('./modals/DailyQuests.jsx'));
 const Seasons = lazy(() => import('./leaderboard/Seasons.jsx'));
 const PlayerProfile = lazy(() => import('./modals/PlayerProfile.jsx'));
@@ -29,6 +30,7 @@ export default function Game() {
   const [offline, setOffline] = useState(null);
   const [gift, setGift] = useState(null);
   const [profileId, setProfileId] = useState(null); // otevřený profil hráče
+  const pendingOpenId = useEngineSelector((s) => s.pendingOpen?.id || null); // běžící ruleta bedny
 
   // jednorázové připsání offline výdělku po načtení
   useEffect(() => {
@@ -80,6 +82,7 @@ export default function Game() {
         {modal === 'account' && <AccountModal onClose={() => setModal(null)} />}
         {modal === 'stats' && <StatsModal onClose={() => setModal(null)} />}
         {modal === 'inventory' && <InventoryModal onClose={() => setModal(null)} />}
+        {pendingOpenId && <RouletteModal key={pendingOpenId} />}
         {modal === 'daily' && <DailyQuests onClose={() => setModal(null)} />}
         {offline && <OfflineModal offline={offline} onClose={() => setOffline(null)} />}
         {gift && <GiftModal gift={gift} onClose={() => setGift(null)} />}

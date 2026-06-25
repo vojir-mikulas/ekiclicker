@@ -40,6 +40,7 @@ const select = (s) => ({
   bossKills: s.stats.bossKills,
   archonKills: s.stats.archonKills || 0,
   itemsFound: s.stats.itemsFound || 0,
+  chestsFound: s.stats.chestsFound || 0,
   dust: Math.floor(s.dust || 0),
   totalGold: Math.floor(s.stats.totalGold),
   totalClicks: s.stats.totalClicks,
@@ -110,7 +111,8 @@ export default function StatsModal({ onClose }) {
       ]} />
 
       <Section title="🎒 Výbava" rows={[
-        ['Nalezené kusy', fmt(v.itemsFound)],
+        ['Nalezené bedny', fmt(v.chestsFound)],
+        ['Vyloupené kusy', fmt(v.itemsFound)],
         ['Úlomky 💠', fmt(v.dust)],
       ]} />
 

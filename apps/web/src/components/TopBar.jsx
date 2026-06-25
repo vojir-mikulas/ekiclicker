@@ -13,11 +13,11 @@ const select = (s) => ({
   click: Math.floor(clickDamage(s)),
   daily: claimableCount(s),
   invUnlocked: s.inventoryUnlocked,
-  invCount: s.inventory.length,
+  chestCount: s.chests ? Object.values(s.chests).reduce((a, b) => a + b, 0) : 0,
 });
 
 export default function TopBar({ view, onView, onOpenSettings, onOpenJoin, onOpenAccount, onOpenStats, onOpenDaily, onOpenInventory }) {
-  const { gold, forgiveness, dust, level, click, daily, invUnlocked, invCount } = useEngineSelector(select, shallowEqual);
+  const { gold, forgiveness, dust, level, click, daily, invUnlocked, chestCount } = useEngineSelector(select, shallowEqual);
   const account = useAccount();
 
   return (
@@ -54,8 +54,8 @@ export default function TopBar({ view, onView, onOpenSettings, onOpenJoin, onOpe
           <button className="topbar-btn badged" onClick={onOpenDaily} title="Denní úkoly" aria-label="Denní úkoly">
             📜{daily > 0 && <span className="topbar-badge">{daily}</span>}
           </button>
-          <button className="topbar-btn badged" onClick={onOpenInventory} title="Výbava" aria-label="Výbava">
-            🎒{invUnlocked && invCount > 0 && <span className="topbar-badge">{invCount}</span>}
+          <button className="topbar-btn badged" onClick={onOpenInventory} title="Výbava / bedny" aria-label="Výbava">
+            🎒{invUnlocked && chestCount > 0 && <span className="topbar-badge">{chestCount}</span>}
           </button>
           <button className="topbar-btn" onClick={onOpenStats} title="Statistiky" aria-label="Statistiky">📊</button>
           <button className="topbar-btn" onClick={onOpenSettings} title="Nastavení" aria-label="Nastavení">⚙️</button>

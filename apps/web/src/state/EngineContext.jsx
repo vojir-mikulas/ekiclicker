@@ -22,57 +22,72 @@ export function EngineProvider({ children }) {
     window.addEventListener('beforeunload', onHide);
     document.addEventListener('visibilitychange', onVisibility);
 
-    // Konzolové cheaty — ZÁMĚRNĚ i v produkci (na vlastní žádost, kvůli testování
-    // pozdní hry). Mění ŽIVÝ stav enginu (ne localStorage), pak notify() překreslí
-    // UI a save() to uloží → přežije i reload. Žebříček je tím neohrožený: server
-    // má sezónně-relativní monotonii + věrohodnostní strop tempa (checkPlausibility),
-    // takže skok úrovně/zlata se do ranku stejně neprotlačí.
+    // Konzolové cheaty — gated za VITE_CHEATS=1 (viz apps/web/.env). Když proměnná
+    // není '1', Vite tenhle blok při buildu úplně odstraní (dead-code elimination),
+    // takže se ani nedostane do produkčního bundle. Zapnutí: nastav VITE_CHEATS=1 a
+    // přebuilduj (prod) / restartuj dev server; vypnutí: změň hodnotu a totéž.
+    // Mění ŽIVÝ stav enginu (ne localStorage), pak notify() překreslí UI a save() to
+    // uloží → přežije i reload. Žebříček je tím neohrožený: server má sezónně-relativní
+    // monotonii + věrohodnostní strop tempa (checkPlausibility), takže skok úrovně/zlata
+    // se do ranku stejně neprotlačí.
     // Použití:  eki.setMoney(1e12)   eki.setLevel(1000)   eki.dropItem(5)
-    const cheats = {
-      engine,
-      setMoney(n = 1e12) {
-        engine.state.gold = Math.max(0, Number(n) || 0);
-        engine.notify();
-        save(engine.state);
-        return engine.state.gold;
-      },
-      setLevel(n = 1000) {
-        const lvl = Math.max(1, Math.floor(Number(n) || 1));
-        engine.state.level = lvl;
-        engine.state.highestLevel = Math.max(engine.state.highestLevel, lvl);
-        engine.checkInventoryUnlock(); // setLevel(1000) rovnou odemkne výbavu
-        engine.spawnEnemy();
-        engine.notify();
-        save(engine.state);
-        return lvl;
-      },
-      // Testování kořisti: vyrobí n kusů na aktuální (nebo zadané) úrovni.
-      dropItem(count = 1, level) {
-        engine.state.inventoryUnlocked = true;
-        const ilvl = level || engine.state.level;
-        for (let i = 0; i < count; i++) engine.addItem(rollItem(ilvl));
-        engine.notify();
-        save(engine.state);
-        return engine.state.inventory.length;
-      },
-      unlock() {
-        engine.state.inventoryUnlocked = true;
-        engine.notify();
-        save(engine.state);
-        return true;
-      },
-    };
-    window.eki = cheats;
-    window.__eki = cheats; // zpětně kompatibilní alias
-    console.info('%c🥊 eki cheaty: eki.setMoney(1e12) · eki.setLevel(1000) · eki.dropItem(5)', 'color:#ffd23f;font-weight:bold');
+    if (import.meta.env.VITE_CHEATS === '1') {
+      const cheats = {
+        engine,
+        setMoney(n = 1e12) {
+          engine.state.gold = Math.max(0, Number(n) || 0);
+          engine.notify();
+          save(engine.state);
+          return engine.state.gold;
+        },
+        setLevel(n = 1000) {
+          const lvl = Math.max(1, Math.floor(Number(n) || 1));
+          engine.state.level = lvl;
+          engine.state.highestLevel = Math.max(engine.state.highestLevel, lvl);
+          engine.checkInventoryUnlock(); // setLevel(1000) rovnou odemkne výbavu
+          engine.spawnEnemy();
+          engine.notify();
+          save(engine.state);
+          return lvl;
+        },
+        // Testování kořisti: vyrobí n kusů na aktuální (nebo zadané) úrovni.
+        dropItem(count = 1, level) {
+          engine.state.inventoryUnlocked = true;
+          const ilvl = level || engine.state.level;
+          for (let i = 0; i < count; i++) engine.addItem(rollItem(ilvl));
+          engine.notify();
+          save(engine.state);
+          return engine.state.inventory.length;
+        },
+        // Testování beden/rulety: přidá n beden daného typu (wooden/golden/archon/dust).
+        dropChest(tier = 'golden', count = 1) {
+          engine.state.inventoryUnlocked = true;
+          for (let i = 0; i < count; i++) engine.grantChest(tier);
+          engine.notify();
+          save(engine.state);
+          return engine.state.chests;
+        },
+        unlock() {
+          engine.state.inventoryUnlocked = true;
+          engine.notify();
+          save(engine.state);
+          return true;
+        },
+      };
+      window.eki = cheats;
+      window.__eki = cheats; // zpětně kompatibilní alias
+      console.info('%c🥊 eki cheaty: eki.setMoney(1e12) · eki.setLevel(1000) · eki.dropItem(5)', 'color:#ffd23f;font-weight:bold');
+    }
 
     return () => {
       engine.stop();
       save(engine.state);
       window.removeEventListener('beforeunload', onHide);
       document.removeEventListener('visibilitychange', onVisibility);
-      delete window.eki;
-      delete window.__eki;
+      if (import.meta.env.VITE_CHEATS === '1') {
+        delete window.eki;
+        delete window.__eki;
+      }
     };
   }, [engine]);
 

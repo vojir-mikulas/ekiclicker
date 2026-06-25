@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef } from 'react';
 import { useEngineEvent } from '../hooks/useEngine.js';
 import { fmt } from '../game/format.js';
+import { CHESTS, RARITIES } from '../game/data/items.js';
 
 function rewardText(r) {
   const parts = [];
@@ -35,11 +36,19 @@ export default function ToastHost() {
             title: payload.archon ? 'Poklad Eki Archóna!' : payload.ultra ? 'Poklad Eki Titána!' : 'Poklad Eki Krále!',
             sub: `+${payload.loot.forgiveness} 🕊 Odpuštění`,
           });
-        } else if (type === 'loot' && payload.archon) {
+        } else if (type === 'chest' && payload.tier === 'archon') {
           push({
-            ico: '♾️',
-            title: 'Kus sady Věčný!',
-            sub: 'Archón shodil kořist sady — nasaď ji ve Výbavě 🎒',
+            ico: '👁️',
+            title: 'Archónská truhla!',
+            sub: 'Otevři ji ve Výbavě 🎒 — uvnitř je sada Věčný',
+          });
+        } else if (type === 'openAll') {
+          const parts = Object.entries(payload.rarities).map(([r, n]) => `${n}× ${RARITIES[r]?.name || r}`);
+          if (payload.misses) parts.push(`${payload.misses}× prázdná`);
+          push({
+            ico: CHESTS[payload.tier]?.emoji || '📦',
+            title: `Otevřeno ${payload.count}× ${CHESTS[payload.tier]?.name || 'bedna'}`,
+            sub: parts.join(' • ') || '—',
           });
         } else if (type === 'questClaim') {
           push({
