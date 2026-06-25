@@ -337,6 +337,14 @@ export class Engine {
     this.notify();
   }
 
+  /* Připíše Odpuštění (např. odměna za umístění v sezóně po resetu). */
+  grantForgiveness(amount) {
+    if (!amount || amount <= 0) return;
+    this.state.prestige.forgiveness += amount;
+    save(this.state);
+    this.notify();
+  }
+
   /* Nahraj stav ze save blobu (obnova účtu na novém zařízení / po smazání dat).
      Přepíše lokální postup uloženými daty ze serveru. */
   loadSnapshot(blob) {

@@ -9,7 +9,6 @@ import { requirePlayer } from '../middleware/auth.js';
 import { authLimiter } from '../middleware/rateLimit.js';
 import {
   rowToScore,
-  playerRank,
   countRecentAccountsByIp,
   isNicknameTaken,
   createPlayer,
@@ -17,10 +16,21 @@ import {
   deletePlayer,
   findByToken,
   touchIp,
+  getActiveSeason,
+  getSeasonById,
+  playerSeasonRank,
+  getUnclaimedReward,
+  enterSeason,
 } from '../lib/players.js';
 
 const router = Router();
 const defaultBoard = boardByKey(DEFAULT_BOARD);
+
+/* Rank hráče v aktivní sezóně (nebo null, když žádná aktivní není / hráč nesoutěží). */
+async function activeRank(playerId) {
+  const active = await getActiveSeason();
+  return active ? playerSeasonRank(active.id, playerId, defaultBoard) : null;
+}
 
 /* POST /api/register — { nickname } → { id, nickname, token, recoveryCode } */
 router.post('/register', authLimiter, async (req, res, next) => {
@@ -40,6 +50,7 @@ router.post('/register', authLimiter, async (req, res, next) => {
     }
 
     const token = generateToken();
+    const active = await getActiveSeason();
     let player;
     try {
       player = await createPlayer({
@@ -48,6 +59,7 @@ router.post('/register', authLimiter, async (req, res, next) => {
         nicknameCi,
         ip,
         nowMs: Date.now(),
+        currentSeasonId: active ? active.id : null,
       });
     } catch (err) {
       // závod o unikátní nickname_ci — Postgres unique violation
@@ -57,7 +69,13 @@ router.post('/register', authLimiter, async (req, res, next) => {
       throw err;
     }
 
-    res.status(200).json({ id: player.id, nickname: player.nickname, token, recoveryCode: token });
+    res.status(200).json({
+      id: player.id,
+      nickname: player.nickname,
+      token,
+      recoveryCode: token,
+      season: active ? active.number : null,
+    });
   } catch (err) {
     next(err);
   }
@@ -75,7 +93,7 @@ router.post('/recover', authLimiter, async (req, res, next) => {
     if (!player) return res.status(404).json({ error: 'Účet nenalezen.', code: 'not_found' });
 
     await touchIp(player, clientIp(req), Date.now());
-    const rank = await playerRank(player.id, defaultBoard);
+    const rank = await activeRank(player.id);
     res.status(200).json({
       id: player.id,
       nickname: player.nickname,
@@ -89,20 +107,40 @@ router.post('/recover', authLimiter, async (req, res, next) => {
   }
 });
 
-/* GET /api/me — (auth) ?withSave=1 → { id, nickname, rank, score, createdAt, save? } */
+/* GET /api/me — (auth) ?withSave=1 → { id, nickname, rank, score, createdAt, season, save? } */
 router.get('/me', requirePlayer, async (req, res, next) => {
   try {
     const p = req.player;
-    const rank = await playerRank(p.id, defaultBoard);
+    const active = await getActiveSeason();
+    const mine = await getSeasonById(p.current_season_id);
+    const rank = active ? await playerSeasonRank(active.id, p.id, defaultBoard) : null;
     const out = {
       id: p.id,
       nickname: p.nickname,
       rank,
       score: rowToScore(p),
       createdAt: p.created_at,
+      season: {
+        active: active ? { number: active.number } : null,
+        mine: mine ? mine.number : null,
+        pendingReward: await getUnclaimedReward(p.id),
+      },
     };
     if (req.query.withSave === '1') out.save = p.save_blob ?? null;
     res.status(200).json(out);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/* POST /api/me/enter-season — (auth) potvrzení resetu pro novou sezónu.
+   Claimne odměnu, přepne hráče do aktivní sezóny, založí čerstvý sezónní řádek. */
+router.post('/me/enter-season', requirePlayer, async (req, res, next) => {
+  try {
+    const active = await getActiveSeason();
+    if (!active) return res.status(409).json({ error: 'Žádná aktivní sezóna.', code: 'no_active_season' });
+    const { reward } = await enterSeason(req.player.id, active.id);
+    res.status(200).json({ ok: true, season: { number: active.number }, reward });
   } catch (err) {
     next(err);
   }

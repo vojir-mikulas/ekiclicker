@@ -4,7 +4,7 @@
    snake_case sloupce.
    ========================================================================= */
 import { SCORE_FIELDS, boardByKey, DEFAULT_BOARD } from '@ekiclicker/shared';
-import { query } from '../db.js';
+import { query, tx } from '../db.js';
 import { sha256hex } from './crypto.js';
 import { nextIpHistory } from './ip.js';
 
@@ -98,14 +98,14 @@ export async function isNicknameTaken(nicknameCi, exceptId = null) {
   return rows.length > 0;
 }
 
-/* Registrace nového hráče. Vrací vložený řádek. */
-export async function createPlayer({ tokenHash, nickname, nicknameCi, ip, nowMs }) {
+/* Registrace nového hráče. Vrací vložený řádek. currentSeasonId = aktivní sezóna. */
+export async function createPlayer({ tokenHash, nickname, nicknameCi, ip, nowMs, currentSeasonId = null }) {
   const seed = JSON.stringify([{ ip, at: new Date(nowMs).toISOString() }]);
   const { rows } = await query(
-    `insert into players (token_hash, nickname, nickname_ci, created_ip, last_ip, ip_history)
-     values ($1, $2, $3, $4, $4, $5::jsonb)
+    `insert into players (token_hash, nickname, nickname_ci, created_ip, last_ip, ip_history, current_season_id)
+     values ($1, $2, $3, $4, $4, $5::jsonb, $6)
      returning *`,
-    [tokenHash, nickname, nicknameCi, ip, seed],
+    [tokenHash, nickname, nicknameCi, ip, seed, currentSeasonId],
   );
   return rows[0];
 }
@@ -163,6 +163,197 @@ export async function updateScoreMonotonic(id, score, save) {
     params,
   );
   return rows[0];
+}
+
+/* =========================================================================
+   SEZÓNY — aktivní sezóna, sezónní standing (žebříček), odměny, rotace.
+   season_scores má STEJNÉ názvy sloupců jako players (highest_level, …), takže
+   rowToScore() funguje i na sezónní řádek.
+   ========================================================================= */
+
+/* Aktuálně aktivní sezóna, nebo null. */
+export async function getActiveSeason() {
+  const { rows } = await query(`select * from seasons where status = 'active' order by number desc limit 1`);
+  return rows[0] || null;
+}
+
+/* Sezóna podle čísla / id. */
+export async function getSeasonByNumber(number) {
+  const { rows } = await query('select * from seasons where number = $1', [number]);
+  return rows[0] || null;
+}
+export async function getSeasonById(id) {
+  if (!id) return null;
+  const { rows } = await query('select * from seasons where id = $1', [id]);
+  return rows[0] || null;
+}
+
+/* Seznam sezón (sestupně) + šampion (rank 1) u uzavřených (z season_rewards). */
+export async function listSeasons() {
+  const { rows } = await query(
+    `select s.id, s.number, s.status, s.started_at, s.closed_at,
+            champ.player_id as champion_id, champ.nickname as champion_nickname
+       from seasons s
+       left join lateral (
+         select sr.player_id, p.nickname
+           from season_rewards sr
+           join players p on p.id = sr.player_id
+          where sr.season_id = s.id and sr.rank = 1
+          limit 1
+       ) champ on true
+      order by s.number desc`,
+  );
+  return rows;
+}
+
+/* Sezónní řádek hráče, nebo null. */
+export async function getPlayerSeasonRow(seasonId, playerId) {
+  const { rows } = await query(
+    'select * from season_scores where season_id = $1 and player_id = $2',
+    [seasonId, playerId],
+  );
+  return rows[0] || null;
+}
+
+/* Rank hráče v sezóně dle pole; null když hráč nemá v sezóně řádek. */
+export async function playerSeasonRank(seasonId, playerId, board = boardByKey(DEFAULT_BOARD)) {
+  const col = boardColumn(board);
+  const { rows } = await query(
+    `with me as (select ${col} as v from season_scores where season_id = $1 and player_id = $2)
+     select case when not exists (select 1 from me) then null
+            else 1 + (select count(*)::int from season_scores
+                       where season_id = $1 and ${col} > (select v from me)) end as rank`,
+    [seasonId, playerId],
+  );
+  return rows[0]?.rank ?? null;
+}
+
+/* Žebříček sezóny: top N dle pole sestupně, remíza created_at vzestupně. */
+export async function leaderboardTopSeason(seasonId, board, limit) {
+  const col = boardColumn(board);
+  const { rows } = await query(
+    `select ss.*, p.nickname
+       from season_scores ss
+       join players p on p.id = ss.player_id
+      where ss.season_id = $1
+      order by ss.${col} desc, ss.created_at asc
+      limit $2`,
+    [seasonId, limit],
+  );
+  return rows.map((row, i) => ({
+    rank: i + 1,
+    id: row.player_id,
+    nickname: row.nickname,
+    value: rowToScore(row)[board.field],
+    score: rowToScore(row),
+  }));
+}
+
+/* Monotonní upsert sezónního skóre: GREATEST per sloupec, set updated_at/last_submit_at.
+   achievementIds (pole id) je volitelný snapshot úspěchů sezóny (přepisuje se
+   posledním submitem — v rámci sezóny úspěchy jen přibývají, takže je nejúplnější). */
+export async function upsertSeasonScore(seasonId, playerId, score, achievementIds) {
+  const cols = SCORE_FIELDS.map((f) => FIELD_TO_COLUMN[f]);
+  const params = [seasonId, playerId, ...SCORE_FIELDS.map((f) => score[f])];
+  const insertCols = [...cols, 'last_submit_at'];
+  const insertVals = [...cols.map((_, i) => `$${i + 3}`), 'now()'];
+  const updates = cols.map((c) => `${c} = greatest(season_scores.${c}, excluded.${c})`);
+  updates.push('updated_at = now()', 'last_submit_at = now()');
+
+  if (Array.isArray(achievementIds)) {
+    params.push(JSON.stringify(achievementIds));
+    insertCols.push('achievement_ids');
+    insertVals.push(`$${params.length}::jsonb`);
+    updates.push('achievement_ids = excluded.achievement_ids');
+  }
+
+  const { rows } = await query(
+    `insert into season_scores (season_id, player_id, ${insertCols.join(', ')})
+     values ($1, $2, ${insertVals.join(', ')})
+     on conflict (season_id, player_id) do update set ${updates.join(', ')}
+     returning *`,
+    params,
+  );
+  return rows[0];
+}
+
+/* Nenárokovaná odměna hráče (souhrn přes nepřevzaté sezóny), bez claimu — pro /me. */
+export async function getUnclaimedReward(playerId) {
+  const { rows } = await query(
+    `select sr.rank, sr.forgiveness, s.number as season_number
+       from season_rewards sr
+       join seasons s on s.id = sr.season_id
+      where sr.player_id = $1 and sr.claimed_at is null
+      order by s.number desc`,
+    [playerId],
+  );
+  if (!rows.length) return null;
+  const forgiveness = rows.reduce((a, r) => a + r.forgiveness, 0);
+  return { forgiveness, rank: rows[0].rank, seasonNumber: rows[0].season_number };
+}
+
+/* Postup hráče po sezónách (sestupně) — staty, snapshot úspěchů a finální rank
+   (z odměn u uzavřených; u aktivní null, živý rank doplní routa). Pro profil. */
+export async function getPlayerSeasons(playerId) {
+  const { rows } = await query(
+    `select s.number, s.status, sr.rank, ss.*
+       from season_scores ss
+       join seasons s on s.id = ss.season_id
+       left join season_rewards sr on sr.season_id = ss.season_id and sr.player_id = ss.player_id
+      where ss.player_id = $1
+      order by s.number desc`,
+    [playerId],
+  );
+  return rows.map((r) => ({
+    number: r.number,
+    status: r.status,
+    rank: r.rank ?? null,
+    score: rowToScore(r),
+    achievements: Array.isArray(r.achievement_ids) ? r.achievement_ids : [],
+  }));
+}
+
+/* Trofeje hráče (umístění napříč sezónami) — pro profil. */
+export async function getPlayerTrophies(playerId) {
+  const { rows } = await query(
+    `select s.number as season, sr.rank
+       from season_rewards sr
+       join seasons s on s.id = sr.season_id
+      where sr.player_id = $1
+      order by s.number desc`,
+    [playerId],
+  );
+  return rows.map((r) => ({ season: r.season, rank: r.rank }));
+}
+
+/* Vstup hráče do aktivní sezóny (po resetu): claimni odměny, přepni current_season_id,
+   založ čerstvý sezónní řádek. Vrací { reward } (souhrn forgiveness + nejnovější rank). */
+export async function enterSeason(playerId, activeSeasonId) {
+  return tx(async (client) => {
+    const { rows: rewardRows } = await client.query(
+      `update season_rewards sr
+          set claimed_at = now()
+         from seasons s
+        where sr.season_id = s.id
+          and sr.player_id = $1
+          and sr.claimed_at is null
+        returning sr.rank, sr.forgiveness, s.number as season_number`,
+      [playerId],
+    );
+    await client.query('update players set current_season_id = $1 where id = $2', [activeSeasonId, playerId]);
+    await client.query(
+      `insert into season_scores (season_id, player_id) values ($1, $2)
+       on conflict (season_id, player_id) do nothing`,
+      [activeSeasonId, playerId],
+    );
+    let reward = null;
+    if (rewardRows.length) {
+      const forgiveness = rewardRows.reduce((a, r) => a + r.forgiveness, 0);
+      const latest = rewardRows.reduce((a, b) => (b.season_number > a.season_number ? b : a));
+      reward = { forgiveness, rank: latest.rank, seasonNumber: latest.season_number };
+    }
+    return { reward };
+  });
 }
 
 /* Vyznam NUMERIC_FIELDS dokumentován výše; export pro případné použití. */

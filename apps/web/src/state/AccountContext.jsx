@@ -16,6 +16,22 @@ export function AccountProvider({ children }) {
   const [player, setPlayer] = useState(null); // { id, nickname }
   const [offline, setOffline] = useState(false); // server nedostupný, ale máme token
   const [syncTick, setSyncTick] = useState(0); // ++ po každém přijatém odeslání skóre
+  // čekající přechod do nové sezóny: { endedNumber, activeNumber, reward } | null
+  const [pendingSeason, setPendingSeason] = useState(null);
+
+  // z /me odvodí, jestli skončila sezóna, ve které hráč soutěžil (active > mine)
+  const applyMeSeason = useCallback((me) => {
+    const s = me?.season;
+    if (s && s.active && s.mine != null && s.active.number > s.mine) {
+      setPendingSeason({ endedNumber: s.mine, activeNumber: s.active.number, reward: s.pendingReward || null });
+    } else {
+      setPendingSeason(null);
+    }
+  }, []);
+
+  const checkSeason = useCallback(async () => {
+    try { applyMeSeason(await api.me()); } catch { /* best-effort */ }
+  }, [applyMeSeason]);
 
   const submitNow = useCallback(async () => {
     if (!getToken()) return;
@@ -24,11 +40,23 @@ export function AccountProvider({ children }) {
       setOffline(false);
       // server přijal a zapsal (ne throttle/zamítnutí) → signál pro UI (žebříček)
       if (res?.ok && !res.throttled) setSyncTick((t) => t + 1);
+      // server hlásí novou sezónu → zjisti detail (umístění + odměnu) pro modal
+      if (res?.seasonChanged) await checkSeason();
     } catch (e) {
       if (e.offline) setOffline(true);
       // ostatní (throttled apod.) tiše ignorujeme — synchronizace je best-effort
     }
-  }, [engine]);
+  }, [engine, checkSeason]);
+
+  // potvrzení přechodu do nové sezóny: claim odměny → hardReset → připsat 🕊 → fresh submit
+  const enterSeason = useCallback(async () => {
+    const res = await api.enterSeason(); // vyhodí chybu → modal ji ošetří
+    engine.hardReset();
+    if (res.reward && res.reward.forgiveness) engine.grantForgiveness(res.reward.forgiveness);
+    setPendingSeason(null);
+    void submitNow();
+    return res.reward;
+  }, [engine, submitNow]);
 
   // úvodní načtení: rozhodni lokální vs. připojený podle tokenu
   useEffect(() => {
@@ -42,6 +70,7 @@ export function AccountProvider({ children }) {
         setPlayer({ id: me.id, nickname: me.nickname });
         setOffline(false);
         setStatus('joined');
+        applyMeSeason(me); // skončila sezóna, kterou hráč hrál? → přechod
       })
       .catch((e) => {
         if (cancelled) return;
@@ -58,7 +87,7 @@ export function AccountProvider({ children }) {
         }
       });
     return () => { cancelled = true; };
-  }, []);
+  }, [applyMeSeason]);
 
   // pravidelná synchronizace, když jsme připojeni
   useEffect(() => {
@@ -111,12 +140,13 @@ export function AccountProvider({ children }) {
     setCachedNick(null);
     setPlayer(null);
     setOffline(false);
+    setPendingSeason(null);
     setStatus('local');
   }, []);
 
   const value = useMemo(
-    () => ({ status, player, offline, syncTick, join, rename, recover, leave, submitNow }),
-    [status, player, offline, syncTick, join, rename, recover, leave, submitNow]
+    () => ({ status, player, offline, syncTick, pendingSeason, join, rename, recover, leave, submitNow, enterSeason }),
+    [status, player, offline, syncTick, pendingSeason, join, rename, recover, leave, submitNow, enterSeason]
   );
 
   return <AccountContext.Provider value={value}>{children}</AccountContext.Provider>;

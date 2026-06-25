@@ -12,19 +12,24 @@ function formatValue(field, value) {
   return fmt(value || 0);
 }
 
-export default function Leaderboard({ onJoin }) {
+const medal = (rank) => (rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : null);
+
+/* season: číslo zobrazené sezóny (undefined = aktivní). active: číslo aktivní sezóny.
+   onSelectPlayer(id): otevře profil hráče. */
+export default function Leaderboard({ onJoin, season, active, onSelectPlayer }) {
   const account = useAccount();
   const [boardKey, setBoardKey] = useState(DEFAULT_BOARD);
-  const [data, setData] = useState(null); // { entries, me }
+  const [data, setData] = useState(null); // { entries, me, season }
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   const board = boardByKey(boardKey) || boardByKey(DEFAULT_BOARD);
+  const isActiveSeason = season == null || season === active;
 
   const load = useCallback(async () => {
     setLoading(true); setError('');
     try {
-      const res = await api.leaderboard(boardKey, 50);
+      const res = await api.leaderboard(boardKey, 50, season);
       setData(res);
     } catch (e) {
       setError(accountErrorMessage(e));
@@ -32,20 +37,22 @@ export default function Leaderboard({ onJoin }) {
     } finally {
       setLoading(false);
     }
-  }, [boardKey]);
+  }, [boardKey, season]);
 
-  // Načti při otevření / přepnutí žebříčku, pak průběžně obnovuj (cizí skóre se
-  // taky mění) a hned po odeslání vlastního skóre (account.syncTick). Server
-  // zvládne 120 req/min/IP, takže poll po 15 s (4/min) je v pohodě.
+  // Načti při otevření / přepnutí žebříčku či sezóny a hned po odeslání vlastního
+  // skóre (account.syncTick). Aktivní sezónu navíc průběžně obnovuj (cizí skóre se
+  // mění); uzavřená sezóna je neměnná → bez pollingu.
   const syncTick = account.syncTick;
   useEffect(() => {
     load();
+    if (!isActiveSeason) return undefined;
     const id = setInterval(load, POLL_MS);
     return () => clearInterval(id);
-  }, [load, syncTick]);
+  }, [load, syncTick, isActiveSeason]);
 
   const myId = account.player?.id;
   const entries = data?.entries || [];
+  const selectPlayer = (id) => { if (id && onSelectPlayer) onSelectPlayer(id); };
 
   return (
     <div className="board">
@@ -64,7 +71,7 @@ export default function Leaderboard({ onJoin }) {
         <button className="ghost-btn" onClick={load} title="Obnovit">🔄</button>
       </div>
 
-      {account.status === 'local' && (
+      {account.status === 'local' && isActiveSeason && (
         <div className="board-cta">
           <span>Hraješ lokálně. Připoj se a změř síly s ostatními!</span>
           <button className="primary-btn" onClick={onJoin}>➕ Připojit se</button>
@@ -81,7 +88,9 @@ export default function Leaderboard({ onJoin }) {
       )}
 
       {!loading && !error && entries.length === 0 && (
-        <div className="board-empty">Zatím tu nikdo není. Buď první! 🏆</div>
+        <div className="board-empty">
+          {isActiveSeason ? 'Zatím tu nikdo není. Buď první! 🏆' : 'V této sezóně nikdo nesoutěžil.'}
+        </div>
       )}
 
       {!loading && !error && entries.length > 0 && (
@@ -91,8 +100,12 @@ export default function Leaderboard({ onJoin }) {
           </thead>
           <tbody>
             {entries.map((row) => (
-              <tr key={row.id || row.rank} className={myId && row.id === myId ? 'me' : ''}>
-                <td className="rank">{row.rank}</td>
+              <tr
+                key={row.id || row.rank}
+                className={(myId && row.id === myId ? 'me' : '') + (row.id ? ' clickable' : '')}
+                onClick={() => selectPlayer(row.id)}
+              >
+                <td className="rank">{medal(row.rank) || row.rank}</td>
                 <td className="nick">{row.nickname}</td>
                 <td className="val">{formatValue(board.field, row.value)}</td>
               </tr>
@@ -102,7 +115,7 @@ export default function Leaderboard({ onJoin }) {
       )}
 
       {!loading && data?.me && !entries.some((e) => e.id === myId) && (
-        <div className="board-me-row">
+        <div className="board-me-row clickable" onClick={() => selectPlayer(myId)}>
           <span className="rank">#{data.me.rank}</span>
           <span className="nick">{data.me.nickname} (ty)</span>
           <span className="val">{formatValue(board.field, data.me.value)}</span>

@@ -58,6 +58,14 @@ export const api = {
   rename: (nickname) => req('/me', { method: 'PATCH', body: { nickname }, auth: true }),
   remove: () => req('/me', { method: 'DELETE', auth: true }),
   submitScore: (score, save) => req('/scores', { method: 'POST', body: { score, save }, auth: true }),
-  leaderboard: (board, limit = 50) =>
-    req(`/leaderboard?board=${encodeURIComponent(board)}&limit=${limit}`, { auth: true }),
+  enterSeason: () => req('/me/enter-season', { method: 'POST', auth: true }),
+  leaderboard: (board, limit = 50, season) =>
+    req(
+      `/leaderboard?board=${encodeURIComponent(board)}&limit=${limit}` +
+        (season != null ? `&season=${encodeURIComponent(season)}` : ''),
+      { auth: true },
+    ),
+  seasons: () => req('/seasons'),
+  season: (n) => req(`/seasons/${encodeURIComponent(n)}`),
+  player: (id) => req(`/players/${encodeURIComponent(id)}`, { auth: true }),
 };

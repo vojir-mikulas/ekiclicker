@@ -38,14 +38,32 @@ Dockerfile, docker-compose.yml (+ .local) — viz „Nasazení"
   poslední `save_blob`).
 - **IP** se ukládá jen pro audit + měkký limit: max **5 nových účtů / IP / den**
   (sdílená firemní NAT tak uživí celý tým).
-- **Anti-cheat** (best-effort, ne pevnost): monotonie (skóre neklesá),
-  věrohodnost (úroveň/zabití vůči času hraní), throttle submitů, volitelný HMAC.
+- **Anti-cheat** (best-effort, ne pevnost): monotonie (skóre neklesá — **v rámci
+  sezóny**), věrohodnost (úroveň/zabití vůči času hraní), throttle submitů,
+  volitelný HMAC. Lifetime staty v `players` jsou `GREATEST` a neblokují.
+- **Sezóny** (časově ohraničené žebříčky): aktivní je vždy jedna (`seasons`),
+  standing se drží v `season_scores` a každou sezónou se resetuje. Při uzávěrce
+  se spočtou odměny za umístění (`season_rewards`) a hráči po potvrzení resetují
+  postup (server-wide rebirth) — viz `docs/plans/seasons.md`.
 - **Postgres** přes `pg`; migrace v `apps/server/migrations/*.sql` se pustí samy
   při startu (idempotentně, tabulka `schema_migrations`). Bez `DATABASE_URL`
   server běží dál, jen `/api/*` → 503.
 
-API: `POST /api/register|recover`, `GET|PATCH|DELETE /api/me`, `POST /api/scores`,
-`GET /api/leaderboard?board=`. Konfigurace v `apps/server/.env.example`.
+API: `POST /api/register|recover`, `GET|PATCH|DELETE /api/me`,
+`POST /api/me/enter-season`, `POST /api/scores`, `GET /api/leaderboard?board=&season=`,
+`GET /api/seasons`, `GET /api/players/:id`. Konfigurace v `apps/server/.env.example`.
+
+### Spuštění nové sezóny (na release)
+
+Sezóna se otevírá **z kódu** — přidáš jednořádkovou migraci a nasadíš:
+
+```sql
+-- apps/server/migrations/00X_season_N.sql
+select rotate_season();
+```
+
+Migrace se při nasazení spustí jednou: uzavře aktivní sezónu, spočítá odměny
+a otevře další. Hráči při dalším načtení uvidí výzvu k resetu a startují znovu.
 
 ## Nasazení (Docker)
 

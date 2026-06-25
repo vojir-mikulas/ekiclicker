@@ -28,6 +28,8 @@ import { generalLimiter } from './middleware/rateLimit.js';
 import authRoutes from './routes/auth.js';
 import scoresRoutes from './routes/scores.js';
 import leaderboardRoutes from './routes/leaderboard.js';
+import seasonsRoutes from './routes/seasons.js';
+import playersRoutes from './routes/players.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number.parseInt(process.env.PORT ?? '', 10) || 3000;
@@ -65,9 +67,11 @@ api.use(dbGuard); // 503 db_unavailable když !dbReady
 // jednoduchý healthcheck (po dbGuard → také 503 bez DB)
 api.get('/health', (_req, res) => res.json({ ok: true }));
 
-api.use(authRoutes); // /register /recover /me
+api.use(authRoutes); // /register /recover /me /me/enter-season
 api.use('/scores', scoresRoutes);
 api.use('/leaderboard', leaderboardRoutes);
+api.use('/seasons', seasonsRoutes);
+api.use('/players', playersRoutes);
 
 app.use('/api', api);
 

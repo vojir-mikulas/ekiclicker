@@ -7,8 +7,9 @@ Status: **proposed** · Last updated: 2026-06-25
 Turn the single all-time leaderboard into **time-boxed seasons**:
 
 1. The board is always tied to the **active season** (currently "Season 1").
-2. An admin can **close** a season; doing so opens the next one and **wipes
-   everyone back to a fresh start** (server-wide rebirth) — a real fresh race.
+2. A new season is opened **from code on each release** (a committed migration
+   that closes the active season and opens the next) and **wipes everyone back to
+   a fresh start** (server-wide rebirth) — a real fresh race.
 3. Closing grants each competitor a **permanent reward** scaled by their final
    placement, so the reset is a prize, not a loss.
 4. Past seasons are archived and shown in a **season showcase** (podiums,
@@ -32,21 +33,20 @@ architecture this builds on.
 | Lifetime stats | Kept on `players` (monotonic, for recovery + all-time records + anti-cheat). The **competitive standing moves to a per-season table** that resets each season. |
 | History | Closed-season standings are retained forever (queryable by season). Champions/podiums shown in a showcase. |
 | Profiles | Public, read-only. Derived from `season_scores` + `players` + achievement ids in `save_blob`. **Never** exposes the token or the raw save. |
-| Who closes a season? | Manual **admin endpoint** guarded by `ADMIN_TOKEN`. Optional auto-close when `ends_at` passes (phase 2). |
+| Who closes a season? | **Manual, from code on each release** — a committed SQL migration that calls `rotate_season()`. No HTTP admin endpoint, no time-based auto-close. The deploy runs migrations on boot, so shipping the migration *is* opening the new season. |
+| Season names | **Numbers only** ("Season 2") — no cosmetic name field. |
 
 ## 3. Data model
 
 New migration `apps/server/migrations/002_seasons.sql`.
 
 ```sql
--- one row per season; exactly one active at a time
+-- one row per season; exactly one active at a time. Numbers only — no name.
 create table seasons (
   id          uuid primary key default gen_random_uuid(),
   number      int  not null unique,                 -- 1, 2, 3 …
-  name        text,                                 -- optional label ("Léto 2026")
   status      text not null default 'active',       -- 'active' | 'closed'
   started_at  timestamptz not null default now(),
-  ends_at     timestamptz,                          -- optional scheduled end
   closed_at   timestamptz
 );
 create unique index seasons_one_active on seasons (status) where status = 'active';
@@ -94,7 +94,45 @@ insert into season_scores (season_id, player_id, highest_level, total_gold, kill
 select (select id from seasons where number = 1), id, highest_level, total_gold, kills,
        boss_kills, rebirths, max_combo, play_time_ms, achievements, peak_dps, last_submit_at
 from players;
+
+-- rotation: compute placement rewards, close the active season, open the next.
+-- Called from a one-line migration on each release (§4). Reward tiers (the single
+-- source of truth) live here; change them in a later migration if needed.
+create or replace function rotate_season() returns int as $$
+declare
+  active_id  uuid;
+  active_num int;
+begin
+  select id, number into active_id, active_num
+    from seasons where status = 'active' for update;
+  if active_id is null then
+    raise exception 'rotate_season: no active season';
+  end if;
+
+  -- placement = position on the default (level) board, ties by who reached it first
+  insert into season_rewards (season_id, player_id, rank, forgiveness)
+  select active_id, player_id, rnk,
+         case when rnk = 1 then 100
+              when rnk <= 3 then 60
+              when rnk <= 10 then 35
+              when rnk <= 50 then 20
+              else 10 end
+  from (
+    select player_id,
+           row_number() over (order by highest_level desc, created_at asc) as rnk
+    from season_scores where season_id = active_id
+  ) ranked;
+
+  update seasons set status = 'closed', closed_at = now() where id = active_id;
+  insert into seasons (number, status) values (active_num + 1, 'active');
+  return active_num + 1;
+end;
+$$ language plpgsql;
 ```
+
+Each release that opens a new season ships a tiny migration, e.g.
+`apps/server/migrations/003_season_2.sql` containing just `select rotate_season();`.
+The migration runner applies it once on boot — versioned, idempotent, ordered.
 
 **Why a separate `season_scores` table** instead of reusing the `players`
 columns: the standing must *drop to zero* each season, but `players` stays
@@ -129,18 +167,19 @@ anti-cheat working after a reset.
 > `decrease:*`. Moving the check to the season row fixes this; lifetime stays
 > GREATEST and simply never blocks.
 
-### Closing a season (`POST /api/admin/seasons/close`, admin-guarded)
+### Closing a season — `rotate_season()` via a release migration
 
-In one transaction:
+There is **no runtime close endpoint**. To open a new season you ship a one-line
+migration (`select rotate_season();`) with the release. On the deploy's boot, the
+migration runner applies it once inside a transaction (§3 function): it computes
+placement rewards, closes the active season, and opens the next. The whole thing
+is in `seasons`/`season_rewards`; `players` rows are **not** force-mutated, so
+each player's `current_season_id` still points at the now-closed season → the
+gate in the submit path trips on their next sync and the client resets.
 
-1. Compute final ranks from `season_scores` for the active season.
-2. Insert `season_rewards(season_id, player_id, rank, forgiveness)` for every
-   competitor (forgiveness from `seasonReward(rank)` — see §7).
-3. `update seasons set status='closed', closed_at=now() where id = active`.
-4. `insert into seasons (number, status) values (active.number + 1, 'active')`.
-
-Players are **not** force-mutated. Their `current_season_id` still points at the
-now-closed season → the gate in the submit path trips on their next sync.
+(For ad-hoc rotation against a live DB without a deploy, `select rotate_season();`
+can also be run directly via `psql`; an optional `npm run season:rotate` wrapper
+could call it. Not required for the release-driven flow.)
 
 ### Client transition flow (Option B reset)
 
@@ -167,13 +206,14 @@ and `ekiSeenSeason = active.number` → no transition modal, no spurious reset.
 | Endpoint | Auth | Purpose |
 |---|---|---|
 | `GET /api/leaderboard?board=&limit=&season=` | optional | Standings for a season (default = active). `season` = number; closed seasons queryable for the showcase. |
-| `GET /api/seasons` | none | List seasons: `{ number, name, status, startedAt, closedAt, endsAt, champion? }` for the showcase. |
+| `GET /api/seasons` | none | List seasons: `{ number, status, startedAt, closedAt, champion? }` for the showcase. |
 | `GET /api/seasons/:number` | optional | One season's meta + podium (top 3). |
 | `GET /api/players/:id` | optional | **Public profile** (see §6). |
 | `GET /api/me` | required | Adds `season: { active, mine, pendingReward? }` to the existing payload. |
 | `POST /api/me/enter-season` | required | Acknowledge reset → set `current_season_id`, claim reward, create fresh season row. Returns the claimed reward. |
-| `POST /api/admin/seasons/close` | `ADMIN_TOKEN` | Close active, open next, compute rewards. |
 | `POST /api/scores` | required | Reworked per §4. |
+
+Season rotation is **not** an endpoint — it's the `rotate_season()` migration (§4).
 
 `net/api.js` gains: `seasons()`, `season(n)`, `player(id)`, `enterSeason()`, and
 `leaderboard(board, limit, season)`.
@@ -193,23 +233,30 @@ and `ekiSeenSeason = active.number` → no transition modal, no spurious reset.
 }
 ```
 
-- Achievement **ids** come from `Object.keys(save_blob.achievements)`; the client
-  maps them to name/emoji/desc via the existing `ACHIEVEMENTS` data
-  (`apps/web/src/game/data/achievements.js`) — no need to duplicate defs
-  server-side. We expose only the id list, never the raw `save_blob`.
-- **Client:** clicking a leaderboard row (or a showcase podium entry) opens a
+- **Per-season progress + achievements.** The profile returns a `seasons[]`
+  breakdown — every season the player has a `season_scores` row for, with that
+  season's stats, final rank (live rank for the active one), and the achievement
+  ids earned **in that season**. Achievements are snapshotted per season in
+  `season_scores.achievement_ids` (updated each submit from the save's
+  achievement keys; frozen when the season closes). Closed seasons keep their own
+  set; the new season starts fresh — matching the Option-B reset.
+- Achievement **ids** map to name/emoji/desc via the existing `ACHIEVEMENTS` data
+  (`apps/web/src/game/data/achievements.js`) — no defs duplicated server-side. We
+  expose only id lists, never the raw `save_blob`.
+- **Client:** clicking a leaderboard row (or showcase podium entry) opens a
   `PlayerProfile` modal: header (nickname + champion crown if any trophy rank 1),
-  season vs lifetime stat blocks (reuse `fmt`/`fmtDuration`), an achievements
-  grid (earned highlighted, locked dimmed — reuse `Achievements.jsx` rendering),
-  and a trophy shelf. Leaderboard rows become buttons carrying `row.id`.
+  a trophy shelf, and a **season switcher** (one tab per season + "Celkově"). Each
+  season tab shows that season's rank, stat grid, and achievements grid (earned
+  highlighted); "Celkově" shows lifetime bests + the union of all earned
+  achievements. Leaderboard rows carry `row.id`.
 
 ## 7. Shared contract (`packages/shared`)
 
-- `SEASON_REWARD` tiers + `seasonReward(rank)`:
-  `1 → 100🕊`, `2–3 → 60`, `4–10 → 35`, `11–50 → 20`, else `10` (participation).
-  Tunable; lives here so client preview and server award agree.
-- `ACTIVE_SEASON` is **not** hardcoded — always read from the server. The "Season
-  1" label is purely server data.
+- The **reward tiers are authoritative in `rotate_season()`** (SQL, §3) so there's
+  no JS↔SQL drift. The client doesn't predict rewards — it displays the actual
+  `forgiveness` the server already computed (via `pendingReward`).
+- The active season is **never hardcoded** — always read from the server. The
+  "Season 1" label is purely server data.
 - Keep `SCORE_FIELDS` as the single source for both lifetime and season columns.
 
 ## 8. Frontend — season showcase
@@ -230,11 +277,14 @@ grows the transition flow + `enterSeason`.
 
 ## 9. Closing mechanism
 
-- **Phase 1 (manual):** `POST /api/admin/seasons/close` with `x-admin-token`.
-  Document a one-liner `curl` in the README. `ADMIN_TOKEN` added to `.env.example`.
-- **Phase 2 (optional auto-close):** on boot and on a light interval, if
-  `active.ends_at < now()` → run the same close transaction. Single-instance
-  only (matches the existing migrate-on-boot assumption in `leaderboard-architecture`).
+**Manual, from code, per release.** Opening Season N+1 = committing
+`apps/server/migrations/00X_season_N.sql` with a single `select rotate_season();`.
+On the next deploy the migration runner (already migrate-on-boot, single-instance
+per `leaderboard-architecture`) applies it once → rewards computed, season rotated.
+
+No `ADMIN_TOKEN`, no HTTP close route, no cron/auto-close — rotation is a
+deliberate, reviewed, version-controlled act tied to a release. Document the
+"add a `00X_season_N.sql` to start a new season" step in the README.
 
 ## 10. Anti-cheat / integrity notes
 
@@ -249,28 +299,28 @@ grows the transition flow + `enterSeason`.
 
 ## 11. Phased roadmap
 
-1. **Schema + backfill** (`002_seasons.sql`) — Season 1 seeded, existing players enrolled.
+1. **Schema + backfill + `rotate_season()`** (`002_seasons.sql`) — Season 1
+   seeded, existing players enrolled, rotation function ready.
 2. **Server core** — season helpers in lib/players.js, reworked `/api/scores`,
    `/api/leaderboard?season`, `/api/me` season block, `enter-season`.
-3. **Admin close** — `/api/admin/seasons/close` + `ADMIN_TOKEN`.
-4. **Client transition** — `SeasonEndModal`, reset+claim flow in `AccountContext`.
-5. **Profiles** — `/api/players/:id` + `PlayerProfile` modal + clickable rows.
-6. **Showcase** — `/api/seasons`, `Seasons.jsx` banner/podium/history.
-7. **(Optional)** auto-close on `ends_at`.
+3. **Client transition** — `SeasonEndModal`, reset+claim flow in `AccountContext`.
+4. **Profiles** — `/api/players/:id` + `PlayerProfile` modal + clickable rows.
+5. **Showcase** — `/api/seasons`, `Seasons.jsx` banner/podium/history.
 
 Each phase is shippable: after (1)–(2) the game behaves exactly as today (one
-active season); seasons only become visible once (3)+ land.
+active season). To open Season 2 later, ship a `003_season_2.sql` migration —
+that's the entire release-time action.
 
 ## 12. Risks / open questions
 
-- **Reward balance:** 100🕊 for a champion is a guess — tune `seasonReward` once
-  we see real forgiveness economy numbers.
-- **Mid-session close:** a player actively online when the season closes sees the
-  end modal on their next `/api/me` poll (≤20s) or next reload, not instantly.
-  Acceptable; could push via the score-submit `seasonChanged` flag too.
+- **Reward balance:** 100🕊 for a champion is a guess — tune the CASE in
+  `rotate_season()` (via a later migration) once we see the real forgiveness economy.
+- **Mid-session close:** a player actively online when the migration deploys sees
+  the end modal on their next `/api/me` poll (≤20s) or next reload, not instantly.
+  Acceptable; the score-submit `seasonChanged` flag can also trigger it.
 - **Profile privacy:** confirm we're comfortable exposing per-player stat +
   achievement lists publicly (they're already implicitly on the board).
-- **Open:** should `ends_at` be set at season creation (fixed-length seasons) or
-  left null until an admin schedules an end? Default: null (admin closes manually).
-- **Open:** do we want a cosmetic name per season ("Léto 2026") or just numbers?
+
+Resolved: rotation is manual via release migration (no auto-close); seasons are
+numbered only (no cosmetic name).
 ```

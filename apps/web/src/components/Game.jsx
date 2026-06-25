@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { useEngine } from '../hooks/useEngine.js';
+import { useAccount } from '../hooks/useAccount.js';
 import TopBar from './TopBar.jsx';
 import Arena from './arena/Arena.jsx';
 import Shop from './shop/Shop.jsx';
@@ -13,14 +14,18 @@ const RebirthModal = lazy(() => import('./modals/RebirthModal.jsx'));
 const GiftModal = lazy(() => import('./modals/GiftModal.jsx'));
 const JoinModal = lazy(() => import('./modals/JoinModal.jsx'));
 const AccountModal = lazy(() => import('./modals/AccountModal.jsx'));
-const Leaderboard = lazy(() => import('./leaderboard/Leaderboard.jsx'));
+const Seasons = lazy(() => import('./leaderboard/Seasons.jsx'));
+const PlayerProfile = lazy(() => import('./modals/PlayerProfile.jsx'));
+const SeasonEndModal = lazy(() => import('./modals/SeasonEndModal.jsx'));
 
 export default function Game() {
   const engine = useEngine();
+  const account = useAccount();
   const [view, setView] = useState('game'); // 'game' | 'board'
   const [modal, setModal] = useState(null); // 'settings' | 'rebirth' | 'join' | 'account' | null
   const [offline, setOffline] = useState(null);
   const [gift, setGift] = useState(null);
+  const [profileId, setProfileId] = useState(null); // otevřený profil hráče
 
   // jednorázové připsání offline výdělku po načtení
   useEffect(() => {
@@ -54,7 +59,7 @@ export default function Game() {
         </div>
       ) : (
         <Suspense fallback={<div className="board-loading">Načítám žebříček…</div>}>
-          <Leaderboard onJoin={() => setModal('join')} />
+          <Seasons onJoin={() => setModal('join')} onSelectPlayer={setProfileId} />
         </Suspense>
       )}
 
@@ -69,6 +74,8 @@ export default function Game() {
         {modal === 'account' && <AccountModal onClose={() => setModal(null)} />}
         {offline && <OfflineModal offline={offline} onClose={() => setOffline(null)} />}
         {gift && <GiftModal gift={gift} onClose={() => setGift(null)} />}
+        {profileId && <PlayerProfile id={profileId} onClose={() => setProfileId(null)} />}
+        {account.pendingSeason && <SeasonEndModal />}
       </Suspense>
     </>
   );
