@@ -22,16 +22,16 @@ export function EngineProvider({ children }) {
     window.addEventListener('beforeunload', onHide);
     document.addEventListener('visibilitychange', onVisibility);
 
-    // Konzolové cheaty — gated za VITE_CHEATS=1 (viz apps/web/.env). Když proměnná
-    // není '1', Vite tenhle blok při buildu úplně odstraní (dead-code elimination),
-    // takže se ani nedostane do produkčního bundle. Zapnutí: nastav VITE_CHEATS=1 a
-    // přebuilduj (prod) / restartuj dev server; vypnutí: změň hodnotu a totéž.
+    // Konzolové cheaty — zapnuté ve výchozím stavu; vypneš jen explicitně VITE_CHEATS=0
+    // (viz apps/web/.env). Při '0' Vite tenhle blok při buildu úplně odstraní (dead-code
+    // elimination). VITE_CHEATS se čte při startu dev serveru / při buildu, takže po
+    // změně .env je třeba restart `npm run dev` (prod: `npm run build`).
     // Mění ŽIVÝ stav enginu (ne localStorage), pak notify() překreslí UI a save() to
     // uloží → přežije i reload. Žebříček je tím neohrožený: server má sezónně-relativní
     // monotonii + věrohodnostní strop tempa (checkPlausibility), takže skok úrovně/zlata
     // se do ranku stejně neprotlačí.
     // Použití:  eki.setMoney(1e12)   eki.setLevel(1000)   eki.dropItem(5)
-    if (import.meta.env.VITE_CHEATS === '1') {
+    if (import.meta.env.VITE_CHEATS !== '0') {
       const cheats = {
         engine,
         setMoney(n = 1e12) {
@@ -44,8 +44,7 @@ export function EngineProvider({ children }) {
           const lvl = Math.max(1, Math.floor(Number(n) || 1));
           engine.state.level = lvl;
           engine.state.highestLevel = Math.max(engine.state.highestLevel, lvl);
-          engine.checkInventoryUnlock(); // setLevel(1000) rovnou odemkne výbavu
-          engine.checkPetsUnlock();      // setLevel(2000) rovnou odemkne mazlíčky
+          engine.checkLevelUnlocks(); // setLevel(1000/1500/2000) rovnou odemkne výbavu/elixíry/mazlíčky
           engine.spawnEnemy();
           engine.notify();
           save(engine.state);
@@ -93,7 +92,7 @@ export function EngineProvider({ children }) {
       save(engine.state);
       window.removeEventListener('beforeunload', onHide);
       document.removeEventListener('visibilitychange', onVisibility);
-      if (import.meta.env.VITE_CHEATS === '1') {
+      if (import.meta.env.VITE_CHEATS !== '0') {
         delete window.eki;
         delete window.__eki;
       }

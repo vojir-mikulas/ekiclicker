@@ -14,10 +14,13 @@ import Modal from './Modal.jsx';
 const STRIDE = 88; // šířka buňky + mezera (px) — musí sedět s CSS .roul-cell
 
 function Cell({ cell, win }) {
+  const url = !cell.miss && cell.base ? itemImageUrl(cell.base) : null;
   return (
     <div className={'roul-cell' + (win ? ' win' : '') + (cell.miss ? ' miss' : '')}
       style={{ borderColor: cell.color, boxShadow: win ? `0 0 16px ${cell.color}` : undefined }}>
-      <span className="roul-cell-emoji">{cell.emoji}</span>
+      {url
+        ? <img className="roul-cell-img" src={url} alt="" draggable={false} />
+        : <span className="roul-cell-emoji">{cell.emoji}</span>}
       <span className="roul-cell-bar" style={{ background: cell.color }} />
     </div>
   );

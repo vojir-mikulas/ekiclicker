@@ -71,6 +71,11 @@ export function createState() {
     enemy: null,
     combo: { count: 0, lastClickAt: 0 },
     frenzy: { active: false, until: 0, charge: 0 },
+    // elixíry: jeden aktivní buff naráz (until = Date.now epoch ms → přežije reload se zbytkem)
+    // + sklad koupených (přežívá rebirth jako bedny/vejce). Odemčou se na úrovni 1500.
+    elixir: { active: null, until: 0 },
+    elixirStock: {}, // id -> počet koupených
+    elixirsUnlocked: false, // odemkne se na ELIXIRS_CFG.unlockLevel = 1500 (přežívá rebirth)
     lucky: null,
     daily: null, // denní úkoly — narolují se při startu/změně dne (engine.refreshDaily)
     // --- pozdní hra: kořist / vybavení (odemyká se na ITEMS.unlockLevel) ---
@@ -101,6 +106,7 @@ export function resetRun(state, startLevel) {
   state.weapons = createWeapons();
   state.combo = { count: 0, lastClickAt: 0 };
   state.frenzy = { active: false, until: 0, charge: 0 };
+  state.elixir = { active: null, until: 0 }; // běžící buff rebirth nepřežije (sklad ano)
   state.lucky = null;
   state.enemy = null;
   state.pendingOpen = null; // přechodná ruleta — rebirth ji nenese

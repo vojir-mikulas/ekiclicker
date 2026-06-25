@@ -36,13 +36,15 @@ export default function SeasonEndModal() {
         <p className="se-desc">
           Umístil ses na <b>#{reward.rank}</b>
           {gotMedal ? ' — získáváš medaili na profil!' : '.'} 🎉<br />
-          Začíná <b>Sezóna {ps.activeNumber}</b> — všem se postup resetuje, ale za snahu si
-          odnášíš <b>{fmt(reward.forgiveness)} 🕊</b> do nového startu
+          Začíná <b>Sezóna {ps.activeNumber}</b> — začínáš s čistým štítem: úroveň, vybavení,
+          mazlíčci, deník, denní úkoly i světový boss se resetují. Za snahu si ale odnášíš{' '}
+          <b>{fmt(reward.forgiveness)} 🕊</b> do nového startu
           {reward.rank === 1 ? ' a 👑 trofej šampiona' : ''}.
         </p>
       ) : (
         <p className="se-desc">
-          Začíná <b>Sezóna {ps.activeNumber}</b> — postup se resetuje a závodí se znovu od nuly.
+          Začíná <b>Sezóna {ps.activeNumber}</b> — začínáš s čistým štítem: úroveň, vybavení,
+          mazlíčci, deník, denní úkoly i světový boss se resetují a závodí se znovu od nuly.
           Hodně štěstí! 🚀
         </p>
       )}

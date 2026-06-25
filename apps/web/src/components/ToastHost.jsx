@@ -51,6 +51,18 @@ export default function ToastHost() {
             title: `Otevřeno ${payload.count}× ${CHESTS[payload.tier]?.name || 'bedna'}`,
             sub: parts.join(' • ') || '—',
           });
+        } else if (type === 'unlock' && payload.feature === 'inventory') {
+          push({
+            ico: '🎒',
+            title: 'Odemčena výbava!',
+            sub: 'Z nepřátel teď padají bedny s kořistí 💠 — vystroj se ve Výbavě',
+          });
+        } else if (type === 'unlock' && payload.feature === 'elixirs') {
+          push({
+            ico: '🧪',
+            title: 'Odemčeny elixíry!',
+            sub: 'V Obchodě je nová záložka 🧪 — kup a vypij dočasné buffy',
+          });
         } else if (type === 'unlock' && payload.feature === 'pets') {
           push({
             ico: '🐾',

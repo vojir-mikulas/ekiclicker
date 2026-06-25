@@ -102,8 +102,14 @@ export async function ensureActiveWorldBoss(seasonId, nowMs = Date.now()) {
 }
 
 /* Hráč udeří. ATOMICKY: zamkne řádek bosse, ověří stav/cooldown/strop, spočítá
-   poškození z peakDps a ubere HP. Vrátí { ok, dmg, defeated } nebo { ok:false, reason }. */
-export async function applyHit(bossId, playerId, peakDps, nowMs = Date.now()) {
+   poškození z peakDps a ubere HP. Vrátí { ok, dmg, defeated } nebo { ok:false, reason }.
+
+   `effort` ∈ [0,1] = kolik svého (boundovaného) stropu salvy hráč „nabil" interaktivně
+   (údery + zbraně v klientu). Strop salvy je pořád dán ATESTOVANÝM peakDps, takže
+   effort jen škáluje DOLŮ — poslat 1 = dosáhnout stejného maxima jako dosud,
+   žádná nová díra pro cheaty. Spodní mez 0,1, ať salva vždy něco udělá. */
+export async function applyHit(bossId, playerId, peakDps, nowMs = Date.now(), effort = 1) {
+  const eff = Math.min(1, Math.max(0.1, Number(effort) || 0));
   return tx(async (client) => {
     const { rows } = await client.query('select * from world_bosses where id = $1 for update', [bossId]);
     const b = rows[0];
@@ -128,7 +134,7 @@ export async function applyHit(bossId, playerId, peakDps, nowMs = Date.now()) {
     const room = Math.max(0, maxHp * WORLD_BOSS.perPlayerCapFrac - already);
     if (room <= 0) return { ok: false, reason: 'capped' };
 
-    let dmg = worldBossSalvoDamage(maxHp, peakDps);
+    let dmg = Math.max(1, Math.ceil(worldBossSalvoDamage(maxHp, peakDps) * eff));
     dmg = Math.min(dmg, hp, room);
     if (dmg <= 0) return { ok: false, reason: 'capped' };
 

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { api } from '../../net/api.js';
 import Leaderboard from './Leaderboard.jsx';
 import SeasonBanner from './SeasonBanner.jsx';
+import { BoardSkeleton, SeasonBannerSkeleton } from './Skeletons.jsx';
 
 function formatDate(iso) {
   return iso ? new Date(iso).toLocaleDateString('cs') : '';
@@ -33,6 +34,13 @@ export default function Seasons({ onJoin, onSelectPlayer }) {
 
   return (
     <div className="seasons">
+      {!seasons && !error && (
+        <>
+          <SeasonBannerSkeleton />
+          <div className="board"><BoardSkeleton /></div>
+        </>
+      )}
+
       {selectedMeta && (
         <SeasonBanner season={selectedMeta} onSelectPlayer={onSelectPlayer} />
       )}

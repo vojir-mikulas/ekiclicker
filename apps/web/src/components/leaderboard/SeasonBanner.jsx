@@ -6,6 +6,7 @@
 import { useState, useEffect } from 'react';
 import { api } from '../../net/api.js';
 import { fmt } from '../../game/format.js';
+import { PodiumSkeleton } from './Skeletons.jsx';
 
 const MEDAL = { 1: '🥇', 2: '🥈', 3: '🥉' };
 const PLACE = { 1: 'Šampion', 2: '2. místo', 3: '3. místo' };
@@ -45,6 +46,13 @@ export default function SeasonBanner({ season, onSelectPlayer }) {
             : `Uzavřená ${formatDate(season.closedAt)}`}
         </span>
       </div>
+
+      {podium == null && (
+        <>
+          <div className="sb-podium-label">{isActive ? 'Aktuální TOP 3' : 'Síň vítězů'}</div>
+          <PodiumSkeleton />
+        </>
+      )}
 
       {podium && podium.length > 0 && (
         <>

@@ -53,6 +53,7 @@ export const ALBUM_PAGES = Object.values(ALBUM);
    Arzenál: každý základ výbavy napříč sloty (key = "slot:baseId" = klíč pro state). */
 export const BESTIARY_ENTRIES = Object.entries(VARIANTS).map(([id, v]) => ({
   key: id, name: v.name, tier: v.tier, glow: v.glow, boss: !!v.boss,
+  filter: v.filter || null, tint: v.tint || null,
 }));
 
 export const ARSENAL_ENTRIES = SLOT_IDS.flatMap((slot) =>

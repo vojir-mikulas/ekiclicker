@@ -246,12 +246,12 @@ export default function InventoryModal({ onClose }) {
       <Modal onClose={onClose} className="inventory-modal">
         <h2>🎒 Výbava</h2>
         <p className="inv-locked-text">
-          Kořist a vybavení se odemknou, jakmile <b>porazíš prvního bosse</b> (Golden Eki — každá
-          5. úroveň). Nepřátelé pak začnou upouštět zbraně, rukavice, talismany a aury, které posílí
+          Kořist a vybavení se odemknou, jakmile dosáhneš <b>úrovně {ITEMS.unlockLevel}</b> — pozdní
+          hra. Nepřátelé pak začnou upouštět zbraně, rukavice, talismany a aury, které posílí
           tvé poškození. Zahozené kusy se rozloží na <b>úlomky 💠</b> a v kovárně z nich vykouzlíš
           lepší výbavu. Vybavení i úlomky přežívají rebirth!
         </p>
-        <p className="sub" style={{ textAlign: 'center' }}>Nejvyšší úroveň: {s.highestLevel}</p>
+        <p className="sub" style={{ textAlign: 'center' }}>Nejvyšší úroveň: {s.highestLevel} / {ITEMS.unlockLevel}</p>
       </Modal>
     );
   }

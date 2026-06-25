@@ -47,12 +47,12 @@ export function WorldBossProvider({ children }) {
     }
   }, [joined, applyView]);
 
-  const hit = useCallback(async () => {
+  const hit = useCallback(async (effort = 1) => {
     if (!joined || busy) return null;
     if (performance.now() < cooldownUntilRef.current) return null; // lokální cooldown gate
     setBusy(true);
     try {
-      const res = await api.worldBossHit();
+      const res = await api.worldBossHit(effort);
       if (res && 'boss' in res) applyView(res);
       return res;
     } catch {
@@ -81,6 +81,19 @@ export function WorldBossProvider({ children }) {
     const id = setInterval(() => { void refresh(); }, IDLE_POLL_MS);
     return () => clearInterval(id);
   }, [joined, refresh]);
+
+  // přechod do nové sezóny (pendingSeason: {…} → null po enterSeason): okamžitě
+  // zhasni starého bosse a natáhni čerstvého z nové sezóny — jinak by topbar držel
+  // bosse i můj příspěvek z minulé sezóny až do dalšího pollu (≤45 s).
+  const wasPendingRef = useRef(false);
+  useEffect(() => {
+    const had = wasPendingRef.current;
+    wasPendingRef.current = !!account.pendingSeason;
+    if (had && !account.pendingSeason && joined) {
+      setData(null);
+      void refresh();
+    }
+  }, [account.pendingSeason, joined, refresh]);
 
   const value = useMemo(() => ({
     data,

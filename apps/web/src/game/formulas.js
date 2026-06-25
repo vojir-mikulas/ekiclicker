@@ -10,6 +10,7 @@ import { ACHIEVEMENTS } from './data/achievements.js';
 import { aggregateEquip } from './data/items.js';
 import { equippedPetStats } from './data/pets.js';
 import { albumStats } from './data/album.js';
+import { elixirMods } from './data/elixirs.js';
 
 /* Součet afixů z nasazeného vybavení — sdílí ho všechny bojové formulky.
    Čistá funkce nad stavem; vybavení přidává jen BOUNDED % (žádný nový exponenciál). */
@@ -58,7 +59,8 @@ export function globalMult(s) {
     Math.pow(MULT.rage, s.prestige.rage) *
     ach *
     frenzy *
-    gear
+    gear *
+    elixirMods(s).dmg // 🍸 elixír (burst, NEvstupuje do obtížnosti — jako frenzy)
   );
 }
 
@@ -66,11 +68,11 @@ export function goldMult(s) {
   const ach = achievementMult(s.achievements).gold;
   const fortune = 1 + (s.upgrades.fortune || 0) * MULT.fortuneGoldPerLevel;
   const gear = 1 + combatStats(s).goldPct;
-  return (1 + s.prestige.greed * MULT.greedPerLevel) * fortune * ach * gear;
+  return (1 + s.prestige.greed * MULT.greedPerLevel) * fortune * ach * gear * elixirMods(s).gold; // 🍺 elixír
 }
 
 export function critChance(s) {
-  return Math.min(0.9, CONFIG.critChance + s.prestige.crit * MULT.critPerLevel + combatStats(s).critChance);
+  return Math.min(0.9, CONFIG.critChance + s.prestige.crit * MULT.critPerLevel + combatStats(s).critChance + elixirMods(s).critChance); // 🐂 elixír
 }
 /* Krit násobič — základ z CONFIG + gold upgrade "Tvrdý dopad" + vybavení. */
 export function critMult(s) {
@@ -127,7 +129,7 @@ export const milestoneMult = (count) =>
 export function weaponShotDamage(s, w) {
   const count = s.weapons[w.id] || 0;
   if (count <= 0) return 0;
-  return w.baseDmg * count * milestoneMult(count) * globalMult(s) * (1 + combatStats(s).weaponPct);
+  return w.baseDmg * count * milestoneMult(count) * globalMult(s) * (1 + combatStats(s).weaponPct) * elixirMods(s).weapon; // 🧃 elixír (jen auto-zbraně)
 }
 
 export function weaponDps(s, w) {
@@ -154,7 +156,7 @@ export function basePunch(s) {
 /* Plný úder hráče = základ + % z DPS (upgrade Údernost). Bez kritu/comba. */
 export function clickDamage(s) {
   const fromDps = totalWeaponDps(s) * (s.upgrades.click * MULT.clickFromDpsPerLevel);
-  return basePunch(s) + fromDps;
+  return (basePunch(s) + fromDps) * elixirMods(s).click; // 🐂 elixír (jen manuální úder, NE stín pěsti)
 }
 
 /* DPS Stínu pěsti (auto-údery z prestige), s očekávaným kritem. */

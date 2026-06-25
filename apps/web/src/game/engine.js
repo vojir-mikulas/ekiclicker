@@ -32,6 +32,7 @@ import {
 } from './data/items.js';
 import { PETS_CFG, rollPetId, petLevelCap } from './data/pets.js';
 import { ALBUM, discoveredCount, albumKeyForItem } from './data/album.js';
+import { ELIXIRS, elixirCostAt, ELIXIRS_CFG } from './data/elixirs.js';
 
 let nextEnemyId = 1;
 
@@ -178,19 +179,37 @@ export class Engine {
     this.maybeDropEgg(v);
     s.level++;
     if (s.level > s.highestLevel) s.highestLevel = s.level;
-    this.checkInventoryUnlock();
-    this.checkPetsUnlock();
+    this.checkLevelUnlocks();
     this.spawnEnemy();
   }
 
+  /* Pozdní funkce se odemykají po dosažení své NEJVYŠŠÍ úrovně (skutečně
+     vystoupanou, ne součet). Příznaky jsou trvalé → jednou odemčeno, zůstává.
+     Voláno po každém posunu nejvyšší úrovně. */
+  checkLevelUnlocks() {
+    this.checkInventoryUnlock();
+    this.checkElixirsUnlock();
+    this.checkPetsUnlock();
+  }
+
   /* ---------- kořist / vybavení ---------- */
-  /* Výbava se odemkne po PRVNÍM poraženém bossovi (kořist „padá z bossů" — žádný
-     levelový gate). Příznak je trvalý (přežívá rebirth) → pak padá napořád. */
+  /* Výbava se odemkne po dosažení ITEMS.unlockLevel (nejvyšší úroveň, ne součet).
+     Příznak je trvalý (přežívá rebirth) → pak kořist padá napořád. */
   checkInventoryUnlock() {
     const s = this.state;
-    if (!s.inventoryUnlocked && s.stats.bossKills >= 1) {
+    if (!s.inventoryUnlocked && s.highestLevel >= ITEMS.unlockLevel) {
       s.inventoryUnlocked = true;
       this.emit('unlock', { feature: 'inventory' });
+    }
+  }
+
+  /* Elixíry se odemknou po dosažení ELIXIRS_CFG.unlockLevel (nejvyšší úroveň).
+     Trvalý příznak — stejně jako výbava a mazlíčci. */
+  checkElixirsUnlock() {
+    const s = this.state;
+    if (!s.elixirsUnlocked && s.highestLevel >= ELIXIRS_CFG.unlockLevel) {
+      s.elixirsUnlocked = true;
+      this.emit('unlock', { feature: 'elixirs' });
     }
   }
 
@@ -564,6 +583,7 @@ export class Engine {
     this.emit('bossEscape', { variantId: s.enemy.variantId });
     s.level++;
     if (s.level > s.highestLevel) s.highestLevel = s.level;
+    this.checkLevelUnlocks();
     this.spawnEnemy();
   }
 
@@ -664,6 +684,30 @@ export class Engine {
     s.prestige[key] = (s.prestige[key] || 0) + 1;
     this.afterBuy();
   }
+  /* Kup elixír na sklad (spotřebka; hromadně dle buyAmount). */
+  buyElixir(id) {
+    const s = this.state;
+    if (!s.elixirsUnlocked || !ELIXIRS[id]) return;
+    const batch = buyBatch(elixirCostAt(s, id), s.gold, s.buyAmount);
+    if (batch.count <= 0 || s.gold < batch.cost) return;
+    s.gold -= batch.cost;
+    s.elixirStock[id] = (s.elixirStock[id] || 0) + batch.count;
+    this.afterBuy();
+  }
+
+  /* Vypij elixír ze skladu → aktivuj buff. Přepíše případný běžící (jeden naráz).
+     Expirace je wall-clock (Date.now) → přežije reload se správným zbytkem. */
+  drinkElixir(id) {
+    const s = this.state;
+    const def = ELIXIRS[id];
+    if (!def || (s.elixirStock[id] || 0) <= 0) return;
+    s.elixirStock[id] -= 1;
+    s.elixir.active = id;
+    s.elixir.until = Date.now() + def.durationMs;
+    this.emit('elixir', { active: id });
+    this.afterInventory(); // save + notify
+  }
+
   setBuyAmount(amt) {
     this.state.buyAmount = amt;
     this.notify();
@@ -859,6 +903,12 @@ export class Engine {
       this.emit('frenzy', { active: false });
     } else if (!s.frenzy.active && s.frenzy.charge > 0) {
       s.frenzy.charge = Math.max(0, s.frenzy.charge - CONFIG.frenzyDecayPerSec * dt);
+    }
+
+    // elixír: vyprší (wall-clock, ať odpočet sedí i po reloadu)
+    if (s.elixir.active && Date.now() >= s.elixir.until) {
+      s.elixir.active = null;
+      this.emit('elixir', { active: null });
     }
 
     // automatické DPS (zbraně + stín pěsti) — spojitě

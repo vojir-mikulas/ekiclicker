@@ -222,6 +222,38 @@ body{
 .shop-scroll::-webkit-scrollbar{ width:8px; }
 .shop-scroll::-webkit-scrollbar-thumb{ background:var(--line); border-radius:8px; }
 .shop-scroll::-webkit-scrollbar-thumb:hover{ background:#3a445c; }
+
+/* ----------------------------- elixíry ----------------------------- */
+.elixir-row{ display:flex; align-items:center; gap:12px; background:var(--panel-2); border:1px solid var(--line);
+  border-radius:12px; padding:10px 12px; margin-bottom:8px; }
+.elixir-row.active{ border-color:var(--orange); box-shadow:0 0 0 1px var(--orange) inset, 0 0 18px rgba(255,138,43,.22); }
+.elixir-ico{ width:44px; flex:none; text-align:center; }
+.elixir-ico .emoji{ font-size:30px; }
+.elixir-ico .elixir-img{ width:40px; height:40px; object-fit:contain; vertical-align:middle; }
+.elixir-row .body{ flex:1; min-width:0; }
+.elixir-row .name{ font-weight:800; font-size:14px; display:flex; gap:8px; align-items:baseline; flex-wrap:wrap; }
+.elixir-row .lvl{ font-size:11px; color:var(--gold); font-weight:800; }
+.elixir-row .meta{ font-size:11px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.elixir-actions{ display:flex; flex-direction:column; gap:6px; flex:none; }
+.elixir-buy, .elixir-drink{ min-width:96px; padding:7px 10px; border-radius:10px; font-family:'Anton',sans-serif;
+  font-size:13px; letter-spacing:.02em; cursor:pointer; border:1px solid var(--line); background:var(--panel); color:var(--text); }
+.elixir-buy{ color:var(--gold); }
+.elixir-buy:hover:not(:disabled){ border-color:var(--gold); }
+.elixir-drink:hover:not(:disabled){ border-color:var(--orange); color:var(--orange); }
+.elixir-buy:disabled, .elixir-drink:disabled{ color:var(--muted); cursor:default; opacity:.55; }
+.elixir-drink.on{ background:var(--orange); color:#1a0f00; border-color:var(--orange); }
+
+/* aktivní elixír — pill v TopBaru s živým odpočtem */
+.elixir-active{ display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border-radius:12px;
+  background:rgba(255,138,43,.12); border:1px solid var(--orange); min-width:0; }
+.elixir-active-ico{ font-size:20px; line-height:1; flex:none; display:flex; }
+.elixir-active-ico img{ width:22px; height:22px; object-fit:contain; }
+.elixir-active-txt{ display:flex; flex-direction:column; min-width:0; }
+.elixir-active-name{ font-size:11px; font-weight:800; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:130px; }
+.elixir-active-time{ font-size:10px; color:var(--orange); font-family:'Anton',sans-serif; letter-spacing:.06em; }
+.elixir-active-bar{ width:46px; height:6px; border-radius:4px; background:rgba(0,0,0,.32); overflow:hidden; flex:none; }
+.elixir-active-bar .fill{ display:block; height:100%; background:linear-gradient(90deg,#ff8a2b,#ff3b47); transition:width .2s linear; }
+
 .ach{ display:flex; align-items:center; gap:11px; background:var(--panel-2); border:1px solid var(--line); border-radius:12px; padding:9px 11px; }
 .ach.unlocked{ border-color:rgba(70,224,138,.5); }
 .ach .ico{ font-size:24px; width:34px; text-align:center; flex:none; }
@@ -241,6 +273,12 @@ body{
 .popup-content img{width:100%; border-radius:10px;}
 .closeBtn{position:absolute; top:8px; right:14px; font-size:28px; font-weight:bold; color:#888; cursor:pointer; background:none; border:none;}
 .closeBtn:hover{color:#fff;}
+
+/* Načítací overlay (lazy modaly) — okamžitá zpětná vazba po kliknutí. */
+.popup-content.modal-loading{ display:flex; align-items:center; justify-content:center; min-height:140px; max-width:200px; }
+.spinner{ width:38px; height:38px; border-radius:50%; border:3px solid var(--line);
+  border-top-color:var(--gold); animation:spin .7s linear infinite; }
+@keyframes spin{ to{ transform:rotate(360deg); } }
 
 .popup-content.offline{ text-align:center; max-width:380px; }
 .popup-content.offline h2{ text-align:center; }
@@ -348,6 +386,17 @@ body{
 .board-cta{ display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:12px 14px; margin-bottom:14px; color:var(--muted); font-size:14px; }
 .board-cta .primary-btn{ width:auto; margin:0; padding:10px 16px; }
 .board-loading, .board-empty{ text-align:center; color:var(--muted); padding:40px 0; }
+
+/* Skeletony (žebříček / sezóny) — shimmer pruhy držící layout, než dorazí data. */
+.skeleton{ display:inline-block; vertical-align:middle; border-radius:6px;
+  background:linear-gradient(90deg, rgba(255,255,255,.04) 25%, rgba(255,255,255,.11) 37%, rgba(255,255,255,.04) 63%);
+  background-size:400% 100%; animation:sk-shimmer 1.4s ease infinite; }
+@keyframes sk-shimmer{ 0%{ background-position:100% 0; } 100%{ background-position:-100% 0; } }
+.skeleton.sk-circle{ border-radius:50%; }
+.board-skeleton td{ vertical-align:middle; }
+.season-banner .sb-head .skeleton{ display:block; margin:6px auto; }
+.podium-skeleton .podium-spot{ pointer-events:none; }
+@media (prefers-reduced-motion: reduce){ .skeleton{ animation:none; } }
 .board-table{ width:100%; border-collapse:collapse; background:var(--panel); border:1px solid var(--line); border-radius:12px; overflow:hidden; }
 .board-table th{ text-align:left; font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); padding:10px 14px; border-bottom:1px solid var(--line); }
 .board-table th:last-child, .board-table td.val{ text-align:right; }
@@ -623,6 +672,7 @@ body{
 .roul-cell{ flex:0 0 80px; width:80px; height:92px; margin:0 4px; border:2px solid var(--line); border-radius:10px;
   background:var(--panel-2); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; position:relative; }
 .roul-cell-emoji{ font-size:34px; line-height:1; }
+.roul-cell-img{ width:52px; height:52px; object-fit:contain; pointer-events:none; }
 .roul-cell-bar{ width:60%; height:4px; border-radius:2px; }
 .roul-cell.win{ transform:scale(1.06); }
 .roul-cell.miss .roul-cell-emoji{ opacity:.7; }
@@ -735,6 +785,9 @@ body{
 .album-card.locked{ opacity:.5; }
 .album-swatch{ width:54px; height:54px; border-radius:50%; border:2px solid var(--line); background:#0a0d14; }
 .album-card.locked .album-swatch{ background:repeating-linear-gradient(45deg,#171b26,#171b26 5px,#10131b 5px,#10131b 10px); }
+.album-portrait{ position:relative; width:54px; height:54px; border-radius:10px; overflow:hidden; border:2px solid var(--line); background:#0a0d14; }
+.album-portrait img{ width:100%; height:100%; object-fit:cover; display:block; }
+.album-portrait-tint{ position:absolute; inset:0; mix-blend-mode:multiply; pointer-events:none; }
 .album-emoji{ font-size:40px; line-height:1; }
 .album-card.locked .album-emoji{ filter:grayscale(1) brightness(.7); }
 .album-card-name{ font-weight:800; font-size:13px; margin-top:3px; }
@@ -753,10 +806,62 @@ body{
 
 /* ---------- Světový boss ---------- */
 .topbar-badge.alert{ background:var(--orange); }
-.wb-btn.wb-live{ color:var(--text); border-color:rgba(255,138,43,.55); box-shadow:0 0 0 1px rgba(255,138,43,.25), 0 0 14px rgba(255,138,43,.3); }
+/* záložka „🐲 Boss" — odznak živý/odměna + jemná záře, když boss žije */
+.segmented .seg.wb-seg{ position:relative; }
+.segmented .seg.wb-live{ color:var(--orange); }
+.segmented .seg.wb-live.active{ color:var(--gold); }
+.seg-dot{ position:absolute; top:2px; right:3px; width:8px; height:8px; border-radius:50%;
+  background:var(--orange); box-shadow:0 0 6px rgba(255,138,43,.7); }
+.seg-dot.alert{ width:auto; height:auto; min-width:16px; padding:0 3px; font-size:11px; line-height:16px;
+  font-weight:800; color:#1a0f00; text-align:center; }
 
-.popup-content.world-boss-modal{ max-width:520px; max-height:88vh; overflow-y:auto; text-align:left; }
-.popup-content.world-boss-modal h2{ text-align:center; }
+/* stránka bosse (plná záložka místo modalu) — záměrně úzká, ať aréna působí jako hra */
+.wb-page{ max-width:480px; margin:18px auto 40px; padding:0 16px; }
+.wb-page .board-cta{ margin-bottom:0; }
+.wb-page .wb-claim{ margin:0 0 14px; }
+
+/* aréna bosse — vypadá jako hlavní hra, jen kratší a se salvou */
+.wb-arena{ min-height:auto; padding:20px 18px 22px; position:relative; top:auto; }
+.wb-arena.expired{ filter:saturate(.85); }
+.wb-hp{ margin:10px 0 4px; }
+.wb-hp .hpfill.defeated{ background:linear-gradient(90deg,#2a3142,#3a445c); }
+.wb-hp .hpfill.expired{ background:linear-gradient(90deg,var(--red-dark),#7a1820); }
+
+.punch-btn:disabled{ opacity:.55; cursor:default; transform:none; box-shadow:0 6px 0 var(--red-dark); }
+
+/* nálož salvy — proužek pod fotkou (HP, které máš nabito k vypuštění) */
+.wb-salvo{ position:relative; width:min(300px,90%); height:22px; margin:18px 0 2px; border-radius:8px;
+  background:#0a0c12; border:1px solid var(--line); overflow:hidden; }
+.wb-salvo .fill{ position:absolute; inset:0; width:0; background:linear-gradient(90deg,#ff8a2b,#ffd23f);
+  transition:width .12s linear; }
+.wb-salvo .lbl{ position:absolute; left:10px; top:0; height:100%; display:flex; align-items:center;
+  font-size:11px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:#fff; text-shadow:0 1px 2px #000; z-index:1; }
+.wb-salvo .num{ position:absolute; right:10px; top:0; height:100%; display:flex; align-items:center;
+  font-size:11px; font-weight:800; color:#fff; text-shadow:0 1px 2px #000; z-index:1; }
+
+/* velké tlačítko „vypustit salvu" — ve stylu hry, oranžové */
+.wb-fire{ margin-top:12px; min-width:260px; background:linear-gradient(180deg,#ff8a2b,#e0620f);
+  border:1px solid #ffb35a; color:#1a0f00; border-radius:14px; padding:14px 22px;
+  font-family:'Anton',sans-serif; font-size:18px; letter-spacing:.03em; cursor:pointer;
+  box-shadow:0 5px 0 #7a3608; transition:transform .06s ease, filter .2s ease; }
+.wb-fire:hover:not(:disabled){ filter:brightness(1.08); }
+.wb-fire:active:not(:disabled){ transform:translateY(4px); box-shadow:0 1px 0 #7a3608; }
+.wb-fire:disabled{ cursor:default; background:linear-gradient(180deg,#3a3140,#2a2430);
+  color:var(--muted); border-color:var(--line); box-shadow:0 4px 0 #1a151f; }
+
+.wb-power{ margin-top:12px; font-size:12px; color:var(--muted); text-align:center; line-height:1.55; }
+.wb-power b{ color:var(--text); font-weight:800; }
+
+/* plovoucí čísla nad fotkou bosse */
+.wb-float{ position:absolute; transform:translate(-50%,-50%); z-index:5; pointer-events:none;
+  font-family:'Anton',sans-serif; font-size:20px; color:#ffd23f; text-shadow:0 2px 4px #000;
+  animation:wbFloat .76s ease-out forwards; }
+.wb-float.big{ font-size:42px; color:#ff5c66; animation:wbFloat 1.1s ease-out forwards; }
+@keyframes wbFloat{ 0%{opacity:0; transform:translate(-50%,-30%) scale(.7);} 20%{opacity:1;}
+  100%{opacity:0; transform:translate(-50%,-170%) scale(1.1);} }
+
+.wb-row.clickable{ cursor:pointer; }
+.wb-row.clickable:hover{ background:rgba(255,255,255,.05); }
 
 .wb-hero{ display:flex; align-items:center; gap:14px; padding:14px; border-radius:14px;
   background:linear-gradient(180deg,rgba(255,59,71,.12),rgba(0,0,0,.25)); border:1px solid var(--line); }

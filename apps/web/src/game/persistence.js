@@ -60,6 +60,10 @@ export function buildSnapshot(state) {
     equippedPet: state.equippedPet,
     eggs: state.eggs, // nevylíhnutá vejce (pendingEgg se ZÁMĚRNĚ neukládá — viz hydrate)
     runGearPower: state.runGearPower,
+    // elixíry: aktivní buff (until = epoch ms) + sklad (aditivní — starý save bez nich = prázdný)
+    elixir: state.elixir,
+    elixirStock: state.elixirStock,
+    elixirsUnlocked: state.elixirsUnlocked,
     buyAmount: state.buyAmount,
     t: Date.now(),
   };
@@ -113,6 +117,12 @@ export function hydrateState(d) {
   state.eggs = d.eggs || 0;
   state.pendingEgg = null; // líhnutí je už zaúčtované (stejně jako pendingOpen) → po reloadu pryč
   state.runGearPower = d.runGearPower || gearPower(state.equipment) * petPower(state);
+  // elixíry: sklad (aditivní) + běžící buff jen pokud ještě nevypršel (jinak zahodit)
+  state.elixirStock = (d.elixirStock && typeof d.elixirStock === 'object') ? d.elixirStock : {};
+  state.elixir = (d.elixir && d.elixir.active && Date.now() < d.elixir.until)
+    ? { active: d.elixir.active, until: d.elixir.until }
+    : { active: null, until: 0 };
+  state.elixirsUnlocked = !!d.elixirsUnlocked;
   state.buyAmount = d.buyAmount || 1;
   return state;
 }

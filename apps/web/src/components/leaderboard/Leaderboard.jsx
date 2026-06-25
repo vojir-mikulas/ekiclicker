@@ -1,9 +1,10 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { LEADERBOARD_BOARDS, DEFAULT_BOARD, boardByKey } from '@ekiclicker/shared';
 import { api } from '../../net/api.js';
 import { accountErrorMessage } from '../../net/errors.js';
 import { useAccount } from '../../hooks/useAccount.js';
 import { fmt, fmtDuration } from '../../game/format.js';
+import { BoardSkeleton } from './Skeletons.jsx';
 
 const POLL_MS = 15_000; // jak často se otevřený žebříček sám obnoví
 
@@ -26,29 +27,43 @@ export default function Leaderboard({ onJoin, season, active, onSelectPlayer }) 
   const board = boardByKey(boardKey) || boardByKey(DEFAULT_BOARD);
   const isActiveSeason = season == null || season === active;
 
-  const load = useCallback(async () => {
-    setLoading(true); setError('');
+  // background=true → tichá obnova: nezobrazuj skeleton a při chybě nech dosavadní
+  // data být (jinak by se žebříček každých 15 s „rozblikal").
+  const load = useCallback(async ({ background = false } = {}) => {
+    if (!background) setLoading(true);
+    setError('');
     try {
       const res = await api.leaderboard(boardKey, 50, season);
       setData(res);
     } catch (e) {
+      if (background) return;
       setError(accountErrorMessage(e));
       setData(null);
     } finally {
-      setLoading(false);
+      if (!background) setLoading(false);
     }
   }, [boardKey, season]);
+  const loadRef = useRef(load);
+  loadRef.current = load;
 
-  // Načti při otevření / přepnutí žebříčku či sezóny a hned po odeslání vlastního
-  // skóre (account.syncTick). Aktivní sezónu navíc průběžně obnovuj (cizí skóre se
-  // mění); uzavřená sezóna je neměnná → bez pollingu.
-  const syncTick = account.syncTick;
+  // Načti se skeletonem při otevření / přepnutí žebříčku či sezóny.
+  useEffect(() => { load(); }, [load]);
+
+  // Aktivní sezónu průběžně tiše obnovuj (cizí skóre se mění); uzavřená sezóna je
+  // neměnná → bez pollingu.
   useEffect(() => {
-    load();
     if (!isActiveSeason) return undefined;
-    const id = setInterval(load, POLL_MS);
+    const id = setInterval(() => loadRef.current({ background: true }), POLL_MS);
     return () => clearInterval(id);
-  }, [load, syncTick, isActiveSeason]);
+  }, [isActiveSeason]);
+
+  // Po odeslání vlastního skóre tiše obnov (přeskoč první běh = mount).
+  const syncTick = account.syncTick;
+  const firstSync = useRef(true);
+  useEffect(() => {
+    if (firstSync.current) { firstSync.current = false; return; }
+    loadRef.current({ background: true });
+  }, [syncTick]);
 
   const myId = account.player?.id;
   const entries = data?.entries || [];
@@ -78,7 +93,7 @@ export default function Leaderboard({ onJoin, season, active, onSelectPlayer }) 
         </div>
       )}
 
-      {loading && <div className="board-loading">Načítám…</div>}
+      {loading && <BoardSkeleton />}
 
       {!loading && error && (
         <div className="board-empty">

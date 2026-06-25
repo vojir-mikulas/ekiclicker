@@ -55,7 +55,10 @@ router.post('/hit', requirePlayer, async (req, res, next) => {
     }
 
     const peakDps = await attestedPeakDps(active.id, p.id);
-    const result = await applyHit(boss.id, p.id, peakDps);
+    // effort ∈ [0,1] = kolik svého stropu salvy hráč nabil (údery + zbraně v klientu).
+    // Škáluje jen DOLŮ z boundovaného maxima → klient nemůže poslat víc poškození.
+    const effort = Number(req.body?.effort);
+    const result = await applyHit(boss.id, p.id, peakDps, Date.now(), Number.isFinite(effort) ? effort : 1);
     const view = await getWorldBossView(active.id, p.id);
     res.status(200).json({ ...result, ...view });
   } catch (err) {

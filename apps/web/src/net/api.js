@@ -70,6 +70,6 @@ export const api = {
   player: (id) => req(`/players/${encodeURIComponent(id)}`, { auth: true }),
   // světový boss (sdílený sezónní kooperativní boss)
   worldBoss: () => req('/world-boss', { auth: true }),
-  worldBossHit: () => req('/world-boss/hit', { method: 'POST', auth: true }),
+  worldBossHit: (effort = 1) => req('/world-boss/hit', { method: 'POST', body: { effort }, auth: true }),
   worldBossClaim: () => req('/world-boss/claim', { method: 'POST', auth: true }),
 };

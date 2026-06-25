@@ -9,12 +9,16 @@ import {
   discoveredCount, isDiscovered, albumStats, albumBonusText,
 } from '../../game/data/album.js';
 import Modal from './Modal.jsx';
+import { PLACEHOLDER } from '../../game/data/texts.js';
 
 /* podpis: počet objevených na každé stránce → re-render jen při novém objevu */
 const selectSig = (s) => ALBUM_PAGES.map((p) => discoveredCount(s.album, p.id)).join('|');
 
-/* Karta druhu Ekiho — objevený: barevný terč (glow) + název + tier; jinak silueta. */
+/* Karta druhu Ekiho — objevený: stejná fotka jako v aréně (filtr + nádech varianty)
+   + název + tier; jinak silueta. Když fotka nenaběhne (offline), spadne zpět na
+   barevný terč (glow), aby karta nikdy nezůstala prázdná. */
 function BestiaryCard({ e, found }) {
+  const [imgOk, setImgOk] = useState(true);
   if (!found) {
     return (
       <div className="album-card locked">
@@ -26,10 +30,23 @@ function BestiaryCard({ e, found }) {
   }
   return (
     <div className={'album-card' + (e.boss ? ' boss' : '')}>
-      <div
-        className="album-swatch"
-        style={{ background: `radial-gradient(circle at 50% 38%, ${e.glow}, #0a0d14 78%)`, borderColor: e.glow }}
-      />
+      {imgOk ? (
+        <div className="album-portrait" style={{ borderColor: e.glow, boxShadow: `0 0 9px ${e.glow}88` }}>
+          <img
+            src={PLACEHOLDER}
+            alt={e.name}
+            style={{ filter: e.filter || 'none' }}
+            onError={() => setImgOk(false)}
+            draggable={false}
+          />
+          <div className="album-portrait-tint" style={{ background: e.tint || 'transparent' }} />
+        </div>
+      ) : (
+        <div
+          className="album-swatch"
+          style={{ background: `radial-gradient(circle at 50% 38%, ${e.glow}, #0a0d14 78%)`, borderColor: e.glow }}
+        />
+      )}
       <div className="album-card-name">{e.name}</div>
       <div className="album-card-sub">{e.tier}</div>
     </div>

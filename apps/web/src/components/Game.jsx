@@ -7,6 +7,7 @@ import Shop from './shop/Shop.jsx';
 import EffectsLayer from './EffectsLayer.jsx';
 import ToastHost from './ToastHost.jsx';
 import SideBanners from './SideBanners.jsx';
+import ModalFallback from './modals/ModalFallback.jsx';
 
 const SettingsModal = lazy(() => import('./modals/SettingsModal.jsx'));
 const OfflineModal = lazy(() => import('./modals/OfflineModal.jsx'));
@@ -24,12 +25,12 @@ const DailyQuests = lazy(() => import('./modals/DailyQuests.jsx'));
 const Seasons = lazy(() => import('./leaderboard/Seasons.jsx'));
 const PlayerProfile = lazy(() => import('./modals/PlayerProfile.jsx'));
 const SeasonEndModal = lazy(() => import('./modals/SeasonEndModal.jsx'));
-const WorldBossModal = lazy(() => import('./modals/WorldBossModal.jsx'));
+const WorldBossView = lazy(() => import('./worldboss/WorldBossView.jsx'));
 
 export default function Game() {
   const engine = useEngine();
   const account = useAccount();
-  const [view, setView] = useState('game'); // 'game' | 'board'
+  const [view, setView] = useState('game'); // 'game' | 'boss' | 'board'
   const [modal, setModal] = useState(null); // 'settings' | 'rebirth' | 'join' | 'account' | null
   const [offline, setOffline] = useState(null);
   const [gift, setGift] = useState(null);
@@ -65,7 +66,6 @@ export default function Game() {
         onOpenInventory={() => setModal('inventory')}
         onOpenPets={() => setModal('pets')}
         onOpenAlbum={() => setModal('album')}
-        onOpenWorldBoss={() => setModal('worldboss')}
       />
 
       {view === 'game' ? (
@@ -73,6 +73,10 @@ export default function Game() {
           <Arena onOpenRebirth={() => setModal('rebirth')} />
           <Shop />
         </div>
+      ) : view === 'boss' ? (
+        <Suspense fallback={<div className="board-loading">Načítám bosse…</div>}>
+          <WorldBossView onJoin={() => setModal('join')} onSelectPlayer={setProfileId} />
+        </Suspense>
       ) : (
         <Suspense fallback={<div className="board-loading">Načítám žebříček…</div>}>
           <Seasons onJoin={() => setModal('join')} onSelectPlayer={setProfileId} />
@@ -83,7 +87,7 @@ export default function Game() {
       {view === 'game' && <EffectsLayer />}
       <ToastHost />
 
-      <Suspense fallback={null}>
+      <Suspense fallback={<ModalFallback />}>
         {modal === 'settings' && <SettingsModal onClose={() => setModal(null)} />}
         {modal === 'rebirth' && <RebirthModal onClose={() => setModal(null)} />}
         {modal === 'join' && <JoinModal onClose={() => setModal(null)} />}
@@ -98,7 +102,6 @@ export default function Game() {
         {offline && <OfflineModal offline={offline} onClose={() => setOffline(null)} />}
         {gift && <GiftModal gift={gift} onClose={() => setGift(null)} />}
         {profileId && <PlayerProfile id={profileId} onClose={() => setProfileId(null)} />}
-        {modal === 'worldboss' && <WorldBossModal onClose={() => setModal(null)} onJoin={() => setModal('join')} />}
         {account.pendingSeason && <SeasonEndModal />}
       </Suspense>
     </>

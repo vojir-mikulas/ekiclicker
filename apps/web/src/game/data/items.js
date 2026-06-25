@@ -344,14 +344,14 @@ export function buildRouletteStrip(tier, level, result, landingIndex, length) {
     let rarity = rollRarityFloor(level, def.rarityFloor);
     if (nearMiss && rnd() < 0.6) rarity = RARITY_ORDER[Math.min(RARITY_ORDER.length - 1, RARITY_ORDER.indexOf(rarity) + 2)];
     const base = rollBase(slot, level);
-    return { rarity, emoji: BASE_BY[slot][base.id].emoji, color: RARITIES[rarity].color };
+    return { rarity, base: base.id, emoji: BASE_BY[slot][base.id].emoji, color: RARITIES[rarity].color };
   };
   const cells = [];
   for (let i = 0; i < length; i++) {
     if (i === landingIndex) {
       cells.push(result.miss
         ? { miss: true, emoji: '💨', color: '#6a7185' }
-        : { rarity: result.item.rarity, emoji: itemEmoji(result.item), color: rarityColor(result.item), win: true });
+        : { rarity: result.item.rarity, base: result.item.base, emoji: itemEmoji(result.item), color: rarityColor(result.item), win: true });
     } else {
       cells.push(decoy(Math.abs(i - landingIndex) === 1));
     }
