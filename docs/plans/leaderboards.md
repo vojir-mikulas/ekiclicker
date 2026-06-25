@@ -1,0 +1,206 @@
+# Plan: Monorepo + Express backend + Leaderboards
+
+Status: **proposed** · Last updated: 2026-06-25
+
+## 1. Goal
+
+Add an Express backend that:
+
+1. Statically serves the existing game.
+2. Stores a per-player **nickname** + game **stats**.
+3. Exposes a **leaderboard**.
+4. Ships with **Docker Compose** and runs **DB migrations on deploy**.
+
+…**without touching the game's offline-first, high-performance core**. The backend
+is a thin *sync + identity* layer; the local `localStorage` save stays
+authoritative for gameplay, so the game keeps working even if the server is down.
+
+## 2. Identity model (DECIDED ✅)
+
+`"one account per IP"` conflicts with `"user changes IP going home from work"`,
+and with the likely reality that **players are coworkers behind one office NAT**
+(shared public IP). Strict 1-per-IP would lock out everyone but the first
+registrant. Resolution:
+
+| Concern | Mechanism |
+|---|---|
+| Who am I? | A secret `playerToken` (random UUID) created on registration, stored in `localStorage`, sent as `Authorization: Bearer <token>`. **Survives IP changes** because it travels with the browser, not the network. |
+| "Save user's IP" | Record `created_ip` + rolling `ip_history` on the account — for audit/moderation, **not** as the key. |
+| "One account per IP" (anti-abuse intent) | Relaxed to a **per-IP daily creation cap of 5/day** + rate limiting. Stops account spam while a shared office NAT can host the whole team. |
+| Recovery / multi-device | **Recovery code** (DECIDED ✅) — the player token, shown formatted in Settings. Entering it on a new device / after clearing data re-links the account. |
+
+## 3. Other decisions (DECIDED ✅)
+
+- **Datastore: external Postgres**, connected via `DATABASE_URL` connection string
+  (managed/external — **not** run by our compose in prod).
+- **Migrations run on deploy** — automatically, idempotent, tracked in a
+  migrations table. Run via the container entrypoint *before* the app starts.
+- **Per-IP account creation cap: 5/day.**
+- **Recovery code: yes.**
+
+### Still open (non-blocking, default chosen)
+
+- **Leaderboard boards** — default: multiple tabs (level / gold / rebirths / kills).
+  Can trim to a single `highestLevel` board if preferred.
+
+## 4. Target structure (npm workspaces — no extra tooling)
+
+```
+ekiclicker/
+  package.json              # root: workspaces + orchestration scripts (concurrently)
+  docker-compose.yml        # app service (prod: external DATABASE_URL)
+  docker-compose.local.yml  # optional: local Postgres for dev (compose profile)
+  Dockerfile                # multi-stage: build web -> bundle into server image
+  apps/
+    web/                    # <- current app moved here (src/, index.html, vite.config.js)
+    server/                 # NEW Express backend
+      src/
+        index.js            # bootstrap: run migrations, static serving + SPA fallback
+        db.js               # pg Pool + query helpers
+        migrate.js          # migration runner (or node-pg-migrate config)
+        routes/{auth,leaderboard,scores}.js
+        middleware/{rateLimit,auth,plausibility}.js
+      migrations/           # *.sql (or node-pg-migrate js) — applied on deploy
+  packages/
+    shared/                 # tiny: score payload shape + validation/plausibility bounds
+```
+
+- `packages/shared` keeps the score schema and plausibility limits in **one place**
+  imported by both client and server.
+- No DB volume needed (Postgres is external).
+
+## 5. Backend design
+
+### Datastore: Postgres via `pg`
+
+- `pg` (node-postgres) connection pool, `DATABASE_URL` env.
+- `db.js` exposes a small `query()`/`tx()` helper. No ORM (keep it simple).
+
+### Migrations (run on deploy)
+
+- Plain SQL files in `apps/server/migrations/` + a tracking table
+  (`schema_migrations`), applied in order. (Alternatively `node-pg-migrate`.)
+- **Entrypoint runs `npm run migrate` then starts the server** — so every deploy
+  applies pending migrations before serving traffic. Idempotent: already-applied
+  migrations are skipped.
+
+### `players` table (one row per player, stats inline — simplest)
+
+```
+players(
+  id              uuid primary key default gen_random_uuid(),
+  token_hash      text not null,            -- sha256(token); raw token never stored
+  recovery_hash   text not null,            -- sha256(recovery code) (= token, formatted)
+  nickname        text unique not null,
+  nickname_ci     text unique not null,     -- lower(nickname) for case-insensitive uniqueness
+  created_ip      text, last_ip text, ip_history jsonb default '[]',
+  highest_level   int default 1,
+  total_gold      numeric default 0,
+  kills           bigint default 0,
+  boss_kills      bigint default 0,
+  rebirths        int default 0,
+  max_combo       int default 0,
+  play_time_ms    bigint default 0,
+  achievements    int default 0,
+  created_at      timestamptz default now(),
+  updated_at      timestamptz default now(),
+  renamed_at      timestamptz,
+  last_submit_at  timestamptz
+)
+-- index for per-IP daily creation cap:
+index on players (created_ip, created_at)
+```
+
+### API (token in `Authorization: Bearer <token>`)
+
+| Method | Route | Purpose | Guards |
+|---|---|---|---|
+| POST | `/api/register` | `{nickname}` -> create player, return `{id, token, recoveryCode}` | nickname valid+free; per-IP cap 5/day; rate limit |
+| POST | `/api/recover` | `{code}` -> validate recovery code, return profile (client keeps code as token) | rate limit |
+| GET  | `/api/me` | profile + current rank | token |
+| PATCH| `/api/me` | rename | token; uniqueness; rename throttle (1x / N h) |
+| DELETE | `/api/me` | wipe account (used by Settings "delete progress") | token |
+| POST | `/api/scores` | push current stats | token; monotonic + plausibility; submit throttle |
+| GET  | `/api/leaderboard?board=level` | top-N for a metric | rate limit; short cache |
+| `*`  | (non-`/api`) | serve `apps/web/dist` + SPA fallback | — |
+
+## 6. Anti-spam / anti-cheat layers
+
+Honest framing: the game is fully client-side, so a determined cheater *can*
+forge a score. For an office leaderboard the goal is "stop casual tampering &
+spam cheaply," not perfect integrity.
+
+1. **Transport:** `helmet`, JSON body-size limit, same-origin CORS,
+   `express-rate-limit` per IP.
+2. **Account creation:** per-IP cap **5/day** + nickname rules (length, charset,
+   reserved/blocklist, trim, case-insensitive uniqueness).
+3. **Score submission:**
+   - **Throttle:** accept ~1 update / 10–15 s per player (game already autosaves
+     every 10 s — natural hook).
+   - **Monotonic:** reject stats that *decrease* (level/gold/kills only go up).
+   - **Plausibility:** ceilings derived from game balance (e.g. `highest_level`
+     can't exceed what's reachable in `play_time_ms`; `kills >~ level`;
+     gold-vs-level sanity). Reject + **log** outliers (no silent capping).
+   - **Light HMAC signature** of the payload with a shared secret — raises the
+     bar vs. casual devtools tampering; documented as best-effort, not security.
+4. **Rename throttle** to prevent impersonation/churn.
+
+## 7. Frontend changes (minimal, matches Czech UI)
+
+- **Header segmented control** in `TopBar`: `Hra | Žebříček` — drives a top-level
+  view switch in `Game.jsx`.
+- **Nickname onboarding modal**: first load with no token -> ask nickname ->
+  `POST /api/register`. Handles "taken" / "IP cap" errors. Shows **recovery code**
+  once with a "save this" prompt.
+- **Header shows nickname** + edit affordance -> rename modal (`PATCH /api/me`).
+- **Leaderboard view**: ranked table (nickname + chosen stats), tabs per board,
+  current player's row highlighted. Lazy-loaded like other panels.
+- **Sync layer** (`apps/web/src/net/sync.js`): best-effort `POST /api/scores`
+  piggybacking on existing autosave/visibility-hidden hooks; never blocks
+  gameplay; silent-fails offline.
+- **Settings**: (a) wipe (`reset`) now also `DELETE /api/me` + clears local token;
+  (b) shows the **recovery code** + a "recover account" entry field
+  (`POST /api/recover`).
+- **Vite**: add `server.proxy` `/api -> :3000` for dev.
+
+## 8. Docker
+
+- **Multi-stage `Dockerfile`:** build stage (`node:20`, installs workspaces,
+  `vite build`) -> runtime stage (`node:20-slim`, copies server + built
+  `web/dist` + prod deps). Entrypoint: `npm run migrate && node apps/server/src/index.js`.
+- **`docker-compose.yml` (prod):** single `app` service, port `3000`, env
+  (`DATABASE_URL`, `HMAC_SECRET`, caps), `restart: unless-stopped`. No DB service
+  (Postgres external).
+- **`docker-compose.local.yml` (dev, optional):** adds a local `postgres` service
+  + volume so the stack runs end-to-end on a laptop without an external DB.
+
+## 9. Dev workflow
+
+- Root `npm run dev` -> `concurrently`: Vite (`:5173`) + server (`:3000`), Vite
+  proxies `/api`.
+- Root `npm run build` -> builds web; server serves `apps/web/dist`.
+- `npm run migrate` available locally against `DATABASE_URL`.
+
+## 10. Phased, shippable roadmap
+
+| Phase | Deliverable | Shippable on its own? |
+|---|---|---|
+| **1** | Monorepo restructure: app -> `apps/web`, npm workspaces, game still runs | ✅ game unchanged |
+| **2** | Express skeleton + static serving + Dockerfile + compose -> game served from Node | ✅ playable from backend |
+| **3** | Postgres + migrations-on-deploy wiring (schema_migrations + players) | ✅ DB ready |
+| **4** | Identity: register/recover/me/rename/delete, token+recovery code, IP recording, per-IP cap + rate limit | ✅ accounts work |
+| **5** | Score sync + leaderboard API + plausibility/monotonic checks | ✅ leaderboard data flows |
+| **6** | Frontend: segmented header, onboarding + rename + recovery UI, leaderboard view, settings wipe wiring | ✅ full feature visible |
+| **7** | Hardening: HMAC, throttles, blocklist, docs | ✅ polish |
+
+Each phase keeps the game fully working; the backend is purely additive.
+
+## 11. Risks / notes
+
+- **Client-side score forgeability** — mitigated, not eliminated (see §6). Acceptable
+  for an office leaderboard; documented.
+- **Recovery code = the secret** — losing it on a cleared browser with no copy means
+  account loss. UI must nudge the user to save it.
+- **Multiple app instances + migrations-on-start** — fine for single-instance office
+  deploy; if scaled out, run migrations as a one-shot pre-deploy step instead.
+- **Case-insensitive nickname uniqueness** enforced via `nickname_ci` column.

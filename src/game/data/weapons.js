@@ -16,6 +16,9 @@ export const WEAPONS = [
   { id: 'rocket',  emoji: '🚀', name: 'Raketa',            baseCost: 4.5e11,    baseDmg: 6.6e7,    interval: 2000, flight: 440, unlock: 105 },
   { id: 'meteor',  emoji: '☄️', name: 'Meteor',            baseCost: 6.5e12,    baseDmg: 4.9e8,    interval: 2400, flight: 480, unlock: 140 },
   { id: 'volcano', emoji: '🌋', name: 'Sopka',             baseCost: 1.0e14,    baseDmg: 3.8e9,    interval: 2800, flight: 520, unlock: 185 },
+  { id: 'blackhole',emoji: '🕳️', name: 'Černá díra',       baseCost: 1.6e15,    baseDmg: 2.7e10,   interval: 3000, flight: 540, unlock: 240 },
+  { id: 'galaxy',  emoji: '🌌', name: 'Galaxie',           baseCost: 2.6e16,    baseDmg: 1.9e11,   interval: 3300, flight: 580, unlock: 300 },
+  { id: 'nova',    emoji: '💥', name: 'Supernova',         baseCost: 4.2e17,    baseDmg: 1.4e12,   interval: 3600, flight: 620, unlock: 380 },
 ];
 
 export const WEAPON_BY_ID = Object.fromEntries(WEAPONS.map((w) => [w.id, w]));

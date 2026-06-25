@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useEngineSelector, useEngineEvent, shallowEqual } from '../../hooks/useEngine.js';
 import { VARIANTS } from '../../game/data/variants.js';
 import { PLACEHOLDER, REACTION_IMGS, REACTION_EMOJI } from '../../game/data/texts.js';
@@ -10,18 +10,25 @@ export default function EnemyView() {
   const [imageMode, setImageMode] = useState(true);
   const [reactSrc, setReactSrc] = useState(null);
   const [reactEmoji, setReactEmoji] = useState(null);
+  const resetTimer = useRef(0);
 
   useEngineEvent(
     useCallback((type) => {
       if (type === 'hit' || type === 'react') {
+        // Při husté auto-palbě drž „zásahovou" fotku až 600 ms po POSLEDNÍM
+        // zásahu — jeden sdílený časovač, ať foto nebliká zpět na klidnou.
+        clearTimeout(resetTimer.current);
         if (imageMode) {
           setReactSrc(REACTION_IMGS[Math.floor(Math.random() * REACTION_IMGS.length)]);
-          setTimeout(() => setReactSrc(null), 600);
         } else {
           setReactEmoji(REACTION_EMOJI[Math.floor(Math.random() * REACTION_EMOJI.length)]);
-          setTimeout(() => setReactEmoji(null), 600);
         }
+        resetTimer.current = setTimeout(() => {
+          setReactSrc(null);
+          setReactEmoji(null);
+        }, 600);
       } else if (type === 'spawn') {
+        clearTimeout(resetTimer.current);
         setReactSrc(null);
         setReactEmoji(null);
       }

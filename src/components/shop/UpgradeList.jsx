@@ -12,7 +12,7 @@ export default function UpgradeList() {
   const s = engine.state;
 
   return (
-    <div>
+    <div className="shop-scroll">
       {UPGRADE_KEYS.map((key) => {
         const u = UPGRADES[key];
         const lvl = s.upgrades[key];

@@ -21,8 +21,23 @@ export const CONFIG = {
   goldGrowth: 1.09,
   bossEvery: 5, // každá 5. úroveň = boss (Golden Eki)
   megaBossEvery: 25, // každá 25. = mega boss (Eki Král)
+  ultraBossEvery: 100, // každá 100. = ultra boss (Eki Titán) — endgame milník
   bossTime: 30000, // limit na zabití bosse (ms), jinak uteče
   megaBossTime: 40000,
+  ultraBossTime: 60000,
+  maxDefeatsPerTick: 50, // pojistka kill/tick (anti-lag) — nejvíc tolik porážek za krok
+
+  // --- BOSS LOOT (poklad za zabití bosse) ---
+  // Navíc K normální odměně. Zlato je jen KONSTANTNÍ násobič (nezpůsobuje
+  // runaway — ten dělá jen růst závislý na úrovni). Hlavní lákadlo jsou 🕊
+  // z mega/ultra bossů → propojení s prestige metou. Vše laditelné zde.
+  // POZOR: bossové už jsou dominantní zdroj zlata (Golden Eki = 18× normál), takže
+  // i malý násobič se přes reinvestici znásobí. Drž ho NÍZKO — hlavní odměna jsou 🕊.
+  bossLootMult: 0.25, // Golden Eki: poklad = odměna × tohle (jen zlato)
+  megaBossLootMult: 0.75, // Eki Král: trochu víc zlata…
+  megaBossDoveChance: 0.4, // …a šance upustit 1 🕊
+  ultraBossLootMult: 3, // Eki Titán: balík zlata…
+  ultraBossDoves: 2, // …a zaručeně 2 🕊 (odměna za velký milník)
 
   // --- pozdní hra (graduální ztížení) ---
   hardenFrom: 80, // od této úrovně se HP začne ztěžovat navíc
@@ -52,6 +67,7 @@ export const CONFIG = {
   maxPows: 24, // strop živých „POW" bublin zároveň
   maxFloatersPerSec: 18, // strop plovoucích čísel za sekundu
   weaponVisualMinMs: 420, // jedna zbraň pustí projektil nejvýš ~2×/s (jen efekt)
+  shadowVisualMs: 480, // jak často letí „duch-pěst" Stínu pěsti (jen efekt)
   minWeaponInterval: 200, // logický strop rychlosti palby (ms)
   speedFloor: 0.28, // zbraně nemůžou střílet rychleji než 0.28× základ (~3.5×)
   maxSpeedLevel: 80, // strop levelu "Zrychlení" (endgame — pak už nemá smysl)
@@ -85,4 +101,8 @@ export const MULT = {
   weaponMilestone: 25, // každých 25 kusů zbraně = ×2 jejímu poškození
   clickFromDpsPerLevel: 0.01, // gold "Údernost": úder + 1 % DPS za level
   punchStep: 3, // gold "Síla pěsti": +3 základ úderu za level
+  critDmgPerLevel: 0.5, // gold "Tvrdý dopad": +0,5 ke krit násobiči za level
+  fortuneGoldPerLevel: 0.08, // gold "Chamtivost": +8 % zlata za level (lineárně)
+  rhythmPerLevel: 0.004, // gold "Rytmus": +0,4 % combo poškození/zásah za level
+  wrathDurMs: 600, // gold "Zuřivá nálož": +0,6 s trvání zuřivosti za level
 };

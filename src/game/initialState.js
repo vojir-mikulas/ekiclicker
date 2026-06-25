@@ -26,6 +26,8 @@ export function createStats() {
     totalGold: 0,
     kills: 0,
     bossKills: 0,
+    ultraKills: 0,
+    lootDoves: 0,
     maxCombo: 0,
     frenzies: 0,
     luckyClicks: 0,
@@ -56,6 +58,7 @@ export function createState() {
 export function resetRun(state, startLevel) {
   state.gold = 0;
   state.level = startLevel;
+  state.highestLevel = startLevel;
   state.upgrades = createUpgrades();
   state.weapons = createWeapons();
   state.combo = { count: 0, lastClickAt: 0 };

@@ -40,14 +40,29 @@ export function globalMult(s) {
 
 export function goldMult(s) {
   const ach = achievementMult(s.achievements).gold;
-  return (1 + s.prestige.greed * MULT.greedPerLevel) * ach;
+  const fortune = 1 + (s.upgrades.fortune || 0) * MULT.fortuneGoldPerLevel;
+  return (1 + s.prestige.greed * MULT.greedPerLevel) * fortune * ach;
 }
 
 export function critChance(s) {
   return Math.min(0.9, CONFIG.critChance + s.prestige.crit * MULT.critPerLevel);
 }
+/* Krit násobič — základ z CONFIG + gold upgrade "Tvrdý dopad". */
+export function critMult(s) {
+  return CONFIG.critMult + (s.upgrades.critdmg || 0) * MULT.critDmgPerLevel;
+}
 export function critFactor(s) {
-  return 1 + critChance(s) * (CONFIG.critMult - 1);
+  return 1 + critChance(s) * (critMult(s) - 1);
+}
+
+/* Trvání zuřivosti — základ + gold upgrade "Zuřivá nálož". */
+export function frenzyDuration(s) {
+  return CONFIG.frenzyDurationMs + (s.upgrades.wrath || 0) * MULT.wrathDurMs;
+}
+
+/* Combo bonus za jeden zásah — základ + gold upgrade "Rytmus". */
+export function comboPerHit(s) {
+  return CONFIG.comboPerHit + (s.upgrades.rhythm || 0) * MULT.rhythmPerLevel;
 }
 
 export function speedMult(s) {

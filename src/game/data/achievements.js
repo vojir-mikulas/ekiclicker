@@ -80,7 +80,22 @@ export const ACHIEVEMENTS = [
     [1, 10, 50, 200],
     (i) => ({ gold: 1.06 + i * 0.02 })),
 
+  // --- poklad z bossů (🕊 z mega/ultra) ---
+  ...tier('loot', 'Hledač pokladů', '💰',
+    (t) => `Vylootuj ${t}× 🕊 z bossů`,
+    (c) => c.stats.lootDoves,
+    [1, 10, 50, 200],
+    (i) => ({ dmg: 1.04 + i * 0.02, gold: 1.04 + i * 0.02 })),
+
   // --- speciální jednorázové ---
+  {
+    id: 'titan_slayer',
+    name: 'Zabiják Titánů',
+    emoji: '🌟',
+    desc: 'Sejmi Eki Titána (ultra boss, každá 100. úroveň)',
+    check: (c) => c.stats.ultraKills >= 1,
+    reward: { dmg: 1.25, gold: 1.25 },
+  },
   {
     id: 'arsenal_full',
     name: 'Plný arzenál',

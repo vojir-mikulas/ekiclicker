@@ -15,7 +15,7 @@ import { ACHIEVEMENTS } from './data/achievements.js';
 import { createState, resetRun } from './initialState.js';
 import { save, clearSave } from './persistence.js';
 import {
-  totalDps, clickDamage, critChance, goldMult,
+  totalDps, clickDamage, critChance, critMult, comboPerHit, frenzyDuration, goldMult,
   enemyMaxHp, enemyReward, prestigeCost,
   upgradeCostAt, weaponCostAt, buyBatch, forgivenessGain,
 } from './formulas.js';
@@ -59,6 +59,7 @@ export class Engine {
 
   /* ---------- nepřítel ---------- */
   pickVariantId(level) {
+    if (level % CONFIG.ultraBossEvery === 0) return 'titan';
     if (level % CONFIG.megaBossEvery === 0) return 'king';
     if (level % CONFIG.bossEvery === 0) return 'gold';
     const pool = variantPool(level);
@@ -74,9 +75,9 @@ export class Engine {
     const variantId = this.pickVariantId(this.state.level);
     const v = VARIANTS[variantId];
     const hp = enemyMaxHp(this.state.level, v);
-    const enemy = { id: nextEnemyId++, variantId, hp, maxHp: hp, isBoss: !!v.boss, isMega: !!v.mega };
+    const enemy = { id: nextEnemyId++, variantId, hp, maxHp: hp, isBoss: !!v.boss, isMega: !!v.mega, isUltra: !!v.ultra };
     if (v.boss) {
-      enemy.timeLimit = v.mega ? CONFIG.megaBossTime : CONFIG.bossTime;
+      enemy.timeLimit = v.ultra ? CONFIG.ultraBossTime : v.mega ? CONFIG.megaBossTime : CONFIG.bossTime;
       enemy.deadline = performance.now() + enemy.timeLimit;
     }
     this.state.enemy = enemy;
@@ -105,11 +106,39 @@ export class Engine {
     s.gold += reward;
     s.stats.totalGold += reward;
     s.stats.kills++;
-    if (v.boss) s.stats.bossKills++;
-    this.emit('defeat', { reward, boss: !!v.boss, mega: !!v.mega, variantId: s.enemy.variantId });
+    let loot = null;
+    if (v.boss) {
+      s.stats.bossKills++;
+      if (v.ultra) s.stats.ultraKills++;
+      loot = this.rollBossLoot(v, reward);
+      s.gold += loot.gold;
+      s.stats.totalGold += loot.gold;
+      if (loot.forgiveness) {
+        s.prestige.forgiveness += loot.forgiveness;
+        s.stats.lootDoves += loot.forgiveness;
+      }
+    }
+    this.emit('defeat', {
+      reward, boss: !!v.boss, mega: !!v.mega, ultra: !!v.ultra,
+      variantId: s.enemy.variantId, loot,
+    });
     s.level++;
     if (s.level > s.highestLevel) s.highestLevel = s.level;
     this.spawnEnemy();
+  }
+
+  /* Poklad za bosse — zlato navíc (+ 🕊 z mega/ultra). Vše laditelné v CONFIG. */
+  rollBossLoot(v, reward) {
+    let mult = CONFIG.bossLootMult;
+    let forgiveness = 0;
+    if (v.ultra) {
+      mult = CONFIG.ultraBossLootMult;
+      forgiveness = CONFIG.ultraBossDoves;
+    } else if (v.mega) {
+      mult = CONFIG.megaBossLootMult;
+      if (Math.random() < CONFIG.megaBossDoveChance) forgiveness = 1;
+    }
+    return { gold: Math.ceil(reward * mult), forgiveness };
   }
   bossEscape() {
     const s = this.state;
@@ -136,8 +165,8 @@ export class Engine {
     }
 
     const isCrit = Math.random() < critChance(s);
-    const comboBonus = 1 + Math.min(s.combo.count, CONFIG.comboMax) * CONFIG.comboPerHit;
-    const dmg = clickDamage(s) * comboBonus * (isCrit ? CONFIG.critMult : 1);
+    const comboBonus = 1 + Math.min(s.combo.count, CONFIG.comboMax) * comboPerHit(s);
+    const dmg = clickDamage(s) * comboBonus * (isCrit ? critMult(s) : 1);
     this.applyDamage(dmg);
     this.emit('hit', { amount: dmg, kind: isCrit ? 'crit' : 'click', combo: s.combo.count });
     this.notify();
@@ -146,7 +175,7 @@ export class Engine {
   startFrenzy(now) {
     const s = this.state;
     s.frenzy.active = true;
-    s.frenzy.until = now + CONFIG.frenzyDurationMs;
+    s.frenzy.until = now + frenzyDuration(s);
     s.frenzy.charge = 0;
     s.stats.frenzies++;
     this.emit('frenzy', { active: true });

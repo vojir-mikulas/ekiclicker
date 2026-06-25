@@ -28,6 +28,12 @@ export default function ToastHost() {
             title: `Úspěch: ${payload.name}`,
             sub: rewardText(payload.reward),
           });
+        } else if (type === 'defeat' && payload.loot?.forgiveness) {
+          push({
+            ico: payload.ultra ? '🌟' : '👑',
+            title: payload.ultra ? 'Poklad Eki Titána!' : 'Poklad Eki Krále!',
+            sub: `+${payload.loot.forgiveness} 🕊 Odpuštění`,
+          });
         }
       },
       [push]

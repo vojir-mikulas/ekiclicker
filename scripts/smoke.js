@@ -42,11 +42,12 @@ e.state.gold = before.gold;
 // rebirth (vynutíme dostatečnou úroveň)
 e.state.highestLevel = 80;
 const gain = e.forgivenessGain();
+const forgivenessBefore = e.state.prestige.forgiveness; // může být >0 z boss lootu (🕊)
 assert(gain > 0, `rebirth dá ${gain} 🕊`);
 const ok = e.rebirth();
 assert(ok, 'rebirth proběhl');
 assert(e.state.level === 1, 'po rebirthu zpět na úroveň 1');
-assert(e.state.prestige.forgiveness === gain, 'připsalo odpuštění');
+assert(e.state.prestige.forgiveness === forgivenessBefore + gain, 'připsalo odpuštění');
 assert(e.state.weapons.glove === 0, 'po rebirthu vynulované zbraně');
 assert(e.state.prestige.rebirths === 1, 'počítá rebirthy');
 

@@ -73,8 +73,14 @@ desítky úrovní za vteřinu mimo krátký dojezd po rebirthu) a postup je plyn
 ## Co je nového oproti původní hře
 
 - **Úspěchy s trvalými odměnami** (+% poškození / zlata / 🕊) a toast oznámení.
-- **Nové varianty Ekiho** — Inferno 🔥, Cursed 🟣 a mega-boss **Eki Král** 👑 (každá 25.).
-- **Více zbraní** (12) podle emoji: 🥊🏏⚾🏀🎳🔨🪓⚔️💣🚀☄️🌋.
+- **Nové varianty Ekiho** — Inferno 🔥, Cursed 🟣, a do endgame Abyss 🌌,
+  Celestial ✨ a Eternal ♾️. Bossové: **Eki Král** 👑 (každá 25.) a
+  **Eki Titán** 🌟 (ultra boss každá 100. — endgame milník).
+- **Boss loot** 💰 — bossové pouštějí poklad (zlato navíc); mega/ultra navíc
+  upustí **Odpuštění** 🕊 (propojení s prestige metou). Vše laditelné v CONFIG.
+- **Více zbraní** (15) podle emoji: 🥊🏏⚾🏀🎳🔨🪓⚔️💣🚀☄️🌋🕳️🌌💥.
+- **Více vylepšení za zlato** — Tvrdý dopad 💢 (krit), Chamtivost 🤑 (zlato),
+  Rytmus 🥁 (combo) a Zuřivá nálož 🌶️ (delší zuřivost).
 - **Zuřivost** 😡 — rychlé klikání nabije dočasný ×7 buff (jako „frenzy").
 - **Lucky Eki** 🍀 — občas vyskočí klikací bonus (jako zlatá sušenka): balík
   zlata + spustí zuřivost.

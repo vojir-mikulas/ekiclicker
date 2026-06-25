@@ -22,6 +22,7 @@ const CLICK_RATE = 3.5; // průměrné kliky/s aktivního hráče
 const SPEND_EVERY = 0.5; // jak často přehodnotí nákupy (s)
 
 function variantForLevel(level) {
+  if (level % CONFIG.ultraBossEvery === 0) return { id: 'titan', ...VARIANTS.titan };
   if (level % CONFIG.megaBossEvery === 0) return { id: 'king', ...VARIANTS.king };
   if (level % CONFIG.bossEvery === 0) return { id: 'gold', ...VARIANTS.gold };
   return { id: 'normal', ...VARIANTS.normal };
@@ -114,7 +115,13 @@ function run(minutes) {
     while (dmg > 0 && defeats < CONFIG.maxDefeatsPerTick) {
       if (dmg >= s.enemy.hp) {
         dmg -= s.enemy.hp;
-        s.gold += enemyReward(s.level, s.enemy.variant, goldMult(s));
+        const rew = enemyReward(s.level, s.enemy.variant, goldMult(s));
+        s.gold += rew;
+        if (s.enemy.variant.boss) {
+          const m = s.enemy.variant.ultra ? CONFIG.ultraBossLootMult
+            : s.enemy.variant.mega ? CONFIG.megaBossLootMult : CONFIG.bossLootMult;
+          s.gold += Math.ceil(rew * m); // boss loot (zlato) — ať sim sedí s hrou
+        }
         s.stats.totalGold += 1;
         s.level++;
         if (s.level > s.highestLevel) s.highestLevel = s.level;
@@ -178,7 +185,7 @@ function newEnemy(s) {
   const variant = variantForLevel(s.level);
   const hp = enemyMaxHp(s.level, variant);
   const e = { variant, hp, maxHp: hp };
-  if (variant.boss) e.timer = (variant.mega ? CONFIG.megaBossTime : CONFIG.bossTime) / 1000;
+  if (variant.boss) e.timer = (variant.ultra ? CONFIG.ultraBossTime : variant.mega ? CONFIG.megaBossTime : CONFIG.bossTime) / 1000;
   return e;
 }
 

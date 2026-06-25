@@ -10,10 +10,14 @@ export const VARIANTS = {
   inferno: { name: 'Inferno Eki',  tier: '🔥 pekelný',       hp: 6.5,  gold: 6.0,  glow: '#ff6a1a', tint: 'rgba(255,90,20,.5)',      filter: 'sepia(.5) saturate(2.4) hue-rotate(-18deg) brightness(1.05)', minLevel: 40, weight: 26 },
   cursed:  { name: 'Cursed Eki',   tier: '🟣 prokletý',      hp: 9,    gold: 8.5,  glow: '#c050ff', tint: 'rgba(150,30,220,.5)',     filter: 'saturate(1.6) hue-rotate(255deg) brightness(.85)',minLevel: 60, weight: 18 },
   diamond: { name: 'Diamond Eki',  tier: '💎 nezničitelný',  hp: 16,   gold: 7,    glow: '#7fe9ff', tint: 'rgba(120,220,255,.4)',    filter: 'brightness(1.18) contrast(1.12) saturate(.55) hue-rotate(165deg)', minLevel: 50, weight: 10 },
+  abyssal: { name: 'Abyss Eki',    tier: '🌌 propastný',     hp: 14,   gold: 12,   glow: '#3a2bff', tint: 'rgba(30,15,90,.62)',      filter: 'brightness(.7) contrast(1.2) hue-rotate(210deg) saturate(1.3)',    minLevel: 90,  weight: 14 },
+  celestial:{ name: 'Celestial Eki',tier: '✨ nebeský',       hp: 22,   gold: 18,   glow: '#ffe9a8', tint: 'rgba(255,235,170,.4)',    filter: 'brightness(1.25) contrast(.95) saturate(1.4) sepia(.25)',          minLevel: 130, weight: 9 },
+  eternal: { name: 'Eternal Eki',  tier: '♾️ věčný',         hp: 32,   gold: 26,   glow: '#39ffd0', tint: 'rgba(20,120,100,.5)',     filter: 'hue-rotate(120deg) saturate(1.8) contrast(1.1) brightness(1.05)',  minLevel: 180, weight: 5 },
 
   // bossové (řízeno úrovní, ne fondem)
   gold:    { name: 'Golden Eki',   tier: '★ BOSS ★',         hp: 11,   gold: 18,   glow: '#ffd23f', tint: 'rgba(255,200,40,.55)',    filter: 'sepia(.6) saturate(2) brightness(1.1)',           boss: true },
   king:    { name: 'Eki Král',     tier: '👑 MEGA BOSS',     hp: 38,   gold: 70,   glow: '#ff2bd0', tint: 'rgba(255,40,200,.5)',     filter: 'saturate(1.8) hue-rotate(285deg) brightness(1.15)', boss: true, mega: true },
+  titan:   { name: 'Eki Titán',    tier: '🌟 ULTRA BOSS',    hp: 140,  gold: 320,  glow: '#ff7a18', tint: 'rgba(255,120,20,.55)',    filter: 'saturate(2.2) contrast(1.25) brightness(1.1) drop-shadow(0 0 12px #ff7a18)', boss: true, mega: true, ultra: true },
 };
 
 /* Lucky Eki (zlatá sušenka) — neobjevuje se v aréně, je to klikací bonus. */

@@ -11,6 +11,7 @@
 import { CONFIG } from '../game/config.js';
 import { WEAPONS } from '../game/data/weapons.js';
 import { PUNCH_TEXTS } from '../game/data/texts.js';
+import { weaponShotDamage, shadowDps } from '../game/formulas.js';
 import { fmt } from '../game/format.js';
 import { fxRefs } from './fxRefs.js';
 
@@ -82,6 +83,7 @@ export class FxManager {
     this._floaterReset = 0;
     this._weaponTimers = {};
     for (const w of WEAPONS) this._weaponTimers[w.id] = 0;
+    this._shadowTimer = 0; // časovač vizuálu Stínu pěsti (auto-úderů)
 
     // object-pooly FX prvků (recyklace místo alokace)
     this._proj = new DomPool('proj', CONFIG.maxProjectiles);
@@ -158,12 +160,17 @@ export class FxManager {
     }
   }
 
-  onDefeat({ reward, boss }) {
+  onDefeat({ reward, boss, mega, ultra, loot }) {
     const c = this.enemyCenter();
     if (this.canFloat()) this.floatText('+' + fmt(reward) + ' 🪙', 'var(--gold)', c.x, c.y - 30);
-    if (boss) {
-      this.screenShake();
-      this.coinBurst(c.x, c.y, 22);
+    if (!boss) return;
+    this.screenShake();
+    this.coinBurst(c.x, c.y, ultra ? 48 : mega ? 34 : 22);
+    if (!loot) return;
+    // poklad: zlatý balík + (u mega/ultra) holubice 🕊
+    this.floatText('💰 +' + fmt(loot.gold) + ' 🪙', 'var(--gold)', c.x + 46, c.y - 64);
+    if (loot.forgiveness) {
+      this.floatText('🕊 +' + loot.forgiveness, 'var(--dove)', c.x - 46, c.y - 86);
     }
   }
 
@@ -181,6 +188,14 @@ export class FxManager {
           this.weaponProjectile(w, i);
         }
       });
+      // Stín pěsti (prestige auto-údery) — ať je vidět, ne jen úbytek HP
+      if ((s.prestige.shadow || 0) > 0) {
+        this._shadowTimer -= dt;
+        if (this._shadowTimer <= 0) {
+          this._shadowTimer = CONFIG.shadowVisualMs;
+          this.shadowProjectile();
+        }
+      }
     }
     this._raf = requestAnimationFrame(this._loop);
   }
@@ -188,9 +203,23 @@ export class FxManager {
   weaponProjectile(w, i) {
     const fromX = 20 + (i % 4) * 30;
     const fromY = window.innerHeight - 40 - Math.floor(i / 4) * 36;
-    this.throwProjectile(w.emoji, fromX, fromY, w.flight, 0.8, () => {
+    this.throwProjectile(w.emoji, fromX, fromY, w.flight, 0.8, (x, y) => {
       this.shake();
       this.engine.emit('react'); // i zásah zbraní vymění fotku, nejen otřese
+      this.floatDamage(weaponShotDamage(this.engine.state, w), 'auto', x, y); // viditelný „burst" zásah
+    });
+  }
+
+  // Stín pěsti — duch-pěst z náhodné spodní strany + číslo poškození.
+  // Číslo = dávka DPS za jeden vizuální interval (drží se reálného shadowDps).
+  shadowProjectile() {
+    const fromX = window.innerWidth * (Math.random() < 0.5 ? 0.12 : 0.88);
+    const fromY = window.innerHeight - 60;
+    const amount = shadowDps(this.engine.state) * (CONFIG.shadowVisualMs / 1000);
+    this.throwProjectile('👊', fromX, fromY, 260, 0.85, (x, y) => {
+      this.shake();
+      this.engine.emit('react');
+      this.floatDamage(amount, 'auto', x, y);
     });
   }
 
