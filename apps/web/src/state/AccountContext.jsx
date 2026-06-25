@@ -18,6 +18,8 @@ export function AccountProvider({ children }) {
   const [syncTick, setSyncTick] = useState(0); // ++ po každém přijatém odeslání skóre
   // čekající přechod do nové sezóny: { endedNumber, activeNumber, reward } | null
   const [pendingSeason, setPendingSeason] = useState(null);
+  // oslava PO vstupu do nové sezóny: { number, reward } | null (zobrazí NewSeasonModal)
+  const [newSeason, setNewSeason] = useState(null);
 
   // z /me odvodí, jestli skončila sezóna, ve které hráč soutěžil (active > mine)
   const applyMeSeason = useCallback((me) => {
@@ -53,10 +55,14 @@ export function AccountProvider({ children }) {
     const res = await api.enterSeason(); // vyhodí chybu → modal ji ošetří
     engine.hardReset();
     if (res.reward && res.reward.forgiveness) engine.grantForgiveness(res.reward.forgiveness);
+    const number = pendingSeason?.activeNumber;
     setPendingSeason(null);
+    setNewSeason({ number, reward: res.reward || null }); // hype: „Sezóna N je tady!"
     void submitNow();
     return res.reward;
-  }, [engine, submitNow]);
+  }, [engine, submitNow, pendingSeason]);
+
+  const dismissNewSeason = useCallback(() => setNewSeason(null), []);
 
   // úvodní načtení: rozhodni lokální vs. připojený podle tokenu
   useEffect(() => {
@@ -141,12 +147,17 @@ export function AccountProvider({ children }) {
     setPlayer(null);
     setOffline(false);
     setPendingSeason(null);
+    setNewSeason(null);
     setStatus('local');
   }, []);
 
   const value = useMemo(
-    () => ({ status, player, offline, syncTick, pendingSeason, join, rename, recover, leave, submitNow, enterSeason }),
-    [status, player, offline, syncTick, pendingSeason, join, rename, recover, leave, submitNow, enterSeason]
+    () => ({
+      status, player, offline, syncTick, pendingSeason, newSeason,
+      join, rename, recover, leave, submitNow, enterSeason, dismissNewSeason,
+    }),
+    [status, player, offline, syncTick, pendingSeason, newSeason,
+      join, rename, recover, leave, submitNow, enterSeason, dismissNewSeason]
   );
 
   return <AccountContext.Provider value={value}>{children}</AccountContext.Provider>;

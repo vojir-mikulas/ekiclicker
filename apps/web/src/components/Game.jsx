@@ -25,6 +25,7 @@ const DailyQuests = lazy(() => import('./modals/DailyQuests.jsx'));
 const Seasons = lazy(() => import('./leaderboard/Seasons.jsx'));
 const PlayerProfile = lazy(() => import('./modals/PlayerProfile.jsx'));
 const SeasonEndModal = lazy(() => import('./modals/SeasonEndModal.jsx'));
+const NewSeasonModal = lazy(() => import('./modals/NewSeasonModal.jsx'));
 const WorldBossView = lazy(() => import('./worldboss/WorldBossView.jsx'));
 
 export default function Game() {
@@ -103,6 +104,7 @@ export default function Game() {
         {gift && <GiftModal gift={gift} onClose={() => setGift(null)} />}
         {profileId && <PlayerProfile id={profileId} onClose={() => setProfileId(null)} />}
         {account.pendingSeason && <SeasonEndModal />}
+        {account.newSeason && <NewSeasonModal />}
       </Suspense>
     </>
   );

@@ -522,6 +522,19 @@ body{
 .season-end .se-desc b{ color:var(--dove); }
 .season-end .se-err{ color:var(--red); font-size:13px; margin-top:8px; }
 
+/* ---------- Nová sezóna (oslavný popup) ---------- */
+.popup-content.new-season{ text-align:center; max-width:420px; overflow:hidden;
+  background:radial-gradient(120% 80% at 50% 0%, rgba(255,210,63,.16), transparent 60%); }
+.new-season .ns-confetti{ font-size:40px; letter-spacing:6px; animation:nsPop .5s ease-out both; }
+.new-season .ns-kicker{ font-size:12px; letter-spacing:.28em; text-transform:uppercase; color:var(--muted); margin-top:4px; }
+.new-season .ns-title{ font-family:'Anton',sans-serif; color:var(--gold); font-size:40px; line-height:1.05;
+  margin:2px 0 12px; text-shadow:0 2px 10px rgba(255,210,63,.35); animation:nsPop .55s .05s ease-out both; }
+.new-season .ns-desc{ color:var(--text); font-size:14px; line-height:1.55; }
+.new-season .ns-reward{ margin-top:12px; padding:10px 12px; border-radius:12px;
+  background:var(--panel-2); border:1px solid var(--line); font-size:14px; color:var(--text); }
+.new-season .ns-reward b{ color:var(--dove); }
+@keyframes nsPop{ 0%{ opacity:0; transform:scale(.7) translateY(8px); } 70%{ transform:scale(1.08); } 100%{ opacity:1; transform:scale(1) translateY(0); } }
+
 @media (max-width:880px){
   .profile-statcol, .profile-ach-grid{ grid-template-columns:1fr; }
   .popup-content.profile{ max-width:94vw; }
