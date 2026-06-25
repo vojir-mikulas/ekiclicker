@@ -600,8 +600,12 @@ body{
 /* mřížka inventáře */
 .inv-grid-wrap{ border:1px dashed transparent; border-radius:12px; transition:border-color .15s, background .15s; padding:2px; }
 .inv-grid-wrap.over{ border-color:var(--gold); background:rgba(255,210,63,.05); }
-.inv-grid-head{ display:flex; justify-content:space-between; align-items:baseline; font-size:13px; font-weight:800; margin:0 2px 8px; }
+.inv-grid-head{ display:flex; justify-content:space-between; align-items:center; font-size:13px; font-weight:800; margin:0 2px 8px; }
+.inv-grid-head-right{ display:flex; align-items:center; gap:10px; }
 .inv-count{ font-size:11px; color:var(--muted); font-weight:600; }
+.inv-dismantle-all{ border:1px solid var(--line); border-radius:8px; background:var(--ink); color:var(--muted);
+  font-size:11px; font-weight:800; padding:4px 9px; cursor:pointer; white-space:nowrap; transition:background .12s, border-color .12s, color .12s; }
+.inv-dismantle-all:hover{ border-color:var(--red); color:#fff; background:var(--red-dark); }
 .inv-empty{ font-size:12px; color:var(--muted); padding:14px 4px; }
 .inv-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:8px; }
 
@@ -614,6 +618,9 @@ body{
 .inv-img{ width:54px; height:54px; object-fit:contain; border-radius:8px; display:block; pointer-events:none; }
 .inv-name{ font-weight:800; font-size:13px; margin-top:4px; }
 .inv-ilvl{ font-size:10px; color:var(--muted); margin-top:1px; }
+.inv-upgrade{ align-self:flex-start; margin-top:5px; font-size:10px; font-weight:800; letter-spacing:.2px;
+  color:var(--good); background:rgba(46,204,113,.14); border:1px solid rgba(46,204,113,.42);
+  border-radius:6px; padding:1px 6px; line-height:1.55; }
 .inv-affixes{ list-style:none; margin:6px 0 0; padding:0; }
 .inv-affixes li{ font-size:11px; color:var(--text); opacity:.85; line-height:1.45; }
 .inv-discard{ position:absolute; top:4px; right:5px; width:20px; height:20px; border:0; border-radius:6px; background:rgba(0,0,0,.35);
@@ -864,6 +871,14 @@ body{
 
 .wb-power{ margin-top:12px; font-size:12px; color:var(--muted); text-align:center; line-height:1.55; }
 .wb-power b{ color:var(--text); font-weight:800; }
+
+/* přepínač auto-salvy + stavový řádek, když je zapnutá */
+.wb-auto{ margin-top:18px; display:inline-flex; align-items:center; gap:8px; cursor:pointer;
+  font-size:13px; font-weight:700; color:var(--text); user-select:none; }
+.wb-auto input{ width:18px; height:18px; accent-color:#ff8a2b; cursor:pointer; }
+.wb-auto i{ font-style:normal; font-weight:600; color:var(--muted); }
+.wb-auto-status{ margin-top:14px; min-height:24px; font-family:'Anton',sans-serif; font-size:18px;
+  letter-spacing:.03em; color:#ffb35a; text-align:center; }
 
 /* plovoucí čísla nad fotkou bosse */
 .wb-float{ position:absolute; transform:translate(-50%,-50%); z-index:5; pointer-events:none;

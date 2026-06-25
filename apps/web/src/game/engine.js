@@ -294,6 +294,31 @@ export class Engine {
     this.afterInventory();
   }
 
+  /* Náhled: kolik úlomků 💠 by dalo rozložení celého inventáře (BEZ mutace).
+     Sčítá po kusech zaokrouhleně — stejně jako grantDust → souhlasí na 1:1. */
+  dismantleAllValue() {
+    const mult = dustMult(this.state);
+    let amt = 0;
+    for (const it of this.state.inventory) amt += Math.round(salvageValue(it) * mult);
+    return amt;
+  }
+
+  /* Hromadné rozložení: rozloží VŠECHNY kusy v inventáři na úlomky najednou
+     (nasazené kusy zůstávají). Jeden souhrnný 'salvage' event místo desítek. */
+  dismantleAll() {
+    const s = this.state;
+    const count = s.inventory.length;
+    if (count === 0) return { count: 0, dust: 0 };
+    const amt = this.dismantleAllValue();
+    s.inventory = [];
+    if (amt > 0) {
+      s.dust = (s.dust || 0) + amt;
+      this.emit('salvage', { amount: amt, bulk: count });
+    }
+    this.afterInventory();
+    return { count, dust: amt };
+  }
+
   /* ---------- kovárna (úlomky → reroll / povýšení) ---------- */
   /* Najdi kus podle id v inventáři NEBO nasazený (kovat lze obojí). */
   findItem(id) {

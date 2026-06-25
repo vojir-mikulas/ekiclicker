@@ -22,7 +22,7 @@ export const ACHIEVEMENTS = [
   ...tier('level', 'Stoupání', '🪜',
     (t) => `Dosáhni úrovně ${t}`,
     (c) => c.highestLevel,
-    [10, 25, 50, 100, 200, 350, 600, 1000, 2000, 5000],
+    [10, 25, 50, 100, 200, 350, 600, 1000, 2000, 3000, 4000, 5000],
     (i) => ({ dmg: 1.03 + i * 0.01, forgiveness: i >= 4 ? i : 0 })),
 
   // --- poražení nepřátelé ---

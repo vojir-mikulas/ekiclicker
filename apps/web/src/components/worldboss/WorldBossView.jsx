@@ -121,6 +121,22 @@ export default function WorldBossView({ onJoin, onSelectPlayer }) {
   }, [wb]);
   const doClaim = useCallback(() => { void wb.claim(); }, [wb]);
 
+  // auto-salva nemá tlačítko „vypustit" — když serverový snapshot ukáže, že mi přibyl
+  // příspěvek (vypálila to auto-salva na pozadí), dej tomu stejnou šťávu jako manuálu.
+  const prevMyDmg = useRef(me?.damage || 0);
+  useEffect(() => {
+    const cur = me?.damage || 0;
+    const prev = prevMyDmg.current;
+    prevMyDmg.current = cur;
+    if (!wb.autoSalvo || cur <= prev) return;
+    const el = wrapRef.current;
+    if (el) { el.classList.remove('shake'); void el.offsetWidth; el.classList.add('shake'); }
+    const id = floatId.current++;
+    const f = { id, x: 50, y: 34, text: '−' + fmt(cur - prev), big: true };
+    setFloats((arr) => [...arr, f]);
+    setTimeout(() => setFloats((arr) => arr.filter((x) => x.id !== id)), 1100);
+  }, [me?.damage, wb.autoSalvo]);
+
   const claimBanner = wb.unclaimed && (
     <div className="wb-claim">
       <span>🎁 Odměna za bosse: <b>+{wb.unclaimed.doves} 🕊</b> · <b>+{fmt(wb.unclaimed.dust)} 💠</b></span>
@@ -205,7 +221,7 @@ export default function WorldBossView({ onJoin, onSelectPlayer }) {
 
         {active && <div className={'combo' + (comboOn ? ' on' : '')}>{comboOn ? `x${combo.count} combo` : ' '}</div>}
 
-        <div className="photo-wrap" ref={wrapRef} onPointerDown={active ? punch : undefined}>
+        <div className="photo-wrap" ref={wrapRef} onPointerDown={active && !wb.autoSalvo ? punch : undefined}>
           <div className="photo-glow" style={{ background: v.glow }} />
           {imageMode ? (
             <img
@@ -229,23 +245,38 @@ export default function WorldBossView({ onJoin, onSelectPlayer }) {
 
         {active ? (
           <>
-            {/* salva: kolik HP máš nabito (roste s údery + tvými zbraněmi) */}
-            <div className="wb-salvo">
-              <span className="lbl">Salva</span>
-              <div className="fill" style={{ width: Math.round(charge * 100) + '%' }} />
-              <span className="num">{fmt(currentSalvo)} / {fmt(salvoMax)} HP</span>
-            </div>
+            <label className="wb-auto">
+              <input type="checkbox" checked={wb.autoSalvo} onChange={(e) => wb.setAutoSalvo(e.target.checked)} />
+              <span>🤖 Auto salva <i>{wb.autoSalvo ? '— pálí se sama každou minutu' : '— vypnuto, nabíjej salvu údery'}</i></span>
+            </label>
 
-            <button className="punch-btn" tabIndex={-1} onPointerDown={punch} disabled={capped}>
-              {capped ? '💪 MÁŠ MAX' : 'DEJ MU!'}
-            </button>
+            {wb.autoSalvo ? (
+              <div className="wb-auto-status">
+                {capped ? '💪 Máš svůj max příspěvek'
+                  : !cdReady ? `🤖 Další salva sama za ${Math.ceil(cdMs / 1000)} s`
+                  : '🤖 Pálím salvu…'}
+              </div>
+            ) : (
+              <>
+                {/* salva: kolik HP máš nabito (roste s údery + tvými zbraněmi) */}
+                <div className="wb-salvo">
+                  <span className="lbl">Salva</span>
+                  <div className="fill" style={{ width: Math.round(charge * 100) + '%' }} />
+                  <span className="num">{fmt(currentSalvo)} / {fmt(salvoMax)} HP</span>
+                </div>
 
-            <button className="wb-fire" disabled={!fireReady} onClick={doFire}>
-              {capped ? '💪 Tvůj max příspěvek'
-                : !cdReady ? `⏱ Salva za ${Math.ceil(cdMs / 1000)} s`
-                : charge < MIN_EFFORT ? '👊 Nabij salvu údery'
-                : `💥 Vypustit salvu — ${fmt(currentSalvo)} HP`}
-            </button>
+                <button className="punch-btn" tabIndex={-1} onPointerDown={punch} disabled={capped}>
+                  {capped ? '💪 MÁŠ MAX' : 'DEJ MU!'}
+                </button>
+
+                <button className="wb-fire" disabled={!fireReady} onClick={doFire}>
+                  {capped ? '💪 Tvůj max příspěvek'
+                    : !cdReady ? `⏱ Salva za ${Math.ceil(cdMs / 1000)} s`
+                    : charge < MIN_EFFORT ? '👊 Nabij salvu údery'
+                    : `💥 Vypustit salvu — ${fmt(currentSalvo)} HP`}
+                </button>
+              </>
+            )}
 
             <div className="wb-power">
               👊 Úder <b>{fmt(click)}</b> · ⚔️ DPS <b>{fmt(dps)}</b> → strop salvy <b>{fmt(salvoMax)} HP</b>
@@ -260,9 +291,10 @@ export default function WorldBossView({ onJoin, onSelectPlayer }) {
       {board}
 
       <p className="wb-foot">
-        Boss má jedno <b>sdílené HP</b> — sejměte ho společně, než vyprší čas. Tvé <b>údery</b> a
-        tvoje <b>zbraně</b> nabíjejí salvu až po strop daný tvým nejlepším DPS; vypustit ji jde
-        jednou za minutu. Odměny dostane každý, kdo přispěl.
+        Boss má jedno <b>sdílené HP</b> — sejměte ho společně, než vyprší čas. Strop tvé salvy
+        dává tvé nejlepší DPS; vypálit ji jde jednou za minutu. S <b>auto salvou</b> se pálí sama
+        i mimo tuhle záložku — stačí být připojen. Chceš klikat? Vypni ji a nabíjej salvu <b>údery</b>.
+        Odměny dostane každý, kdo přispěl.
       </p>
     </div>
   );

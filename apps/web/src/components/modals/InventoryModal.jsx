@@ -14,7 +14,7 @@ import {
   SLOTS, SLOT_IDS, ITEMS, SETS, RARITIES, CHESTS, CHEST_ORDER, chestCost,
   aggregateEquip, activeSets,
   itemEmoji, itemName, rarityName, rarityColor, affixLabel, itemScore, itemSet,
-  rerollCost, upgradeRarityCost, nextRarity,
+  upgradeDelta, rerollCost, upgradeRarityCost, nextRarity,
 } from '../../game/data/items.js';
 import { itemImageUrl } from '../../game/data/itemImages.js';
 import { fmt } from '../../game/format.js';
@@ -53,6 +53,21 @@ function RarityLine({ item }) {
   );
 }
 
+/* zelený odznak „lepší než nasazený kus" — jen na kusech, které jsou silnější
+   (itemScore) než to, co je teď ve stejném slotu. Prázdný slot = rovnou vylepšení. */
+function UpgradeBadge({ item, equipped }) {
+  const d = upgradeDelta(item, equipped);
+  if (!d) return null;
+  return (
+    <span
+      className="inv-upgrade"
+      title={equipped ? 'Silnější než nasazený kus' : 'Prázdný slot — rovnou vylepšení'}
+    >
+      {d.pct != null ? `▲ +${Math.round(d.pct * 100)} %` : '▲ vylepšení'}
+    </span>
+  );
+}
+
 /* odznak sady na kusu (pokud do nějaké patří) */
 function SetBadge({ item }) {
   const setId = itemSet(item);
@@ -86,7 +101,7 @@ function ForgeBar({ item, dust, onReroll, onUpgrade }) {
 }
 
 /* kus v inventáři — draggable + tap na nasazení, ✕ na rozložení, kovárna dole */
-function InvCard({ item, dust, onEquip, onDiscard, onReroll, onUpgrade }) {
+function InvCard({ item, equipped, dust, onEquip, onDiscard, onReroll, onUpgrade }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: item.id, data: { type: 'inv', item },
   });
@@ -117,6 +132,7 @@ function InvCard({ item, dust, onEquip, onDiscard, onReroll, onUpgrade }) {
         <ItemIcon item={item} />
         <div className="inv-name" style={{ color: rarityColor(item) }}>{itemName(item)}</div>
         <RarityLine item={item} />
+        <UpgradeBadge item={item} equipped={equipped} />
         <Affixes item={item} />
       </div>
       <ForgeBar item={item} dust={dust} onReroll={onReroll} onUpgrade={onUpgrade} />
@@ -330,7 +346,21 @@ function InventoryGrid({ inv, dust, engine }) {
     <div ref={setNodeRef} className={'inv-grid-wrap' + (isOver ? ' over' : '')}>
       <div className="inv-grid-head">
         <span>Inventář</span>
-        <span className="inv-count">{inv.length} / {ITEMS.invCap}</span>
+        <div className="inv-grid-head-right">
+          <span className="inv-count">{inv.length} / {ITEMS.invCap}</span>
+          {inv.length > 0 && (
+            <button
+              className="inv-dismantle-all"
+              onClick={() => {
+                const dust = engine.dismantleAllValue();
+                if (window.confirm(`Rozložit všech ${inv.length} kusů v inventáři na 💠 ${fmt(dust)} úlomků?\n\nNasazené kusy zůstanou. Tohle nelze vrátit.`)) {
+                  engine.dismantleAll();
+                }
+              }}
+              title="Rozloží celý inventář na úlomky (nasazené kusy zůstanou)"
+            >Rozložit vše 💠 {fmt(engine.dismantleAllValue())}</button>
+          )}
+        </div>
       </div>
       {inv.length === 0 ? (
         <p className="inv-empty">Zatím žádná kořist — poraz nepřátele (hlavně bosse) a kusy začnou padat.</p>
@@ -340,6 +370,7 @@ function InventoryGrid({ inv, dust, engine }) {
             <InvCard
               key={item.id}
               item={item}
+              equipped={engine.state.equipment[item.slot]}
               dust={dust}
               onEquip={() => engine.equipItem(item.id)}
               onDiscard={() => engine.discardItem(item.id)}

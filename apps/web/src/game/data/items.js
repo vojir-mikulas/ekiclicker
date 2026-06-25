@@ -20,9 +20,12 @@ export const ITEMS = {
   ilvlScale: 1500,   // velikost afixu roste o +100 % za každých tolik úrovní ilvl
   rarityLiftPer: 1200, // s ilvl se váhy posouvají k vyšším vzácnostem (čím nižší, tím rychleji)
 
-  // šance na drop podle typu nepřítele
-  dropChance: 0.012,
-  bossDropChance: 0.5,
+  // šance na drop podle typu nepřítele — laděno na VZÁCNOST (kořist má být „wow",
+  // ne běžná). Hlavní zdroj objemu je obyčejný boss (každá 5. úroveň), proto je
+  // nízko; milníkoví bossové (mega/ultra/archón po 25/100/500) drží zaručený drop
+  // jako rytmus vzrušení. Klenotník (⚒️) přidává jen na bednu z běžného nepřítele.
+  dropChance: 0.005,      // běžný nepřítel → dřevěná bedna (vzácný příjemný překvap)
+  bossDropChance: 0.15,   // obyčejný boss (Golden Eki) → zlatá bedna (cca 1 ze 7)
   megaDropChance: 1,
   ultraDropChance: 1,
 };
@@ -128,7 +131,7 @@ const BASES = {
     { id: 'star',     emoji: '🌟', name: 'Vesmírná pecka',  minIlvl: 6000 },
   ],
   gloves: [
-    { id: 'mitt',  emoji: '🧤', name: 'Rukavice na špínu',  minIlvl: 0,    set: 'brawler' },
+    { id: 'mitt',  emoji: '🧤', name: 'Rukavice na Richarda',  minIlvl: 0,    set: 'brawler' },
     { id: 'belt',  emoji: '🥋', name: 'Skoro černý pásek',  minIlvl: 1200 },
     { id: 'wing',  emoji: '🪽', name: 'Andělská křídla',    minIlvl: 4000, set: 'eternal' },
   ],
@@ -430,6 +433,17 @@ export function itemScore(item) {
   let s = 0;
   for (const a of item.affixes) s += a.value / (AFFIXES[a.stat]?.base || 1);
   return s * (1 + (item.ilvl || 0) / 5000);
+}
+
+/* Porovnání kusu z inventáře proti právě nasazenému kusu ve STEJNÉM slotu —
+   stejná metrika jako řazení/auto-rozklad (itemScore). Vrací null, když kus
+   není silnější; jinak { pct } s relativním zlepšením (pct === null pro prázdný
+   slot — cokoliv je lepší než nic). Pro UI odznak „lepší / +X %". */
+export function upgradeDelta(item, equipped) {
+  const next = itemScore(item);
+  const cur = itemScore(equipped);
+  if (next <= cur) return null;
+  return { pct: cur > 0 ? next / cur - 1 : null };
 }
 
 /* ----------------------------- prezentace ----------------------------- */
