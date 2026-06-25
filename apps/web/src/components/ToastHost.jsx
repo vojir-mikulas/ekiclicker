@@ -2,6 +2,7 @@ import { useState, useCallback, useRef } from 'react';
 import { useEngineEvent } from '../hooks/useEngine.js';
 import { fmt } from '../game/format.js';
 import { CHESTS, RARITIES } from '../game/data/items.js';
+import { albumBonusText } from '../game/data/album.js';
 
 function rewardText(r) {
   const parts = [];
@@ -68,6 +69,12 @@ export default function ToastHost() {
             ico: '🥚',
             title: `Vylíhnuto ${payload.count}× vejce`,
             sub: parts.join(' • ') || '—',
+          });
+        } else if (type === 'albumMilestone') {
+          push({
+            ico: payload.emoji,
+            title: `Deník: ${payload.name} — milník!`,
+            sub: albumBonusText(payload.stats),
           });
         } else if (type === 'questClaim') {
           push({

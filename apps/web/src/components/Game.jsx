@@ -18,6 +18,7 @@ const StatsModal = lazy(() => import('./modals/StatsModal.jsx'));
 const InventoryModal = lazy(() => import('./modals/InventoryModal.jsx'));
 const RouletteModal = lazy(() => import('./modals/RouletteModal.jsx'));
 const PetsModal = lazy(() => import('./modals/PetsModal.jsx'));
+const AlbumModal = lazy(() => import('./modals/AlbumModal.jsx'));
 const PetRevealModal = lazy(() => import('./modals/PetRevealModal.jsx'));
 const DailyQuests = lazy(() => import('./modals/DailyQuests.jsx'));
 const Seasons = lazy(() => import('./leaderboard/Seasons.jsx'));
@@ -62,6 +63,7 @@ export default function Game() {
         onOpenDaily={() => setModal('daily')}
         onOpenInventory={() => setModal('inventory')}
         onOpenPets={() => setModal('pets')}
+        onOpenAlbum={() => setModal('album')}
       />
 
       {view === 'game' ? (
@@ -88,6 +90,7 @@ export default function Game() {
         {modal === 'inventory' && <InventoryModal onClose={() => setModal(null)} />}
         {pendingOpenId && <RouletteModal key={pendingOpenId} />}
         {modal === 'pets' && <PetsModal onClose={() => setModal(null)} />}
+        {modal === 'album' && <AlbumModal onClose={() => setModal(null)} />}
         {pendingEggId && <PetRevealModal key={pendingEggId} />}
         {modal === 'daily' && <DailyQuests onClose={() => setModal(null)} />}
         {offline && <OfflineModal offline={offline} onClose={() => setOffline(null)} />}

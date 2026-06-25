@@ -16,10 +16,11 @@ const select = (s) => ({
   chestCount: s.chests ? Object.values(s.chests).reduce((a, b) => a + b, 0) : 0,
   petsUnlocked: s.petsUnlocked,
   eggCount: s.eggs || 0,
+  albumNew: s.album?.new || 0,
 });
 
-export default function TopBar({ view, onView, onOpenSettings, onOpenJoin, onOpenAccount, onOpenStats, onOpenDaily, onOpenInventory, onOpenPets }) {
-  const { gold, forgiveness, dust, level, click, daily, invUnlocked, chestCount, petsUnlocked, eggCount } = useEngineSelector(select, shallowEqual);
+export default function TopBar({ view, onView, onOpenSettings, onOpenJoin, onOpenAccount, onOpenStats, onOpenDaily, onOpenInventory, onOpenPets, onOpenAlbum }) {
+  const { gold, forgiveness, dust, level, click, daily, invUnlocked, chestCount, petsUnlocked, eggCount, albumNew } = useEngineSelector(select, shallowEqual);
   const account = useAccount();
 
   return (
@@ -64,6 +65,9 @@ export default function TopBar({ view, onView, onOpenSettings, onOpenJoin, onOpe
               🐾{eggCount > 0 && <span className="topbar-badge">{eggCount}</span>}
             </button>
           )}
+          <button className="topbar-btn badged" onClick={onOpenAlbum} title="Sběratelský deník" aria-label="Sběratelský deník">
+            📖{albumNew > 0 && <span className="topbar-badge">{albumNew}</span>}
+          </button>
           <button className="topbar-btn" onClick={onOpenStats} title="Statistiky" aria-label="Statistiky">📊</button>
           <button className="topbar-btn" onClick={onOpenSettings} title="Nastavení" aria-label="Nastavení">⚙️</button>
         </div>

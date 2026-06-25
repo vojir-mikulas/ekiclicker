@@ -31,6 +31,7 @@ import {
   rollChestResult, buildRouletteStrip, chestMissDust, chestCost,
 } from './data/items.js';
 import { PETS_CFG, rollPetId, petLevelCap } from './data/pets.js';
+import { ALBUM, discoveredCount, albumKeyForItem } from './data/album.js';
 
 let nextEnemyId = 1;
 
@@ -151,6 +152,7 @@ export class Engine {
   defeat() {
     const s = this.state;
     const v = VARIANTS[s.enemy.variantId];
+    this.discoverEnemy(s.enemy.variantId); // sběratelský deník: Bestiář
     const reward = enemyReward(s.level, v, goldMult(s));
     s.gold += reward;
     s.stats.totalGold += reward;
@@ -226,6 +228,7 @@ export class Engine {
   /* Přidej kus do inventáře. Při plném inventáři nahraď nejslabší kus, pokud je
      nový lepší — a ten slabší (nebo zahozený nový) rozlož na úlomky. */
   addItem(item) {
+    this.discoverGear(item); // sběratelský deník: Arzenál (objev i kus, který se hned rozloží)
     const inv = this.state.inventory;
     if (inv.length < ITEMS.invCap) { inv.push(item); return; }
     let worstI = 0;
@@ -502,6 +505,42 @@ export class Engine {
   unequipPet() {
     this.state.equippedPet = null;
     this.afterInventory();
+  }
+
+  /* ---------- sběratelský deník (Bestiář + Arzenál) ---------- */
+  /* Objev varianty Ekiho (zabití). No-op, když už je objevená. */
+  discoverEnemy(variantId) {
+    const a = this.state.album;
+    if (!a || !variantId || a.enemies[variantId]) return;
+    a.enemies[variantId] = true;
+    this._afterDiscover('bestiary');
+  }
+  /* Objev základu výbavy (kus padl z bedny). No-op, když už je objevený. */
+  discoverGear(item) {
+    const a = this.state.album;
+    if (!a || !item) return;
+    const key = albumKeyForItem(item);
+    if (a.gear[key]) return;
+    a.gear[key] = true;
+    this._afterDiscover('arsenal');
+  }
+  /* Společná dohra objevu: odznak „nové" + toast při překročení milníku bonusu.
+     BEZ explicitního save — objev se uloží příštím autosave (jako level/kill). */
+  _afterDiscover(pageId) {
+    const a = this.state.album;
+    a.new = (a.new || 0) + 1;
+    const n = discoveredCount(a, pageId);
+    const page = ALBUM[pageId];
+    const m = page.milestones.find((x) => x.count === n);
+    if (m) this.emit('albumMilestone', { page: pageId, name: page.name, emoji: page.emoji, stats: m.stats });
+  }
+  /* Hráč otevřel deník → vynuluj odznak nových objevů (a ulož). */
+  markAlbumSeen() {
+    const a = this.state.album;
+    if (!a || !a.new) return;
+    a.new = 0;
+    save(this.state);
+    this.notify();
   }
 
   /* Poklad za bosse — zlato navíc (+ 🕊 z mega/ultra). Vše laditelné v CONFIG. */

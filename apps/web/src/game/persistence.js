@@ -1,9 +1,10 @@
 /* Ukládání / načítání + offline výdělek. */
 import { CONFIG } from './config.js';
-import { createState } from './initialState.js';
+import { createState, createAlbum } from './initialState.js';
 import { totalDps, goldMult, enemyReward, forgivenessGain } from './formulas.js';
 import { gearPower } from './data/items.js';
 import { petPower } from './data/pets.js';
+import { backfillGear } from './data/album.js';
 
 const SAVE_KEY = 'ekiClickerSaveV3';
 /* Staré klíče z předchozích verzí hry. Když je najdeme a nový save chybí,
@@ -44,6 +45,7 @@ export function buildSnapshot(state) {
     weapons: state.weapons,
     prestige: state.prestige,
     achievements: state.achievements,
+    album: state.album, // sběratelský deník — Bestiář + Arzenál (přežívá rebirth i obnovu účtu)
     stats: state.stats,
     daily: state.daily, // denní úkoly + streak (přenese se i přes obnovu účtu)
     // pozdní hra: kořist/vybavení (aditivní — starý save bez nich se načte prázdný)
@@ -89,6 +91,15 @@ export function hydrateState(d) {
   // pozdní hra: kořist/vybavení (starý save → prázdné, vše null)
   state.inventory = Array.isArray(d.inventory) ? d.inventory : [];
   if (d.equipment) Object.assign(state.equipment, d.equipment);
+  // sběratelský deník (starý save → prázdný); objevené záznamy: id -> true
+  state.album = createAlbum();
+  if (d.album && typeof d.album === 'object') {
+    if (d.album.enemies) Object.assign(state.album.enemies, d.album.enemies);
+    if (d.album.gear) Object.assign(state.album.gear, d.album.gear);
+    state.album.new = d.album.new || 0;
+  }
+  // doplň objevené ZÁKLADY z aktuální výbavy/inventáře (kusy z doby před deníkem)
+  backfillGear(state.album, state.equipment, state.inventory);
   state.inventoryUnlocked = !!d.inventoryUnlocked;
   state.dust = d.dust || 0;
   state.chests = (d.chests && typeof d.chests === 'object') ? d.chests : {};

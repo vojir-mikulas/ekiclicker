@@ -701,10 +701,54 @@ body{
 .pet-reveal-bonus{ font-size:14px; font-weight:800; color:var(--good); margin-top:10px; }
 .pet-reveal-desc{ font-size:12px; color:var(--muted); margin-top:6px; line-height:1.4; }
 
+/* ===== sběratelský deník (Album) ===== */
+.popup-content.album-modal{ max-width:640px; max-height:88vh; overflow-y:auto; text-align:left; }
+.popup-content.album-modal h2{ text-align:center; }
+.album-total{ font-size:13px; color:var(--muted); text-align:center; margin:0 0 12px; }
+.album-total b{ color:var(--good); }
+
+.album-tabs{ display:flex; gap:8px; margin-bottom:12px; }
+.album-tab{ flex:1; display:flex; align-items:center; justify-content:center; gap:6px; border:1px solid var(--line);
+  border-radius:10px; background:var(--panel-2); color:var(--muted); font-size:13px; font-weight:800;
+  padding:9px 10px; cursor:pointer; transition:border-color .12s, color .12s, background .12s; }
+.album-tab.active{ border-color:var(--gold); color:var(--text); background:#11151f; }
+.album-tab-count{ font-size:11px; font-weight:800; color:var(--muted); }
+.album-tab-count.done{ color:var(--gold); }
+
+.album-desc{ font-size:12px; color:var(--muted); margin:0 0 8px; }
+.album-bar{ height:8px; border-radius:999px; background:var(--ink); border:1px solid var(--line); overflow:hidden; margin-bottom:10px; }
+.album-bar-fill{ height:100%; background:linear-gradient(90deg,var(--good),var(--gold)); transition:width .3s ease; }
+
+.album-milestones{ display:flex; flex-wrap:wrap; gap:6px; margin-bottom:14px; }
+.album-ms{ display:flex; flex-direction:column; gap:1px; border:1px solid var(--line); border-radius:9px;
+  background:var(--panel-2); padding:6px 10px; opacity:.55; }
+.album-ms.active{ opacity:1; border-color:var(--good); }
+.album-ms-count{ font-size:10px; font-weight:800; color:var(--muted); text-transform:uppercase; letter-spacing:.4px; }
+.album-ms.active .album-ms-count{ color:var(--good); }
+.album-ms-bonus{ font-size:12px; font-weight:800; color:var(--text); }
+
+.album-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(120px,1fr)); gap:8px; margin-bottom:10px; }
+.album-card{ position:relative; border:2px solid var(--line); border-radius:12px; background:var(--panel-2);
+  padding:10px 8px; text-align:center; display:flex; flex-direction:column; align-items:center; gap:3px; }
+.album-card.boss{ border-color:var(--gold); }
+.album-card.set{ border-color:#46d6e0; }
+.album-card.locked{ opacity:.5; }
+.album-swatch{ width:54px; height:54px; border-radius:50%; border:2px solid var(--line); background:#0a0d14; }
+.album-card.locked .album-swatch{ background:repeating-linear-gradient(45deg,#171b26,#171b26 5px,#10131b 5px,#10131b 10px); }
+.album-emoji{ font-size:40px; line-height:1; }
+.album-card.locked .album-emoji{ filter:grayscale(1) brightness(.7); }
+.album-card-name{ font-weight:800; font-size:13px; margin-top:3px; }
+.album-card-sub{ font-size:10px; color:var(--muted); }
+
+.album-hint{ font-size:12px; color:var(--muted); background:var(--panel-2); border:1px solid var(--line);
+  border-radius:10px; padding:8px 10px; margin:6px 0; line-height:1.45; }
+.album-foot{ font-size:11px; color:var(--muted); text-align:center; margin:6px 0 0; }
+
 @media (max-width:520px){
   .equip-slots{ grid-template-columns:1fr; }
   .inv-grid{ grid-template-columns:repeat(auto-fill,minmax(130px,1fr)); }
   .pet-grid{ grid-template-columns:repeat(auto-fill,minmax(130px,1fr)); }
+  .album-grid{ grid-template-columns:repeat(auto-fill,minmax(100px,1fr)); }
 }
 
 @media (prefers-reduced-motion: reduce){ *{animation-duration:.01ms !important;} }

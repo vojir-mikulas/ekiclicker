@@ -9,6 +9,7 @@ import { PRESTIGE_ALL } from './data/prestige.js';
 import { ACHIEVEMENTS } from './data/achievements.js';
 import { aggregateEquip } from './data/items.js';
 import { equippedPetStats } from './data/pets.js';
+import { albumStats } from './data/album.js';
 
 /* Součet afixů z nasazeného vybavení — sdílí ho všechny bojové formulky.
    Čistá funkce nad stavem; vybavení přidává jen BOUNDED % (žádný nový exponenciál). */
@@ -16,14 +17,16 @@ export function equipStats(s) {
   return aggregateEquip(s.equipment);
 }
 
-/* Bojové bonusy = afixy výbavy + bonus nasazeného mazlíčka (oboje BOUNDED %,
-   sdílí klíče statů). Tohle čtou bojové formulky místo holého equipStats —
-   mazlíček se tak promítne všude, kde výbava, BEZ nového exponenciálu. */
+/* Bojové bonusy = afixy výbavy + bonus nasazeného mazlíčka + milníky deníku
+   (vše BOUNDED %, sdílí klíče statů). Tohle čtou bojové formulky místo holého
+   equipStats — mazlíček i deník se tak promítnou všude, kde výbava, BEZ nového
+   exponenciálu. (Deník ZÁMĚRNĚ nemá dmgPct → žádný vliv na obtížnost/blitz.) */
 export function combatStats(s) {
   const gear = equipStats(s);
   const pet = equippedPetStats(s);
+  const album = albumStats(s);
   const out = {};
-  for (const k in gear) out[k] = gear[k] + (pet[k] || 0);
+  for (const k in gear) out[k] = gear[k] + (pet[k] || 0) + (album[k] || 0);
   return out;
 }
 

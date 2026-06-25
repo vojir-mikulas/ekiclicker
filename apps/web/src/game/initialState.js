@@ -30,6 +30,12 @@ export function createEquipment() {
   return e;
 }
 
+/* Prázdný sběratelský deník (Bestiář + Arzenál). Objevené záznamy: id -> true.
+   `new` = počet objevů, které hráč ještě neviděl (odznak v topbaru). */
+export function createAlbum() {
+  return { enemies: {}, gear: {}, new: 0 };
+}
+
 export function createStats() {
   return {
     totalClicks: 0,
@@ -60,6 +66,7 @@ export function createState() {
     weapons: createWeapons(),
     prestige: createPrestige(),
     achievements: {}, // id -> true
+    album: createAlbum(), // sběratelský deník — Bestiář + Arzenál (přežívá rebirth)
     stats: createStats(),
     enemy: null,
     combo: { count: 0, lastClickAt: 0 },
