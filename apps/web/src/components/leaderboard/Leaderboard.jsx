@@ -5,6 +5,8 @@ import { accountErrorMessage } from '../../net/errors.js';
 import { useAccount } from '../../hooks/useAccount.js';
 import { fmt, fmtDuration } from '../../game/format.js';
 
+const POLL_MS = 15_000; // jak často se otevřený žebříček sám obnoví
+
 function formatValue(field, value) {
   if (field === 'playTimeMs') return fmtDuration((value || 0) / 1000);
   return fmt(value || 0);
@@ -32,7 +34,15 @@ export default function Leaderboard({ onJoin }) {
     }
   }, [boardKey]);
 
-  useEffect(() => { load(); }, [load]);
+  // Načti při otevření / přepnutí žebříčku, pak průběžně obnovuj (cizí skóre se
+  // taky mění) a hned po odeslání vlastního skóre (account.syncTick). Server
+  // zvládne 120 req/min/IP, takže poll po 15 s (4/min) je v pohodě.
+  const syncTick = account.syncTick;
+  useEffect(() => {
+    load();
+    const id = setInterval(load, POLL_MS);
+    return () => clearInterval(id);
+  }, [load, syncTick]);
 
   const myId = account.player?.id;
   const entries = data?.entries || [];

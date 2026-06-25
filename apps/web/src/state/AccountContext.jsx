@@ -15,12 +15,15 @@ export function AccountProvider({ children }) {
   const [status, setStatus] = useState('loading');
   const [player, setPlayer] = useState(null); // { id, nickname }
   const [offline, setOffline] = useState(false); // server nedostupný, ale máme token
+  const [syncTick, setSyncTick] = useState(0); // ++ po každém přijatém odeslání skóre
 
   const submitNow = useCallback(async () => {
     if (!getToken()) return;
     try {
-      await api.submitScore(buildScore(engine.state), buildSnapshot(engine.state));
+      const res = await api.submitScore(buildScore(engine.state), buildSnapshot(engine.state));
       setOffline(false);
+      // server přijal a zapsal (ne throttle/zamítnutí) → signál pro UI (žebříček)
+      if (res?.ok && !res.throttled) setSyncTick((t) => t + 1);
     } catch (e) {
       if (e.offline) setOffline(true);
       // ostatní (throttled apod.) tiše ignorujeme — synchronizace je best-effort
@@ -112,8 +115,8 @@ export function AccountProvider({ children }) {
   }, []);
 
   const value = useMemo(
-    () => ({ status, player, offline, join, rename, recover, leave, submitNow }),
-    [status, player, offline, join, rename, recover, leave, submitNow]
+    () => ({ status, player, offline, syncTick, join, rename, recover, leave, submitNow }),
+    [status, player, offline, syncTick, join, rename, recover, leave, submitNow]
   );
 
   return <AccountContext.Provider value={value}>{children}</AccountContext.Provider>;

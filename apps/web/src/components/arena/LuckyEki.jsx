@@ -13,8 +13,10 @@ export default function LuckyEki() {
       className="lucky-eki"
       style={{ left: lucky.x + '%', top: lucky.y + '%' }}
       title="Lucky Eki — klikni rychle!"
-      onClick={(e) => {
-        if (!e.nativeEvent?.isTrusted) return; // jen skutečný klik, ne autokliker
+      tabIndex={-1}
+      onPointerDown={(e) => {
+        if (e.button != null && e.button !== 0) return; // jen primární tlačítko
+        if (!e.nativeEvent?.isTrusted) return; // jen skutečný vstup, ne klávesnice/skript
         e.stopPropagation();
         engine.catchLucky();
       }}

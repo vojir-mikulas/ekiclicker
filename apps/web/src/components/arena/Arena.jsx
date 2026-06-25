@@ -17,14 +17,18 @@ export default function Arena({ onOpenRebirth }) {
   const engine = useEngine();
   const gain = useEngineSelector(selectGain);
   const lastPunchAt = useRef(0);
-  // Dvě obrany proti autoklikerům, obě na vstupu (engine zůstává čistý kvůli
+  // Tři obrany proti podvádění, všechny na vstupu (engine zůstává čistý kvůli
   // simulátoru/testům, které volají punch() ve smyčce):
-  //  1) isTrusted === false → umělý klik (el.click() / dispatchEvent) → ignoruj.
-  //  2) strop tempa (~22/s) → klik rychlejší než lidská ruka (i HW autokliker,
-  //     který posílá pravé „trusted" kliky) → ignoruj. Dropnutý klik tím pádem
-  //     nenabíjí ani combo, ani nálož zuřivosti → autoklikání nic nepřináší.
+  //  1) Jen pointer (myš/dotyk/pero), ne klávesnice → handler visí na
+  //     onPointerDown, ne onClick. Tím padá trik „zaměř tlačítko a drž Enter":
+  //     Enter na tlačítku posílá pravý „trusted" klik (isTrusted by ho nechytil)
+  //     a držením se opakuje, ale pointerdown z klávesnice nikdy nepřijde.
+  //  2) isTrusted === false → umělý vstup (dispatchEvent) → ignoruj.
+  //  3) strop tempa (~22/s) → vstup rychlejší než lidská ruka (i HW autokliker)
+  //     → ignoruj. Dropnutý úder nenabíjí ani combo, ani nálož zuřivosti.
   const punch = useCallback((e) => {
-    if (!e?.nativeEvent?.isTrusted) return;
+    if (e.button != null && e.button !== 0) return; // jen primární tlačítko
+    if (!e.nativeEvent?.isTrusted) return;
     const now = performance.now();
     if (now - lastPunchAt.current < CONFIG.minClickMs) return;
     lastPunchAt.current = now;
@@ -38,13 +42,18 @@ export default function Arena({ onOpenRebirth }) {
       <HpBar />
       <BossTimer />
 
-      <div className="photo-wrap" ref={(el) => (fxRefs.photoWrap = el)} onClick={punch}>
+      <div className="photo-wrap" ref={(el) => (fxRefs.photoWrap = el)} onPointerDown={punch}>
         <EnemyView />
       </div>
 
       <LuckyEki />
 
-      <button className="punch-btn" ref={(el) => (fxRefs.button = el)} onClick={punch}>
+      <button
+        className="punch-btn"
+        ref={(el) => (fxRefs.button = el)}
+        tabIndex={-1}
+        onPointerDown={punch}
+      >
         DEJ MU!
       </button>
 
