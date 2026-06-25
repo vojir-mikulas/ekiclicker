@@ -773,6 +773,19 @@ export class Engine {
     this.notify();
   }
 
+  /* Připíše odměnu za světového bosse (🕊 + 💠). Bounded, lokální grant — stejně
+     jako sezónní odměna; server jen eviduje, kdo přispěl, a odměnu označí za vyzvednutou. */
+  grantWorldBossReward({ doves = 0, dust = 0 } = {}) {
+    const s = this.state;
+    if (doves > 0) s.prestige.forgiveness += doves;
+    if (dust > 0) s.dust = (s.dust || 0) + dust;
+    if (doves > 0 || dust > 0) {
+      save(s);
+      this.notify();
+      this.emit('worldBossReward', { doves, dust });
+    }
+  }
+
   /* Nahraj stav ze save blobu (obnova účtu na novém zařízení / po smazání dat).
      Přepíše lokální postup uloženými daty ze serveru. */
   loadSnapshot(blob) {

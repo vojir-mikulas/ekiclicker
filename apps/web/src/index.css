@@ -751,4 +751,61 @@ body{
   .album-grid{ grid-template-columns:repeat(auto-fill,minmax(100px,1fr)); }
 }
 
+/* ---------- Světový boss ---------- */
+.topbar-badge.alert{ background:var(--orange); }
+.wb-btn.wb-live{ color:var(--text); border-color:rgba(255,138,43,.55); box-shadow:0 0 0 1px rgba(255,138,43,.25), 0 0 14px rgba(255,138,43,.3); }
+
+.popup-content.world-boss-modal{ max-width:520px; max-height:88vh; overflow-y:auto; text-align:left; }
+.popup-content.world-boss-modal h2{ text-align:center; }
+
+.wb-hero{ display:flex; align-items:center; gap:14px; padding:14px; border-radius:14px;
+  background:linear-gradient(180deg,rgba(255,59,71,.12),rgba(0,0,0,.25)); border:1px solid var(--line); }
+.wb-hero.defeated{ background:linear-gradient(180deg,rgba(70,224,138,.14),rgba(0,0,0,.25)); border-color:rgba(70,224,138,.4); }
+.wb-hero.expired{ background:linear-gradient(180deg,rgba(138,147,168,.12),rgba(0,0,0,.25)); }
+.wb-emoji{ font-size:48px; line-height:1; filter:drop-shadow(0 3px 6px rgba(0,0,0,.5)); }
+.wb-hero.defeated .wb-emoji{ filter:grayscale(.4) drop-shadow(0 3px 6px rgba(0,0,0,.5)); }
+.wb-name{ font-family:'Anton',sans-serif; font-size:26px; letter-spacing:.02em; }
+.wb-sub{ font-size:12px; color:var(--muted); margin-top:2px; }
+
+.wb-hpbar{ position:relative; height:30px; margin:14px 0 0; border-radius:9px; overflow:hidden;
+  background:rgba(0,0,0,.4); border:1px solid var(--line); }
+.wb-hpfill{ height:100%; background:linear-gradient(90deg,var(--red),var(--orange)); transition:width .5s ease; }
+.wb-hpfill.defeated{ background:linear-gradient(90deg,#2a3142,#3a445c); }
+.wb-hpfill.expired{ background:linear-gradient(90deg,var(--red-dark),#7a1820); }
+.wb-hptext{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+  font-family:'Anton',sans-serif; font-size:14px; letter-spacing:.03em; text-shadow:0 1px 3px rgba(0,0,0,.8); }
+
+.wb-chips{ display:flex; gap:8px; justify-content:center; margin-top:12px; flex-wrap:wrap; }
+.wb-chip{ font-size:12px; color:var(--muted); background:rgba(0,0,0,.22); border:1px solid var(--line);
+  border-radius:999px; padding:5px 12px; }
+
+.wb-hitwrap{ text-align:center; }
+.wb-hit{ margin-top:14px; font-size:17px; padding:15px; }
+.wb-me{ font-size:13px; color:var(--muted); margin-top:8px; }
+.wb-me b{ color:var(--text); }
+
+.wb-ended{ text-align:center; color:var(--muted); font-size:13px; margin:14px 0 4px; }
+
+.wb-claim{ display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;
+  margin-top:14px; padding:12px 14px; border-radius:12px; font-size:14px;
+  background:rgba(192,168,255,.1); border:1px solid rgba(192,168,255,.4); }
+.wb-claim b{ color:var(--dove); }
+.wb-claim .primary-btn{ width:auto; margin:0; padding:10px 16px; }
+
+.wb-board{ margin-top:16px; background:var(--panel); border:1px solid var(--line); border-radius:12px; overflow:hidden; }
+.wb-board-head{ font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted);
+  padding:10px 14px; border-bottom:1px solid var(--line); }
+.wb-row{ display:flex; align-items:center; gap:10px; padding:10px 14px; border-bottom:1px solid rgba(42,49,66,.5); }
+.wb-row:last-child{ border-bottom:0; }
+.wb-row .rank{ font-family:'Anton',sans-serif; color:var(--muted); width:32px; }
+.wb-row .nick{ flex:1 1 auto; font-weight:700; }
+.wb-row .val{ font-family:'Anton',sans-serif; color:var(--orange); }
+.wb-row.me{ background:rgba(255,210,63,.1); }
+.wb-row.me .nick, .wb-row.me .val{ color:var(--gold); }
+
+.wb-foot{ font-size:11px; color:var(--muted); line-height:1.5; margin:14px 0 0; }
+.wb-foot b{ color:var(--text); }
+
+@media (max-width:520px){ .wb-name{ font-size:22px; } .wb-emoji{ font-size:40px; } }
+
 @media (prefers-reduced-motion: reduce){ *{animation-duration:.01ms !important;} }

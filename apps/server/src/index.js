@@ -30,6 +30,7 @@ import scoresRoutes from './routes/scores.js';
 import leaderboardRoutes from './routes/leaderboard.js';
 import seasonsRoutes from './routes/seasons.js';
 import playersRoutes from './routes/players.js';
+import worldBossRoutes from './routes/worldboss.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number.parseInt(process.env.PORT ?? '', 10) || 3000;
@@ -72,6 +73,7 @@ api.use('/scores', scoresRoutes);
 api.use('/leaderboard', leaderboardRoutes);
 api.use('/seasons', seasonsRoutes);
 api.use('/players', playersRoutes);
+api.use('/world-boss', worldBossRoutes);
 
 app.use('/api', api);
 

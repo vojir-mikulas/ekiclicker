@@ -68,4 +68,8 @@ export const api = {
   seasons: () => req('/seasons'),
   season: (n) => req(`/seasons/${encodeURIComponent(n)}`),
   player: (id) => req(`/players/${encodeURIComponent(id)}`, { auth: true }),
+  // světový boss (sdílený sezónní kooperativní boss)
+  worldBoss: () => req('/world-boss', { auth: true }),
+  worldBossHit: () => req('/world-boss/hit', { method: 'POST', auth: true }),
+  worldBossClaim: () => req('/world-boss/claim', { method: 'POST', auth: true }),
 };

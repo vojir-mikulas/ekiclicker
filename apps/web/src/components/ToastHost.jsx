@@ -88,6 +88,15 @@ export default function ToastHost() {
             title: `Všechny denní úkoly! Série ${payload.streak}`,
             sub: `Bonus +${payload.bonus} 🕊`,
           });
+        } else if (type === 'worldBossReward') {
+          const parts = [];
+          if (payload.doves) parts.push(`+${payload.doves} 🕊`);
+          if (payload.dust) parts.push(`+${fmt(payload.dust)} 💠`);
+          push({
+            ico: '🐲',
+            title: 'Odměna za světového bosse!',
+            sub: parts.join(' • ') || '—',
+          });
         }
       },
       [push]

@@ -1,5 +1,6 @@
 import { useEngineSelector, shallowEqual } from '../hooks/useEngine.js';
 import { useAccount } from '../hooks/useAccount.js';
+import { useWorldBoss } from '../hooks/useWorldBoss.js';
 import { fmt } from '../game/format.js';
 import { clickDamage } from '../game/formulas.js';
 import { claimableCount } from '../game/data/quests.js';
@@ -19,9 +20,10 @@ const select = (s) => ({
   albumNew: s.album?.new || 0,
 });
 
-export default function TopBar({ view, onView, onOpenSettings, onOpenJoin, onOpenAccount, onOpenStats, onOpenDaily, onOpenInventory, onOpenPets, onOpenAlbum }) {
+export default function TopBar({ view, onView, onOpenSettings, onOpenJoin, onOpenAccount, onOpenStats, onOpenDaily, onOpenInventory, onOpenPets, onOpenAlbum, onOpenWorldBoss }) {
   const { gold, forgiveness, dust, level, click, daily, invUnlocked, chestCount, petsUnlocked, eggCount, albumNew } = useEngineSelector(select, shallowEqual);
   const account = useAccount();
+  const wb = useWorldBoss();
 
   return (
     <div className="topbar">
@@ -53,6 +55,18 @@ export default function TopBar({ view, onView, onOpenSettings, onOpenJoin, onOpe
             </button>
           ) : (
             <span className="identity loading">…</span>
+          )}
+          {account.status === 'joined' && (
+            <button
+              className={'topbar-btn badged wb-btn' + (wb.live ? ' wb-live' : '')}
+              onClick={onOpenWorldBoss}
+              title="Světový boss"
+              aria-label="Světový boss"
+            >
+              🐲{(wb.claimable || wb.live) && (
+                <span className={'topbar-badge' + (wb.claimable ? ' alert' : '')}>{wb.claimable ? '!' : '•'}</span>
+              )}
+            </button>
           )}
           <button className="topbar-btn badged" onClick={onOpenDaily} title="Denní úkoly" aria-label="Denní úkoly">
             📜{daily > 0 && <span className="topbar-badge">{daily}</span>}

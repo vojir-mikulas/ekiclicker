@@ -24,6 +24,7 @@ const DailyQuests = lazy(() => import('./modals/DailyQuests.jsx'));
 const Seasons = lazy(() => import('./leaderboard/Seasons.jsx'));
 const PlayerProfile = lazy(() => import('./modals/PlayerProfile.jsx'));
 const SeasonEndModal = lazy(() => import('./modals/SeasonEndModal.jsx'));
+const WorldBossModal = lazy(() => import('./modals/WorldBossModal.jsx'));
 
 export default function Game() {
   const engine = useEngine();
@@ -64,6 +65,7 @@ export default function Game() {
         onOpenInventory={() => setModal('inventory')}
         onOpenPets={() => setModal('pets')}
         onOpenAlbum={() => setModal('album')}
+        onOpenWorldBoss={() => setModal('worldboss')}
       />
 
       {view === 'game' ? (
@@ -96,6 +98,7 @@ export default function Game() {
         {offline && <OfflineModal offline={offline} onClose={() => setOffline(null)} />}
         {gift && <GiftModal gift={gift} onClose={() => setGift(null)} />}
         {profileId && <PlayerProfile id={profileId} onClose={() => setProfileId(null)} />}
+        {modal === 'worldboss' && <WorldBossModal onClose={() => setModal(null)} onJoin={() => setModal('join')} />}
         {account.pendingSeason && <SeasonEndModal />}
       </Suspense>
     </>
