@@ -24,7 +24,11 @@ import {
   enemyMaxHp, enemyReward, prestigeCost, difficultyScale, luckSpawnMult,
   upgradeCostAt, weaponCostAt, buyBatch, forgivenessGain,
   comboCap, forgivenessMult, bossTimeMult, bossGoldMult, dustMult, dropChanceBonus,
+  hellFloorHp,
 } from './formulas.js';
+import {
+  HELLEVATOR, HELL_SHOP, hellPerkCost, hellRunPerk, siraForRun, isHellBossFloor,
+} from './data/hellevator.js';
 import {
   ITEMS, CHESTS, SLOT_IDS, itemScore, upgradeDelta,
   salvageValue, rerollCost, rerollItem, upgradeRarityCost, upgradeRarity, nextRarity,
@@ -207,6 +211,17 @@ export class Engine {
     this.checkRunesUnlock();
     this.checkEnchantingUnlock();
     this.checkMasteryUnlock();
+    this.checkHellevatorUnlock();
+  }
+
+  /* Pekelný výtah 🛗 se odemkne po dosažení HELLEVATOR.unlockLevel (= 100, nejdřívější
+     „pokročilý" režim). Trvalý příznak — jako výbava/elixíry/mazlíčci. */
+  checkHellevatorUnlock() {
+    const s = this.state;
+    if (!s.hellevatorUnlocked && s.highestLevel >= HELLEVATOR.unlockLevel) {
+      s.hellevatorUnlocked = true;
+      this.emit('unlock', { feature: 'hellevator' });
+    }
   }
 
   /* Mistrovská mřížka 🔱 se odemkne po dosažení MASTERY.unlockLevel (nejvyšší úroveň).
@@ -1035,6 +1050,260 @@ export class Engine {
     this.afterInventory(); // save + notify
   }
 
+  /* ====================================================================
+     PEKELNÝ VÝTAH 🛗 — vlastní mini-engine 60s sprintu (oddělený od arény:
+     jiný spawn, vlastní hodiny, žádné bedny/loot z normálních zabití). Sdílí ale
+     clickDamage/totalDps/critChance, takže build hráče platí 1:1. Damage běhu
+     ZÁMĚRNĚ NEpolitujeme do _recordDmg → nenafoukne atestovaný peakDps (server ho
+     ve fázi 4 použije jako strop věrohodnosti pater). Vše deterministické (HP patra
+     = funkce poškození/času) → žádná nová cheat plocha.
+     ==================================================================== */
+
+  /* Žetony: denní free doplnění + regen 1/passRegenMs (wall-clock). Voláno při
+     otevření krámu / startu běhu / nákupu žetonu (NE z tick → tick je čistý). */
+  tickHellPasses(now = Date.now()) {
+    const h = this.state.hell;
+    if (!h) return;
+    const today = dayStr();
+    if (h.freeDay !== today) {
+      h.freeDay = today;
+      if (h.passes < HELLEVATOR.passDailyFree) h.passes = HELLEVATOR.passDailyFree;
+    }
+    if (h.passes < HELLEVATOR.passMax) {
+      if (!h.passAt) h.passAt = now + HELLEVATOR.passRegenMs;
+      let guard = 0;
+      while (h.passes < HELLEVATOR.passMax && now >= h.passAt && guard++ < 1000) {
+        h.passes++;
+        h.passAt += HELLEVATOR.passRegenMs;
+      }
+      if (h.passes >= HELLEVATOR.passMax) h.passAt = 0;
+    } else {
+      h.passAt = 0;
+    }
+  }
+
+  /* Spotřebuj 1 žeton a spusť 60s běh (výtah na patře 1). Vrací true při úspěchu. */
+  startHellRun() {
+    const s = this.state;
+    if (!s.hellevatorUnlocked) return false;
+    if (s.hellRun && s.hellRun.phase === 'running') return false;
+    this.tickHellPasses();
+    if (s.hell.passes < 1) return false;
+    s.hell.passes -= 1;
+    if (!s.hell.passAt && s.hell.passes < HELLEVATOR.passMax) s.hell.passAt = Date.now() + HELLEVATOR.passRegenMs;
+    const now = performance.now();
+    const runMs = HELLEVATOR.runMs + hellRunPerk(s, 'startMs');
+    s.hellRun = {
+      phase: 'running', startedAt: now, endsAt: now + runMs,
+      floor: 1, cleared: 0, comboExt: 0, dealt: 0, clicks: 0,
+      hp: 0, maxHp: 0, floorStartedAt: now, isBossFloor: false,
+      frenzy: { charge: 0, until: 0 }, summary: null,
+    };
+    this._hellSpawn(1);
+    save(s);
+    this.notify();
+    this.emit('hellStart', {});
+    return true;
+  }
+
+  _hellSpawn(floor) {
+    const s = this.state;
+    const r = s.hellRun;
+    if (!r) return;
+    r.floor = floor;
+    r.maxHp = hellFloorHp(s, floor);
+    r.hp = r.maxHp;
+    r.floorStartedAt = performance.now();
+    r.isBossFloor = isHellBossFloor(floor);
+    this.emit('hellSpawn', { floor, boss: r.isBossFloor });
+  }
+
+  /* Referenční DPS pro „par time" = max(auto DPS, průměrný efektivní DPS běhu).
+     Self-kalibruje: kdo patro probil RYCHLEJI než svůj vlastní průměr (= burst),
+     dostane +čas. Roste/klesá s tím, jak se běh vyvíjí. */
+  _hellRefDps() {
+    const s = this.state;
+    const r = s.hellRun;
+    const elapsedSec = Math.max(0.05, (performance.now() - r.startedAt) / 1000);
+    const avg = r.dealt / elapsedSec;
+    return Math.max(totalDps(s), avg, 1);
+  }
+
+  /* Ubrání HP patru; přebytek (overkill) se PŘELÉVÁ na další patro → silný burst
+     řetězí zabití (geometrický růst HP řetěz sám utne). maxKillsPerTick = pojistka. */
+  _hellDamage(amount, now) {
+    const r = this.state.hellRun;
+    if (!r || r.phase !== 'running' || amount <= 0) return;
+    let kills = 0;
+    while (amount > 0 && kills < HELLEVATOR.maxKillsPerTick) {
+      if (amount >= r.hp) {
+        amount -= r.hp;
+        r.dealt += r.hp;
+        r.hp = 0;
+        this._hellKill(now);
+        kills++;
+      } else {
+        r.hp -= amount;
+        r.dealt += amount;
+        amount = 0;
+      }
+    }
+  }
+
+  _hellKill(now) {
+    const s = this.state;
+    const r = s.hellRun;
+    const killed = r.floor;
+    r.cleared = killed;
+    // kombo-prodloužení času: zabití pod parFactor × par → +čas na hodinách
+    const killMs = now - r.floorStartedAt;
+    const parMs = (r.maxHp / this._hellRefDps()) * 1000;
+    if (killMs < parMs * HELLEVATOR.parFactor) {
+      r.endsAt += HELLEVATOR.comboBonusMs + hellRunPerk(s, 'comboMs');
+      r.comboExt++;
+      this.emit('hellExtend', { floor: killed });
+    }
+    this.emit('hellKill', { floor: killed, boss: r.isBossFloor });
+    this._hellSpawn(killed + 1);
+  }
+
+  /* Manuální úder v běhu (klik hráče). Nabíjí hell-lokální zuřivost (burst-páka). */
+  hellPunch() {
+    const s = this.state;
+    const r = s.hellRun;
+    if (!r || r.phase !== 'running') return;
+    const now = performance.now();
+    if (now >= r.endsAt) { this.finishHellRun(); return; }
+    r.clicks++;
+    if (now >= r.frenzy.until) {
+      r.frenzy.charge += 1;
+      if (r.frenzy.charge >= HELLEVATOR.frenzyClicksToFill) {
+        r.frenzy.charge = 0;
+        r.frenzy.until = now + HELLEVATOR.frenzyMs;
+        this.emit('hellFrenzy', { active: true });
+      }
+    }
+    const isCrit = Math.random() < critChance(s);
+    const mult = now < r.frenzy.until ? CONFIG.frenzyMult : 1;
+    const dmg = clickDamage(s) * (isCrit ? critMult(s) : 1) * mult;
+    this._hellDamage(dmg, now);
+    this.emit('hellHit', { kind: isCrit ? 'crit' : 'click' });
+    this.notify();
+  }
+
+  /* Krok běhu — volá ho hlavní tick(). Spojité auto DPS + hodiny + konec běhu. */
+  hellTick(dt) {
+    const s = this.state;
+    const r = s.hellRun;
+    if (!r || r.phase !== 'running') return;
+    const now = performance.now();
+    const auto = totalDps(s);
+    if (auto > 0) {
+      const mult = now < r.frenzy.until ? CONFIG.frenzyMult : 1;
+      this._hellDamage(auto * dt * mult, now);
+    }
+    if (now >= r.endsAt || now - r.startedAt >= HELLEVATOR.maxRunMs) this.finishHellRun();
+  }
+
+  /* Konec běhu: spočítej skóre, uděl 🔥, zapiš rekord. Výsledky ukáže UI. */
+  finishHellRun() {
+    const s = this.state;
+    const r = s.hellRun;
+    if (!r || r.phase !== 'running') return;
+    r.phase = 'done';
+    // skóre = nejhlubší DOSAŽENÉ patro (= aktuální patro, na kterém doběhl čas) →
+    // sedí s velkým počítadlem v běhu, žádný matoucí pokles o 1 na výsledkovce.
+    const deepest = r.floor;
+    const loot = this.grantHellLoot(deepest);
+    r.summary = { deepestFloor: deepest, comboExt: r.comboExt, clicks: r.clicks, ...loot };
+    save(s);
+    this.notify();
+    this.emit('hellEnd', r.summary);
+  }
+
+  /* 🔥 Síra za běh: základ (siraForRun, stropovaný) + bonus za nový rekord +
+     denní bonus za první běh. Bounded faucet — žádný dmgPct, mimo difficulty. */
+  grantHellLoot(deepest) {
+    const s = this.state;
+    const base = siraForRun(deepest);
+    const prevBest = s.hell.bestFloor || 0;
+    let recordBonus = 0;
+    const record = deepest > prevBest;
+    if (record) {
+      recordBonus = (deepest - prevBest) * HELLEVATOR.siraRecordBonus;
+      s.hell.bestFloor = deepest;
+    }
+    const today = dayStr();
+    let dailyBonus = 0;
+    if (s.hell.lastRunDay !== today) {
+      s.hell.lastRunDay = today;
+      dailyBonus = HELLEVATOR.siraDailyFirst;
+    }
+    const total = base + recordBonus + dailyBonus;
+    if (total > 0) s.sira = (s.sira || 0) + total;
+    return { sira: total, base, recordBonus, dailyBonus, record, prevBest };
+  }
+
+  /* Zavři výsledky běhu (skóre/🔥 jsou dávno zaúčtované) → zpět do lobby.
+     Běh, který ještě běží, NEruší (jede dál v tick — jako world boss na pozadí). */
+  dismissHellRun() {
+    const r = this.state.hellRun;
+    if (!r || r.phase !== 'done') return;
+    this.state.hellRun = null;
+    this.notify();
+  }
+
+  /* ---------- Pekelný krám (🔥 sink) ---------- */
+  buyHellPerk(id) {
+    const s = this.state;
+    if (!s.hellevatorUnlocked) return;
+    const def = HELL_SHOP[id];
+    if (!def) return;
+    const tier = s.hellShop[id] || 0;
+    const cost = hellPerkCost(id, tier);
+    if (!isFinite(cost) || (s.sira || 0) < cost) return;
+    s.sira -= cost;
+    s.hellShop[id] = tier + 1;
+    this.emit('hellPerk', { id, tier: tier + 1 });
+    this.afterBuy();
+  }
+
+  /* Dokup 1 žeton za 🔥 (do stropu passMax). */
+  buyHellPass() {
+    const s = this.state;
+    if (!s.hellevatorUnlocked) return;
+    this.tickHellPasses();
+    if (s.hell.passes >= HELLEVATOR.passMax) return;
+    const cost = HELLEVATOR.passBuyCostSira;
+    if ((s.sira || 0) < cost) return;
+    s.sira -= cost;
+    s.hell.passes += 1;
+    this.emit('hellPass', { passes: s.hell.passes });
+    save(s);
+    this.notify();
+  }
+
+  /* Směň 🔥 → 💠 (denní strop) → 🔥 má dno hodnoty i po vymaxování perků. */
+  exchangeSira(count) {
+    const s = this.state;
+    if (!s.hellevatorUnlocked) return 0;
+    const today = dayStr();
+    if (!s.hellExch || s.hellExch.day !== today) s.hellExch = { day: today, dust: 0 };
+    const capLeft = HELLEVATOR.exchangeDailyCapDust - s.hellExch.dust;
+    if (capLeft <= 0) return 0;
+    const rate = HELLEVATOR.exchangeRateSira;
+    const affordable = Math.floor((s.sira || 0) / rate);
+    const n = count === 'max' ? Math.min(affordable, capLeft) : Math.min(count, affordable, capLeft);
+    if (n <= 0) return 0;
+    s.sira -= n * rate;
+    s.dust = (s.dust || 0) + n;
+    s.hellExch.dust += n;
+    this.emit('hellExchange', { dust: n, sira: n * rate });
+    save(s);
+    this.notify();
+    return n;
+  }
+
   setBuyAmount(amt) {
     this.state.buyAmount = amt;
     this.notify();
@@ -1314,6 +1583,9 @@ export class Engine {
       s.elixir.active = null;
       this.emit('elixir', { active: null });
     }
+
+    // Pekelný výtah 🛗 — běh má vlastní hodiny + spawn (oddělený od arény níž)
+    if (s.hellRun && s.hellRun.phase === 'running') this.hellTick(dt);
 
     // automatické DPS (zbraně + stín pěsti) — spojitě
     const dps = totalDps(s);

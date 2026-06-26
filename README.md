@@ -84,10 +84,31 @@ Jeden Node proces servíruje statický web i `/api`; migrace proběhnou při sta
 ## Verze a release tagy
 
 Každý build dostane jedinečnou verzi (`pkgVersion+gitSha.timestamp`) — zapeče se
-do klienta (`__APP_VERSION__`) a zároveň do `dist/version.json`. Běžící karta si
-ji každých 5 min (a při návratu na záložku) porovnává se serverem; po nasazení
-nové várky ukáže plovoucí banner „**Čerstvá várka je na čepu!**" s tlačítkem na
-načtení. (`apps/web/src/hooks/useVersionCheck.js`, `components/UpdateBanner.jsx`.)
+do klienta (`__APP_VERSION__`) a zároveň do `dist/version.json`. Běžící karta ji
+porovnává s verzí, kterou server servíruje; ta chodí **push přes SSE** (žádný
+polling — viz `Realtime push` níže). Po nasazení nové várky se server restartuje,
+EventSource se připojí na nový proces a v `hello` dostane jeho verzi → rozdíl →
+plovoucí banner „**Čerstvá várka je na čepu!**" s tlačítkem na načtení.
+(`apps/web/src/hooks/useVersionCheck.js`, `components/UpdateBanner.jsx`.)
+
+## Realtime push (SSE)
+
+Místo klientského pollingu drží appka jedno SSE spojení na `GET /api/events`
+(`ServerEventsProvider` → jeden `EventSource` pro celou kartu). Server (jediná
+instance, viz docker-compose) drží otevřená spojení v paměti a pushuje:
+
+- **`hello`** `{ version, season }` — hned po (znovu)připojení: verze servírovaného
+  webu (z `dist/version.json`) + číslo aktivní sezóny.
+- **`season`** `{ number }` — broadcast při reálné rotaci sezóny. Rotaci hlídá
+  jeden serverový poll (`getActiveSeason()` à 30 s), takže chytí i rotaci spuštěnou
+  jiným procesem (nasazení / ruční `migrate`). Klient na to spustí `checkSeason()`
+  → okamžitě naběhne přechodový modal (20s `seasonChanged` ze `/scores` zůstává
+  jako fallback).
+
+Kanál běží **bez auth i bez DB** (mountuje se před `dbGuard`/limiterem); verze i
+číslo sezóny jsou veřejné. Server: `apps/server/src/lib/sse.js`,
+`routes/events.js`. Při horizontálním škálování by broadcast pokryl jen jednu
+instanci — pak nasaď Postgres `LISTEN/NOTIFY` nebo Redis jako transport.
 
 **Vydání jedním příkazem** (`scripts/release.sh`) — zvedne verzi, srovná ji ve
 všech package.json, zacommituje **celý** pracovní strom a otaguje:

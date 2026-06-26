@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { GUILDS, validateGuildName, validateGuildTag } from '@ekiclicker/shared';
 import { useGuild } from '../../hooks/useGuild.js';
-import { useEngineSelector } from '../../hooks/useEngine.js';
+import { useEngineSelector, shallowEqual } from '../../hooks/useEngine.js';
 import { fmt } from '../../game/format.js';
 import Modal from './Modal.jsx';
 
@@ -20,7 +20,7 @@ const REASON = {
 /* Založení cechu — jméno + [TAG], gate úrovně + sink úlomků (klientský). */
 export default function FoundGuildModal({ onClose }) {
   const guild = useGuild();
-  const { level, dust } = useEngineSelector(select);
+  const { level, dust } = useEngineSelector(select, shallowEqual);
   const [name, setName] = useState('');
   const [tag, setTag] = useState('');
   const [busy, setBusy] = useState(false);

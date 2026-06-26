@@ -33,6 +33,7 @@ import playersRoutes from './routes/players.js';
 import worldBossRoutes from './routes/worldboss.js';
 import raidsRoutes from './routes/raids.js';
 import guildsRoutes, { meGuildRouter } from './routes/guilds.js';
+import eventsRoutes, { initEvents } from './routes/events.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number.parseInt(process.env.PORT ?? '', 10) || 3000;
@@ -61,6 +62,12 @@ app.set('trust proxy', process.env.TRUST_PROXY || 1);
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(compression());
 app.use(express.json({ limit: '256kb' }));
+
+/* ---------- 5a) SSE kanál ---------- */
+// PŘED dbGuardem i limiterem: push funguje i bez DB (verze hry) a long-lived
+// spojení nepatří do request limiteru. Express matchuje v pořadí → /api/events
+// padne sem, ostatní /api propadne dál na hlavní router.
+app.use('/api', eventsRoutes);
 
 /* ---------- 5) /api router ---------- */
 const api = express.Router();
@@ -100,6 +107,9 @@ if (existsSync(WEB_DIST)) {
 } else {
   console.log(`[boot] WEB_DIST (${WEB_DIST}) neexistuje — statika přeskočena (dev s Vite).`);
 }
+
+/* ---------- 6b) SSE init: verze servírovaného webu + hlídání rotace sezóny ---------- */
+initEvents({ webDist: WEB_DIST });
 
 /* ---------- 7) listen ---------- */
 app.listen(PORT, () => {

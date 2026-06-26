@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { AccountContext } from './accountContext.js';
 import { useEngine } from '../hooks/useEngine.js';
+import { useServerEvents } from '../hooks/useServerEvents.js';
 import { buildSnapshot } from '../game/persistence.js';
 import { buildScore } from '../net/score.js';
 import { api, getToken, setToken, getCachedNick, setCachedNick } from '../net/api.js';
@@ -12,6 +13,7 @@ const SYNC_INTERVAL_MS = 20_000;
    Lokální režim je výchozí; připojení je dobrovolné a VYNULUJE postup. */
 export function AccountProvider({ children }) {
   const engine = useEngine();
+  const serverEvents = useServerEvents(); // sdílený SSE kanál (verze + rotace sezóny)
   const [status, setStatus] = useState('loading');
   const [player, setPlayer] = useState(null); // { id, nickname }
   const [offline, setOffline] = useState(false); // server nedostupný, ale máme token
@@ -109,6 +111,14 @@ export function AccountProvider({ children }) {
       document.removeEventListener('visibilitychange', onHide);
     };
   }, [status, submitNow]);
+
+  // SSE push „rotace sezóny" → okamžitě ověř přechod (místo čekání na 20s sync).
+  // seasonEpoch se bumpne jen při reálné 'season' události, ne při výchozím hello.
+  // 20s seasonChanged ze /scores zůstává jako fallback, když SSE neprojde.
+  useEffect(() => {
+    if (status !== 'joined' || serverEvents.seasonEpoch === 0) return;
+    void checkSeason();
+  }, [serverEvents.seasonEpoch, status, checkSeason]);
 
   // připojení k žebříčku — VYNULUJE postup (až po úspěšné registraci)
   const join = useCallback(async (nickname) => {

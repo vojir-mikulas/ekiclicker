@@ -34,6 +34,7 @@ const WorldBossView = lazy(() => import('./worldboss/WorldBossView.jsx'));
 const RaidView = lazy(() => import('./raid/RaidView.jsx'));
 const GuildView = lazy(() => import('./guild/GuildView.jsx'));
 const FoundGuildModal = lazy(() => import('./modals/FoundGuildModal.jsx'));
+const HellevatorModal = lazy(() => import('./hell/HellevatorModal.jsx'));
 
 export default function Game() {
   const engine = useEngine();
@@ -77,6 +78,7 @@ export default function Game() {
         onOpenRunes={() => setModal('runes')}
         onOpenMastery={() => setModal('mastery')}
         onOpenAlbum={() => setModal('album')}
+        onOpenHellevator={() => setModal('hellevator')}
       />
 
       {view === 'game' ? (
@@ -121,6 +123,7 @@ export default function Game() {
         {modal === 'mastery' && <MasteryModal onClose={() => setModal(null)} />}
         {modal === 'album' && <AlbumModal onClose={() => setModal(null)} />}
         {modal === 'foundGuild' && <FoundGuildModal onClose={() => setModal(null)} />}
+        {modal === 'hellevator' && <HellevatorModal onClose={() => setModal(null)} />}
         {pendingEggId && <PetRevealModal key={pendingEggId} />}
         {modal === 'daily' && <DailyQuests onClose={() => setModal(null)} />}
         {offline && <OfflineModal offline={offline} onClose={() => setOffline(null)} />}

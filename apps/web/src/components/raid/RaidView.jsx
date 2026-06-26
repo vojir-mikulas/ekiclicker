@@ -18,6 +18,15 @@ const medal = (r) => (r === 1 ? '🥇' : r === 2 ? '🥈' : r === 3 ? '🥉' : n
 const tacticDef = (id) => RAID_TACTICS.find((t) => t.id === id) || RAID_TACTICS[0];
 const tacticName = (id) => `${tacticDef(id).emoji} ${tacticDef(id).label}`;
 const selectHighest = (s) => s.highestLevel || 1;
+// kompaktní doba pro úzký sloupec štítu v hlavičce — „7 h" / „45 min" / „30 s"
+const shortDur = (msLeft) => {
+  const s = Math.floor((msLeft || 0) / 1000);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  if (h) return `${h} h`;
+  if (m) return `${m} min`;
+  return `${s % 60} s`;
+};
 
 const REASON = {
   cooldown: 'Eki se ještě sbírá — zkus to za chvíli.',
@@ -133,6 +142,9 @@ export default function RaidView({ onJoin, onSelectPlayer }) {
         <div className="raid-stat"><span className="lbl">Pořadí</span><span className="val">#{me.rank}</span></div>
         <div className="raid-stat"><span className="lbl">Bilance</span><span className="val">{me.wins}–{me.losses}</span></div>
         <div className="raid-stat"><span className="lbl">Série</span><span className="val">{me.streak > 0 ? `🔥${me.streak}` : '—'}</span></div>
+        <div className={'raid-stat' + (me.shieldMs > 0 ? ' on' : '')} title={me.shieldMs > 0 ? 'Pod štítem tě nikdo nepřepadne' : 'Bez štítu — tvůj trezor teď můžou vyloupit'}>
+          <span className="lbl">🛡️ Štít</span><span className="val">{me.shieldMs > 0 ? shortDur(me.shieldMs) : '—'}</span>
+        </div>
       </div>
 
       <div className="raid-cols">
@@ -266,7 +278,7 @@ export default function RaidView({ onJoin, onSelectPlayer }) {
                   <span className="rank">{medal(r.rank) || r.rank}</span>
                   <span className="nick">{r.nickname}</span>
                   {r.shieldMs > 0
-                    ? <span className="raid-row-shield" title="Pod štítem — teď ho nelze přepadnout">🛡️ pod štítem</span>
+                    ? <span className="raid-row-shield" title="Pod štítem — teď ho nelze přepadnout">🛡️ {fmtDuration(r.shieldMs / 1000)}</span>
                     : r.immune ? <span className="raid-row-shield newbie" title="Chráněný nováček — nelze přepadnout">🍼 chráněn</span> : null}
                   <span className="val">{r.rating} <i>· {r.wins}🏆</i></span>
                 </div>

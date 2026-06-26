@@ -113,6 +113,13 @@ export function createState() {
     // --- pozdní endgame: mistrovská mřížka 🔱 (odemyká se na MASTERY.unlockLevel = 4000) ---
     masteryUnlocked: false,       // jednou true → zůstává (přežívá rebirth)
     mastery: createMastery(),     // { points, nodes } — paragon strom (přežívá rebirth; resetRun ho nechá být)
+    // --- časový režim: Pekelný výtah 🛗 (odemyká se na HELLEVATOR.unlockLevel = 100) ---
+    hellevatorUnlocked: false,    // jednou true → zůstává (přežívá rebirth)
+    hell: { bestFloor: 0, passes: 0, passAt: 0, freeDay: '', lastRunDay: '' }, // rekord + žetony + denní 🔥 bonus (přežívá rebirth, mře sezónou)
+    sira: 0,                      // 🔥 Síra — měna z výtahu (přežívá rebirth, mře sezónou)
+    hellShop: {},                 // koupené bounded perky (id -> tier; přežívá rebirth)
+    hellExch: { day: '', dust: 0 }, // denní strop směny 🔥→💠
+    hellRun: null,                // PŘECHODNÝ stav běhu (neukládá se — jako pendingOpen)
     buyAmount: 1,
   };
 }
@@ -136,6 +143,7 @@ export function resetRun(state, startLevel) {
   state.itemsThisRun = 0;   // strop náhodných beden je per-běh → na začátku běhu vynuluj
   state.eggsThisRun = 0;    // strop vajec je per-běh → na začátku běhu vynuluj
   state.runesThisRun = 0;   // strop run je per-běh → na začátku běhu vynuluj
+  state.hellRun = null;     // přechodný běh výtahu — rebirth ho nenese (hell/sira/hellShop ANO)
   // vybavení/inventář/bedny/úlomky/MAZLÍČCI se NEresetují (jako prestige) → snapshot síly
   // do obtížnosti (vybavení + nasazený mazlíček, viz formulas.difficultyScale)
   state.runGearPower = gearPower(state.equipment) * petPower(state);

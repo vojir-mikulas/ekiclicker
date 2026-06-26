@@ -1,0 +1,258 @@
+/* Pekelný výtah 🛗 — modal s 3 fázemi: lobby (rekord/žetony/„Sjet dolů"),
+   fullscreen 60s běh (šachta + démon + hodiny + počítadlo pater + kombo) a
+   výsledky (patra + 🔥 + rekord). Běh je živý → komponenty čtou engine.state.hellRun
+   per-frame (useEngineFrame), jako BossTimer/ActiveElixir. Jeden Modal-rám, obsah
+   se přepíná podle fáze, ať nevznikají vnořené overlaye. */
+import { useState, useCallback, useRef, useEffect } from 'react';
+import { useEngine, useEngineFrame, useEngineSelector, useEngineEvent, shallowEqual } from '../../hooks/useEngine.js';
+import Modal from '../modals/Modal.jsx';
+import HellShop from './HellShop.jsx';
+import { CONFIG } from '../../game/config.js';
+import { HELLEVATOR, hellEnemyAt, hellEnemyName, hellEnemyTier, isHellBossFloor } from '../../game/data/hellevator.js';
+import { PLACEHOLDER, REACTION_IMGS, REACTION_EMOJI } from '../../game/data/texts.js';
+import { fmt } from '../../game/format.js';
+
+const selPhase = (s) => s.hellRun?.phase || null;
+
+export default function HellevatorModal({ onClose }) {
+  const phase = useEngineSelector(selPhase);
+  const [tab, setTab] = useState('lobby'); // lobby | shop
+
+  const cls =
+    phase === 'running' ? 'hell hell-run-modal'
+    : phase === 'done' ? 'hell hell-results-modal'
+    : 'hell hell-lobby-modal';
+
+  return (
+    <Modal onClose={onClose} className={cls} showClose={phase !== 'running'}>
+      {phase === 'running' ? <HellRun />
+        : phase === 'done' ? <HellResults />
+        : tab === 'shop' ? <HellShop onBack={() => setTab('lobby')} />
+        : <HellLobby onShop={() => setTab('shop')} />}
+    </Modal>
+  );
+}
+
+/* ----------------------------- lobby ----------------------------- */
+const selLobby = (s) => ({
+  best: s.hell?.bestFloor || 0,
+  sira: Math.floor(s.sira || 0),
+  unlocked: !!s.hellevatorUnlocked,
+});
+
+function HellLobby({ onShop }) {
+  const engine = useEngine();
+  useEngineFrame(); // živý odpočet regenu žetonů
+  const { best, sira } = useEngineSelector(selLobby, shallowEqual);
+
+  useEffect(() => {
+    engine.tickHellPasses();
+    const id = setInterval(() => engine.tickHellPasses(), 1000);
+    return () => clearInterval(id);
+  }, [engine]);
+
+  const h = engine.state.hell;
+  const passes = h.passes;
+  const canRun = passes >= 1;
+  const regenMs = passes < HELLEVATOR.passMax && h.passAt ? Math.max(0, h.passAt - Date.now()) : 0;
+
+  return (
+    <div className="hell-lobby">
+      <div className="hell-title">🛗 Pekelný výtah</div>
+      <p className="hell-tag">
+        Výtah se utrhl a padá do pekla. Máš <b>60 s</b> — probij se co
+        <b> nejhlouběji</b>. Každé patro = jeden zlý Eki. Rychlá zabití ti
+        <b> přidávají čas</b> na hodinách.
+      </p>
+
+      <div className="hell-lobby-stats">
+        <div className="hell-stat">
+          <span className="lbl">Rekord</span>
+          <span className="val">{best > 0 ? `${best}. patro` : '—'}</span>
+        </div>
+        <div className="hell-stat">
+          <span className="lbl">🔥 Síra</span>
+          <span className="val">{fmt(sira)}</span>
+        </div>
+        <div className="hell-stat">
+          <span className="lbl">🎟️ Žetony</span>
+          <span className="val">{passes}/{HELLEVATOR.passMax}</span>
+        </div>
+      </div>
+
+      {regenMs > 0 && (
+        <div className="hell-regen">Další žeton za {fmtClock(regenMs)}</div>
+      )}
+
+      <button className="hell-go" disabled={!canRun} onClick={() => engine.startHellRun()}>
+        {canRun ? '🔻 Sjet dolů (−1 žeton)' : 'Došly žetony'}
+      </button>
+
+      <button className="hell-shop-link" onClick={onShop}>🔥 Pekelný krám</button>
+
+      <p className="hell-foot">
+        Odměna je 🔥 <b>Síra</b> — exkluzivní měna z výtahu. Skóre i Síra přežijí
+        rebirth (mizí až s koncem sezóny).
+      </p>
+    </div>
+  );
+}
+
+/* ----------------------------- běh (60s sprint) ----------------------------- */
+function HellRun() {
+  useEngineFrame();
+  const engine = useEngine();
+  const r = engine.state.hellRun;
+
+  const lastPunch = useRef(0);
+  const carRef = useRef(null);
+  const reactTimer = useRef(0);
+  const [reactSrc, setReactSrc] = useState(null);
+  const [reactEmoji, setReactEmoji] = useState(null);
+  const [imgMode, setImgMode] = useState(true);
+  const [ext, setExt] = useState(0); // časový tik „+čas!" (rerender klíč)
+
+  useEngineEvent(useCallback((type) => {
+    if (type === 'hellKill') {
+      const el = carRef.current;
+      if (el) { el.classList.remove('drop'); void el.offsetWidth; el.classList.add('drop'); }
+    }
+    if (type === 'hellExtend') setExt((n) => n + 1);
+    if (type === 'hellHit' || type === 'hellKill') {
+      clearTimeout(reactTimer.current);
+      if (imgMode) setReactSrc(REACTION_IMGS[(Math.random() * REACTION_IMGS.length) | 0]);
+      else setReactEmoji(REACTION_EMOJI[(Math.random() * REACTION_EMOJI.length) | 0]);
+      reactTimer.current = setTimeout(() => { setReactSrc(null); setReactEmoji(null); }, 340);
+    }
+  }, [imgMode]));
+
+  const punch = useCallback((e) => {
+    if (e.button != null && e.button !== 0) return;
+    if (!e.nativeEvent?.isTrusted) return;
+    const now = performance.now();
+    if (now - lastPunch.current < CONFIG.minClickMs) return;
+    lastPunch.current = now;
+    engine.hellPunch();
+  }, [engine]);
+
+  if (!r) return null;
+  const now = performance.now();
+  const remaining = Math.max(0, r.endsAt - now);
+  const panic = remaining <= 10_000;
+  const secs = remaining / 1000;
+  const v = hellEnemyAt(r.floor);
+  const hpPct = r.maxHp > 0 ? Math.max(0, Math.min(100, (r.hp / r.maxHp) * 100)) : 0;
+  const frenzyOn = now < r.frenzy.until;
+  const frenzyPct = frenzyOn ? 100 : Math.min(100, (r.frenzy.charge / HELLEVATOR.frenzyClicksToFill) * 100);
+  const boss = isHellBossFloor(r.floor);
+
+  return (
+    <div className={'hell-run' + (panic ? ' panic' : '')}>
+      <div className="hell-run-top">
+        <div className="hell-floor">
+          <span className="num">{r.floor}.</span>
+          <span className="lbl">patro</span>
+        </div>
+        <div className={'hell-clock' + (panic ? ' panic' : '')}>
+          <span className="t">{secs.toFixed(panic ? 1 : 0)}</span>
+          <span className="u">s</span>
+          <span key={ext} className="hell-ext">+čas!</span>
+        </div>
+      </div>
+
+      <div className={'hell-shaft' + (panic ? ' panic' : '')}>
+        <div className="hell-floor-ghost up">{r.floor + 1}</div>
+        <div
+          className={'hell-car' + (boss ? ' boss' : '')}
+          ref={carRef}
+          onPointerDown={punch}
+          style={{ '--glow': v.glow }}
+        >
+          <div className="hell-enemy-name">{hellEnemyName(r.floor)}</div>
+          <div className="hell-enemy-tier">{boss ? '☠️ ' : ''}{hellEnemyTier(r.floor)}</div>
+          <div className="hell-photo-wrap">
+            <div className="photo-glow" style={{ background: v.glow }} />
+            {imgMode ? (
+              <img
+                className="photo"
+                src={reactSrc || PLACEHOLDER}
+                alt={hellEnemyName(r.floor)}
+                style={{ filter: v.filter || 'none' }}
+                onError={() => setImgMode(false)}
+                draggable={false}
+              />
+            ) : (
+              <div className="face-fallback" style={{ filter: v.filter || 'none' }}>{reactEmoji || '😈'}</div>
+            )}
+            <div className="tint" style={{ background: v.tint || 'transparent', opacity: v.tint ? 1 : 0 }} />
+          </div>
+          <div className="hpbar hell-hp">
+            <div className="hpfill" style={{ width: hpPct + '%' }} />
+            <div className="hptext">{fmt(Math.ceil(r.hp))} / {fmt(r.maxHp)}</div>
+          </div>
+        </div>
+        <div className="hell-floor-ghost down">{r.floor - 1 > 0 ? r.floor - 1 : ''}</div>
+      </div>
+
+      <div className={'hell-frenzy' + (frenzyOn ? ' on' : '')}>
+        <div className="fill" style={{ width: frenzyPct + '%' }} />
+        <span className="num">{frenzyOn ? '🔥 ZUŘIVOST!' : 'klikej — nabíjíš zuřivost'}</span>
+      </div>
+
+      <button className="punch-btn hell-punch" tabIndex={-1} onPointerDown={punch}>
+        DEJ MU! 👊
+      </button>
+
+      <div className="hell-run-foot">
+        <span>{r.comboExt > 0 ? `⏱️ prodloužení ×${r.comboExt}` : 'rychlá zabití přidávají čas'}</span>
+        <button className="hell-give" onClick={() => engine.finishHellRun()}>Vzdát</button>
+      </div>
+    </div>
+  );
+}
+
+/* ----------------------------- výsledky ----------------------------- */
+function HellResults() {
+  const engine = useEngine();
+  useEngineFrame();
+  const r = engine.state.hellRun;
+  if (!r || !r.summary) return null;
+  const sum = r.summary;
+  const passes = engine.state.hell.passes;
+
+  const again = () => { engine.dismissHellRun(); engine.startHellRun(); };
+  const back = () => { engine.dismissHellRun(); };
+
+  return (
+    <div className="hell-results">
+      <div className="hell-res-burst">💥</div>
+      <div className="hell-res-floor">
+        {sum.deepestFloor > 0 ? <>Dno v <b>{sum.deepestFloor}.</b> patře</> : 'Ani první patro… 🔥'}
+      </div>
+      {sum.record && <div className="hell-res-record">🏆 Nový rekord! (bylo {sum.prevBest})</div>}
+
+      <div className="hell-res-rows">
+        <div className="hell-res-row"><span>🔥 Za patra</span><b>+{fmt(sum.base)}</b></div>
+        {sum.recordBonus > 0 && <div className="hell-res-row"><span>🏆 Bonus za rekord</span><b>+{fmt(sum.recordBonus)}</b></div>}
+        {sum.dailyBonus > 0 && <div className="hell-res-row"><span>📅 První běh dne</span><b>+{fmt(sum.dailyBonus)}</b></div>}
+        <div className="hell-res-row total"><span>🔥 Síra celkem</span><b>+{fmt(sum.sira)}</b></div>
+        {sum.comboExt > 0 && <div className="hell-res-row sub"><span>⏱️ Prodloužení času</span><b>×{sum.comboExt}</b></div>}
+      </div>
+
+      <div className="hell-res-actions">
+        <button className="hell-go" disabled={passes < 1} onClick={again}>
+          {passes >= 1 ? '🔻 Znovu (−1 žeton)' : 'Došly žetony'}
+        </button>
+        <button className="hell-shop-link" onClick={back}>Zpět do lobby</button>
+      </div>
+    </div>
+  );
+}
+
+/* mm:ss z ms */
+function fmtClock(ms) {
+  const s = Math.ceil(ms / 1000);
+  const m = Math.floor(s / 60);
+  const ss = s % 60;
+  return m > 0 ? `${m}:${String(ss).padStart(2, '0')}` : `${ss} s`;
+}

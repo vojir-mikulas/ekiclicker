@@ -71,6 +71,13 @@ export function buildSnapshot(state) {
     // mistrovská mřížka 🔱: nevyutracené body + ranky uzlů (aditivní — starý save = prázdná)
     masteryUnlocked: state.masteryUnlocked,
     mastery: state.mastery,
+    // Pekelný výtah 🛗: odemčení + rekord/žetony + 🔥 Síra + koupené perky (aditivní;
+    // hellRun je PŘECHODNÝ → ZÁMĚRNĚ se neukládá, jako pendingOpen)
+    hellevatorUnlocked: state.hellevatorUnlocked,
+    hell: state.hell,
+    sira: state.sira,
+    hellShop: state.hellShop,
+    hellExch: state.hellExch,
     runGearPower: state.runGearPower,
     // elixíry: aktivní buff (until = epoch ms) + sklad (aditivní — starý save bez nich = prázdný)
     elixir: state.elixir,
@@ -142,6 +149,15 @@ export function hydrateState(d) {
   state.mastery = (d.mastery && typeof d.mastery === 'object' && d.mastery.nodes)
     ? { points: d.mastery.points || 0, nodes: { ...d.mastery.nodes } }
     : createMastery();
+  // Pekelný výtah 🛗 (starý save → prázdné). hellRun je přechodný → po reloadu null.
+  state.hellevatorUnlocked = !!d.hellevatorUnlocked;
+  state.hell = (d.hell && typeof d.hell === 'object')
+    ? { bestFloor: d.hell.bestFloor || 0, passes: d.hell.passes || 0, passAt: d.hell.passAt || 0, freeDay: d.hell.freeDay || '', lastRunDay: d.hell.lastRunDay || '' }
+    : { bestFloor: 0, passes: 0, passAt: 0, freeDay: '', lastRunDay: '' };
+  state.sira = d.sira || 0;
+  state.hellShop = (d.hellShop && typeof d.hellShop === 'object') ? { ...d.hellShop } : {};
+  state.hellExch = (d.hellExch && typeof d.hellExch === 'object') ? { day: d.hellExch.day || '', dust: d.hellExch.dust || 0 } : { day: '', dust: 0 };
+  state.hellRun = null;
   state.runGearPower = d.runGearPower || gearPower(state.equipment) * petPower(state);
   // elixíry: sklad (aditivní) + běžící buff jen pokud ještě nevypršel (jinak zahodit)
   state.elixirStock = (d.elixirStock && typeof d.elixirStock === 'object') ? d.elixirStock : {};

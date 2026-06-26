@@ -10,6 +10,14 @@
    - Rychlost zbraní má strop (anti-lag) a poškození se aplikuje jako DPS×Δt,
      takže projektily jsou jen efekt a hra neseká ani při obřím DPS.
    ========================================================================= */
+// Ladicí přepis číselných knobů přes env (jen pro simulátor; v prohlížeči je
+// `process` undefined → vždy se použijí výchozí literály níže). Umožní `FLOOR=1.01
+// node scripts/simulate.js` bez editace souboru.
+const tune = (k, d) => {
+  const v = typeof process !== 'undefined' && process.env ? process.env[k] : undefined;
+  return v !== undefined && v !== '' ? Number(v) : d;
+};
+
 export const CONFIG = {
   // --- nepřítel: KŘIVKA OBTÍŽNOSTI (klesající růst / decaying growth) ---
   // Růst HP za úroveň NENÍ konstantní — klesá z curveG0 k curveFloor podle
@@ -20,13 +28,15 @@ export const CONFIG = {
   // konstantní hpGrowth=1,155, kvůli kterému měl L3000 ~1e188 HP a zbraně „nic".
   baseHp: 10,
   baseGold: 14,
-  curveG0: 1.16,    // počáteční růst HP/úroveň (≈ původní hpGrowth)
-  curveFloor: 1.0,  // asymptota růstu v pozdní hře (×1 → HP přestane prudce růst)
-  curveKnee: 200,   // „koleno": L, kde růst klesne na půl cesty mezi G0 a floor
+  curveG0: tune('G0', 1.16),    // počáteční růst HP/úroveň (≈ původní hpGrowth)
+  curveFloor: tune('FLOOR', 1.0), // asymptota růstu — 1,0 drží STŘEDNÍ hru mírnou
+  // (dosažitelnou, zbraně fungují). Tvrdost endgame řeší ZVLÁŠŤ hluboký harden níž
+  // (hardenFrom/Ramp), takže střed a hloubka mají oddělené páky a neperou se.
+  curveKnee: tune('KNEE', 200),   // „koleno": L, kde růst klesne na půl cesty mezi G0 a floor
   // Zlato je svázané se STEJNOU křivkou: goldGrowth(L) = 1 + goldRatio×(g(L)-1).
   // goldRatio<1 → mírná, ale TRVALÁ brzda (odměna/HP pomalu klesá → zeď existuje
   // v každé hloubce, žádný coast-to-∞). HLAVNÍ ladicí páka obtížnosti („mid").
-  goldRatio: 0.62,
+  goldRatio: tune('RATIO', 0.62),
   bossEvery: 5, // každá 5. úroveň = boss (Golden Eki)
   megaBossEvery: 25, // každá 25. = mega boss (Eki Král)
   ultraBossEvery: 100, // každá 100. = ultra boss (Eki Titán) — endgame milník
@@ -51,9 +61,13 @@ export const CONFIG = {
   archonBossLootMult: 8, // Eki Archón: obří balík zlata…
   archonBossDoves: 5, // …a zaručeně 5 🕊 + jeden kus sady „Věčný" (rollSetItem)
 
-  // --- pozdní hra (graduální ztížení) ---
-  hardenFrom: 80, // od této úrovně se HP začne ztěžovat navíc
-  hardenRamp: 1.012, // +1.2 % HP/úroveň nad hardenFrom (kumulativně)
+  // --- HLUBOKÝ HARDEN (druhá regimová páka: tvrdá zeď endgame) ---
+  // Nad hardenFrom dostane HP ČISTÝ geometrický ocas hardenRamp^(L-hardenFrom), který
+  // se přičte NAD mírnou křivku. Pod hardenFrom = ×1 (střední hra netknutá → obsah
+  // 1000-4000 dosažitelný, zbraně fungují). Nad ním HP prudce roste → 5000-10000 je
+  // skutečná zeď, silný build už nic neone-hitne. Laděno simulátorem (HFROM/HRAMP env).
+  hardenFrom: tune('HFROM', 3000), // odkud začíná tvrdý endgame ocas
+  hardenRamp: tune('HRAMP', 1.018), // +1,8 % HP/úroveň nad hardenFrom (kumulativně → strmé)
 
   // --- obtížnost škáluje s prestige silou (ANTI-BLITZ) ---
   // Problém: po rebirthu si neseš veškerou prestige sílu (hlavně Věčný hněv,
@@ -70,7 +84,7 @@ export const CONFIG = {
   // Laděno simulátorem (blitz tabulka): @0,95 hluboká prestiž one-hitne jen ~300-600 lvl
   // pak GRIND na ~2300-3200 (whale). Nad ~0,97 se prestiž slévá; @1,0 už škodí (fist se
   // ve snapshotu přepočítává). 0,95 = „svižné tempo, prestiž pořád odměňuje hloubku".
-  difficultyExp: 0.95,
+  difficultyExp: tune('DEXP', 0.95),
 
   // --- souboj ---
   critChance: 0.1,
@@ -117,6 +131,16 @@ export const CONFIG = {
   // --- Lucky Eki (zlatá sušenka) ---
   luckySpawnChancePerSec: 0.018, // šance/s, že se objeví
   luckyLifetimeMs: 9000,
+
+  // --- Pekelný výtah (Hellevator) ---
+  // Patro = jeden démon; HP každého patra = HP wall-Ekiho × hellBaseFrac × hellGrowth^(f-1).
+  // hellBaseFrac stáhne PRVNÍ patro na malý zlomek wall-enemy (rychlý rozjezd), hellGrowth
+  // pak dělá ČISTÝ exponenciál → ~50 pater je matematická zeď i pro whaly. Obě páčky se ladí
+  // simulátorem proti reálnému DPS (cíl ~30–50 pater u dobrého buildu). Protože base škáluje
+  // s highestLevel × difficultyScale (jako svět), počet pater je POWER-NORMALIZOVANÝ —
+  // měří headroom buildu, ne raw progres. (Plný config je v data/hellevator.js.)
+  hellBaseFrac: 0.025, // patro 1 = 2,5 % HP wall-Ekiho na tvé nejvyšší úrovni
+  hellGrowth: 1.18,    // násobič HP mezi patry (čistý exponenciál → zeď kolem ~50)
 };
 
 /* Zrychlující obtížnost v pozdní hře (PONECHÁNO pro zpětnou kompatibilitu, ale

@@ -2,7 +2,7 @@
    FORMULAS — čistá matematika hry (žádný stav, žádné DOM).
    Vše odvozené z herního stavu. Testovatelné, sdílené simulátorem i enginem.
    ========================================================================= */
-import { CONFIG, MULT, CAPS, hpCurve, goldCurve } from './config.js';
+import { CONFIG, MULT, CAPS, hpCurve, goldCurve, hardenScale } from './config.js';
 import { WEAPONS } from './data/weapons.js';
 import { UPGRADES } from './data/upgrades.js';
 import { PRESTIGE_ALL } from './data/prestige.js';
@@ -13,6 +13,7 @@ import { albumStats } from './data/album.js';
 import { socketStats } from './data/runes.js';
 import { masteryStats } from './data/mastery.js';
 import { elixirMods } from './data/elixirs.js';
+import { hellEnemyAt, hellShopStats } from './data/hellevator.js';
 
 /* Součet afixů z nasazeného vybavení — sdílí ho všechny bojové formulky.
    Čistá funkce nad stavem; vybavení přidává jen BOUNDED % (žádný nový exponenciál). */
@@ -40,6 +41,11 @@ export function combatStats(s) {
     out.goldPct = (out.goldPct || 0) + (guild.goldFind || 0);
     out.luck = (out.luck || 0) + (guild.luck || 0);
   }
+  // 🛗 perky Pekelného krámu (kupované za 🔥): bounded goldPct + luck, BEZ dmgPct →
+  // mimo difficultyScale (jako cech/album). dustFind jede zvlášť přes dustMult.
+  const hell = hellShopStats(s);
+  out.goldPct = (out.goldPct || 0) + hell.goldPct;
+  out.luck = (out.luck || 0) + hell.luck;
   return out;
 }
 
@@ -123,7 +129,7 @@ export const comboCap = (s) => CONFIG.comboMax + capLevel(s, 'comboMaster') * CA
 export const bossTimeMult = (s) => 1 + capLevel(s, 'bossHunter') * CAPS.bossTimePerLevel + (masteryStats(s).bossTime || 0);
 export const bossGoldMult = (s) => 1 + capLevel(s, 'bossHunter') * CAPS.bossGoldPerLevel + (masteryStats(s).bossGold || 0);
 /* ⚒️ Klenotník — víc úlomků a vyšší šance na drop (+ mřížka ⚒️ Kovář / 🌟 / 🎯 / 👑). */
-export const dustMult = (s) => 1 + capLevel(s, 'jeweler') * CAPS.dustPerLevel + (masteryStats(s).dustPct || 0) + ((s.guildPerks && s.guildPerks.dustFind) || 0);
+export const dustMult = (s) => 1 + capLevel(s, 'jeweler') * CAPS.dustPerLevel + (masteryStats(s).dustPct || 0) + ((s.guildPerks && s.guildPerks.dustFind) || 0) + hellShopStats(s).dustFind;
 export const dropChanceBonus = (s) => capLevel(s, 'jeweler') * CAPS.dropChancePerLevel + (masteryStats(s).dropChance || 0);
 
 export function speedMult(s) {
@@ -251,12 +257,29 @@ export function difficultyScale(s) {
 
 /* ----------------------------- nepřítel ----------------------------- */
 export function enemyMaxHp(level, variant, diff = 1) {
-  // HP = baseHp × křivka obtížnosti (klesající růst) × varianta × prestige-snapshot.
-  // hpCurve nahrazuje původní hpGrowth^(L-1) × hardenScale — tvar dělá křivka sama.
-  return Math.ceil(CONFIG.baseHp * hpCurve(level) * variant.hp * diff);
+  // HP = baseHp × křivka (klesající růst → mírná dosažitelná střední hra) × varianta
+  // × prestige-snapshot × HLUBOKÝ HARDEN (geometrický ocas od hardenFrom → 5000-10000
+  // je TVRDÁ zeď, žádný coast/one-hit v endgame). Dvě nezávislé páky: křivka = střed,
+  // hardenScale = hloubka.
+  return Math.ceil(CONFIG.baseHp * hpCurve(level) * variant.hp * diff * hardenScale(level));
 }
 export function enemyReward(level, variant, goldMultVal) {
   // Zlato roste po STEJNÉ křivce (goldCurve = mírnější verze hpCurve dle goldRatio),
   // takže odměna/HP klesá jen pozvolna → ekonomika drží krok i v pozdní hře.
   return Math.ceil(CONFIG.baseGold * goldCurve(level) * variant.gold * goldMultVal);
+}
+
+/* ----------------------------- Pekelný výtah (patra) -----------------------------
+   HP patra = HP wall-Ekiho (na tvé NEJVYŠŠÍ úrovni × difficultyScale, jako svět)
+   × hellBaseFrac (stáhne patro 1 na malý zlomek) × hellGrowth^(f-1) (čistý
+   exponenciál → ~50 pater dělá zeď) × násobič démona/bosse. Protože base škáluje
+   s prestige stejně jako poškození, POČET pater měří mezeru mezi tvým 60s výbuchem
+   a tvojí ustálenou zdí = headroom buildu (power-normalizováno). Žádný Date.now()
+   → deterministický simulátor i server-přepočet (fáze 4). */
+export const hellCurve = (f) => Math.pow(CONFIG.hellGrowth, Math.max(0, f - 1));
+
+export function hellFloorHp(s, f) {
+  const base = enemyMaxHp(s.highestLevel, { hp: 1, gold: 1 }, difficultyScale(s));
+  const enemy = hellEnemyAt(f);
+  return Math.ceil(base * CONFIG.hellBaseFrac * hellCurve(f) * enemy.hp);
 }
