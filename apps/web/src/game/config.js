@@ -29,7 +29,7 @@ export const CONFIG = {
   baseHp: 10,
   baseGold: 14,
   curveG0: tune('G0', 1.16),    // počáteční růst HP/úroveň (≈ původní hpGrowth)
-  curveFloor: tune('FLOOR', 1.025), // asymptota růstu HP/úroveň. Efekt SE SČÍTÁ S HLOUBKOU
+  curveFloor: tune('FLOOR', 1.019), // asymptota růstu HP/úroveň. Efekt SE SČÍTÁ S HLOUBKOU
   // (kumulativní součin), takže páčka se chová jako „strmost coastu PO startu": brzká/landing
   // zóna se skoro nehne, ale každá úroveň nad kolenem je čím dál tvrdší. 1,0 = stará mírná
   // (whale coastoval na ~1500 / r260-prestiž na ~5000); 1,012 utahuje pozdní climb VÝRAZNĚ
