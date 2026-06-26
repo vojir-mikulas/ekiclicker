@@ -31,6 +31,15 @@ export const WEAPONS = [
   { id: 'ufo',       emoji: '🛸', name: 'Vesmírná invaze',   baseCost: 9.3e25,    baseDmg: 1.2e18,   interval: 4400, flight: 750, unlock: 1640 },
   { id: 'darkmatter',emoji: '🌑', name: 'Temná hmota',       baseCost: 1.4e27,    baseDmg: 8.4e18,   interval: 4500, flight: 760, unlock: 1980 },
   { id: 'heatdeath', emoji: '⏳', name: 'Konec vesmíru',     baseCost: 2.2e28,    baseDmg: 5.9e19,   interval: 4500, flight: 770, unlock: 2400 },
+  // --- hluboký endgame: arzenál za „Koncem vesmíru" (drží stejnou geometrii ×7 dmg /
+  // ×~15,5 cena za tier → sedí na ROI křivku). Vyplňuje pásmo 2400→5300, kam dosáhne
+  // hluboká prestiž po křivkové přestavbě obtížnosti (viz config decaying curve). ---
+  { id: 'singularity', emoji: '🌀', name: 'Singularita',        baseCost: 3.4e29,    baseDmg: 4.1e20,   interval: 4500, flight: 775, unlock: 2800 },
+  { id: 'quantum',     emoji: '⚛️', name: 'Kvantová trhlina',   baseCost: 5.3e30,    baseDmg: 2.9e21,   interval: 4500, flight: 780, unlock: 3250 },
+  { id: 'bigbang',     emoji: '🎆', name: 'Velký třesk',        baseCost: 8.2e31,    baseDmg: 2.0e22,   interval: 4500, flight: 785, unlock: 3700 },
+  { id: 'infinity',    emoji: '♾️', name: 'Nekonečná smyčka',   baseCost: 1.3e33,    baseDmg: 1.4e23,   interval: 4500, flight: 790, unlock: 4200 },
+  { id: 'hypernova',   emoji: '🌟', name: 'Hypernova',          baseCost: 2.0e34,    baseDmg: 9.9e23,   interval: 4500, flight: 795, unlock: 4700 },
+  { id: 'genesis',     emoji: '🔆', name: 'Genesis',            baseCost: 3.1e35,    baseDmg: 6.9e24,   interval: 4500, flight: 800, unlock: 5300 },
 ];
 
 export const WEAPON_BY_ID = Object.fromEntries(WEAPONS.map((w) => [w.id, w]));

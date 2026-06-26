@@ -334,3 +334,116 @@ export function checkPlausibility(prev, next, nowMs) {
 
   return { ok: true };
 }
+
+/* =========================================================================
+   CECHY (GUILDS) — sociální vrstva: persistentní skupina (jméno + [TAG] + roster)
+   se sezónně resetovaným postavením a bounded perky. Filosofie je stejná jako
+   u zbytku hry:
+     • POSTAVENÍ cechu je VŽDY serverový AGREGÁT z UŽ ATESTOVANÝCH dat členů
+       (season_scores.highestLevel/peakDps + světový boss) — NIKDY nové číslo,
+       které by klient tvrdil. Cheatovat cech = cheatovat žebříček → žádná díra.
+     • PERKY jsou bounded gold/dust/luck a NESOU `dmgPct=0` → mimo difficultyScale,
+       takže nemůžou prorazit zeď ani kontaminovat blitz/žebříček (jako album/runy).
+     • IDENTITA (guilds, guild_members) přežívá sezónu; POSTAVENÍ (guild_season)
+       resetuje — stejný split jako players vs season_scores.
+     • Žádný realtime — MOTD + feed (POST+poll), ne živý chat.
+   Měnové sinky (zakládací poplatek) jsou KLIENTSKÉ jako celá ekonomika (gold/💠/🕊
+   žijí v lokálním save); server gateuje jen ATESTOVANOU úroveň. ======================= */
+export const GUILDS = {
+  foundLevel: 1000,        // gate pro založení (atestovaná highestLevel — první „endgame" brána)
+  joinLevel: 100,          // gate pro vstup (sjednoceno s Hellevator unlockem)
+  foundFeeDust: 500,       // jednorázový sink 💠 při založení (KLIENTSKÝ — lokální ekonomika)
+  baseMemberCap: 20,       // základní strop členů (zvyšují perky úrovně cechu)
+  perIpDailyGuildCap: 3,   // anti-squatting: max nově založených cechů z jedné IP / 24 h
+  maxLevel: 10,            // strop úrovně cechu (= poslední perk tier)
+  motdMax: 200,            // délka MOTD
+  name: { min: 3, max: 24, reserved: ['admin', 'system', 'eki', 'moderator', 'mod', 'null'] },
+  tag: { min: 2, max: 4 },
+  feedLimit: 20,           // kolik událostí drží feed (Fáze 6)
+};
+
+/* Role v cechu (přesně jeden master). */
+export const GUILD_ROLES = ['master', 'officer', 'member'];
+export function isGuildRole(r) { return GUILD_ROLES.includes(r); }
+
+/* Perk tiery podle úrovně cechu — bounded gold/dust/luck (ŽÁDNÝ dmgPct) + sloty.
+   Aplikuje je KLIENT stejně jako album/mastery; server perk-matiku nevynucuje
+   (jsou to plausibility-bounded výstupy mimo difficultyScale). */
+export const GUILD_PERK_TIERS = [
+  { level: 1,  goldFind: 0.03, dustFind: 0,    luck: 0,    memberSlots: 0 },
+  { level: 3,  goldFind: 0.03, dustFind: 0.03, luck: 0,    memberSlots: 0 },
+  { level: 5,  goldFind: 0.05, dustFind: 0.03, luck: 0.02, memberSlots: 0 },
+  { level: 8,  goldFind: 0.06, dustFind: 0.05, luck: 0.03, memberSlots: 1 },
+  { level: 10, goldFind: 0.08, dustFind: 0.06, luck: 0.04, memberSlots: 2 },
+];
+
+/* Aktivní perky = nejvyšší tier, jehož `level` cech dosáhl. */
+export function guildPerks(level) {
+  let p = { goldFind: 0, dustFind: 0, luck: 0, memberSlots: 0 };
+  for (const t of GUILD_PERK_TIERS) if ((Number(level) || 1) >= t.level) p = t;
+  return { goldFind: p.goldFind, dustFind: p.dustFind, luck: p.luck, memberSlots: p.memberSlots };
+}
+
+/* Strop členů = základ + sloty z perků (bounded jako každý raids/boss cap). */
+export function guildMemberCap(level) {
+  return GUILDS.baseMemberCap + guildPerks(level).memberSlots;
+}
+
+/* Práh příspěvku pro úroveň cechu — step funkce (jako reward tiery). Úroveň L
+   vyžaduje GUILD_LEVEL_THRESHOLDS[L-1] příspěvku. Vstup do příspěvku je vždy
+   bounded (guildContribWeight*), takže prahy jsou kalibrované na AKTIVNÍ roster:
+   člen přispěje ~1,5–7 (slabý–whale), strop členů ~22 → plný silný cech se blíží
+   úrovni 10 (≈150), smíšený dosáhne 6–8, malá parta 2–4. Záměrně laditelné. */
+export const GUILD_LEVEL_THRESHOLDS = [0, 10, 22, 36, 52, 70, 90, 112, 130, 150];
+export function guildLevelForContribution(contribution) {
+  const c = Math.max(0, Number(contribution) || 0);
+  let lvl = 1;
+  for (let i = 0; i < GUILD_LEVEL_THRESHOLDS.length; i += 1) {
+    if (c >= GUILD_LEVEL_THRESHOLDS[i]) lvl = i + 1;
+  }
+  return Math.min(GUILDS.maxLevel, lvl);
+}
+
+/* Váha člena dle ATESTOVANÉ úrovně — log-bounded (jako worldBossWeight), aby
+   jeden whale nezastínil celý aktivní cech. ~lvl 100 → ≈1,0 · 1000 → ≈1,75 · 5000 → ≈2,4. */
+export function guildLevelWeight(highestLevel) {
+  const l = Math.max(1, Number(highestLevel) || 1);
+  return Math.min(3, Math.max(0.3, 0.25 + Math.log10(l + 1) / 2));
+}
+
+/* Váha člena dle ATESTOVANÉHO peakDps — sdílí log-bounded tvar se světovým bossem. */
+export function guildDpsWeight(peakDps) {
+  return worldBossWeight(peakDps);
+}
+
+/* Odměna člena za umístění cechu na sezónním žebříčku (snapshot při uzávěrce).
+   Bounded 🕊 + 💠 (žádný dmgPct), tvarem jako worldBossReward / season_rewards. */
+export function guildSeasonReward(rank) {
+  if (rank === 1) return { doves: 40, dust: 400 };
+  if (rank <= 3) return { doves: 24, dust: 250 };
+  if (rank <= 10) return { doves: 14, dust: 150 };
+  if (rank <= 25) return { doves: 6, dust: 80 };
+  return { doves: 0, dust: 0 };
+}
+
+/* ---------- jméno / tag cechu (zrcadlí validateNickname) ---------- */
+export function validateGuildName(raw) {
+  if (typeof raw !== 'string') return { ok: false, error: 'Jméno cechu chybí.' };
+  const value = raw.trim().replace(/\s+/g, ' ');
+  if (value.length < GUILDS.name.min) return { ok: false, error: `Jméno musí mít aspoň ${GUILDS.name.min} znaky.` };
+  if (value.length > GUILDS.name.max) return { ok: false, error: `Jméno smí mít nejvýš ${GUILDS.name.max} znaků.` };
+  if (!/^[\p{L}\p{N} _-]+$/u.test(value)) return { ok: false, error: 'Povolena jsou jen písmena, číslice, mezera, _ a -.' };
+  if (GUILDS.name.reserved.includes(value.toLowerCase())) return { ok: false, error: 'Toto jméno je rezervované.' };
+  return { ok: true, value };
+}
+
+/* TAG: 2–4 znaky, jen písmena/číslice (bez diakritiky), normalizován na VELKÁ. */
+export function validateGuildTag(raw) {
+  if (typeof raw !== 'string') return { ok: false, error: 'TAG chybí.' };
+  const value = raw.trim().toUpperCase();
+  if (value.length < GUILDS.tag.min || value.length > GUILDS.tag.max) {
+    return { ok: false, error: `TAG musí mít ${GUILDS.tag.min}–${GUILDS.tag.max} znaky.` };
+  }
+  if (!/^[A-Z0-9]+$/.test(value)) return { ok: false, error: 'TAG smí mít jen písmena A–Z a číslice.' };
+  return { ok: true, value };
+}

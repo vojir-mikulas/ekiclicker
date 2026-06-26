@@ -6,6 +6,7 @@ import Arena from './arena/Arena.jsx';
 import Shop from './shop/Shop.jsx';
 import EffectsLayer from './EffectsLayer.jsx';
 import ToastHost from './ToastHost.jsx';
+import UpdateBanner from './UpdateBanner.jsx';
 import SideBanners from './SideBanners.jsx';
 import ModalFallback from './modals/ModalFallback.jsx';
 
@@ -31,11 +32,13 @@ const SeasonEndModal = lazy(() => import('./modals/SeasonEndModal.jsx'));
 const NewSeasonModal = lazy(() => import('./modals/NewSeasonModal.jsx'));
 const WorldBossView = lazy(() => import('./worldboss/WorldBossView.jsx'));
 const RaidView = lazy(() => import('./raid/RaidView.jsx'));
+const GuildView = lazy(() => import('./guild/GuildView.jsx'));
+const FoundGuildModal = lazy(() => import('./modals/FoundGuildModal.jsx'));
 
 export default function Game() {
   const engine = useEngine();
   const account = useAccount();
-  const [view, setView] = useState('game'); // 'game' | 'boss' | 'raid' | 'board'
+  const [view, setView] = useState('game'); // 'game' | 'boss' | 'raid' | 'guild' | 'board'
   const [modal, setModal] = useState(null); // 'settings' | 'rebirth' | 'join' | 'account' | null
   const [offline, setOffline] = useState(null);
   const [gift, setGift] = useState(null);
@@ -89,6 +92,10 @@ export default function Game() {
         <Suspense fallback={<div className="board-loading">Načítám arénu…</div>}>
           <RaidView onJoin={() => setModal('join')} onSelectPlayer={setProfileId} />
         </Suspense>
+      ) : view === 'guild' ? (
+        <Suspense fallback={<div className="board-loading">Načítám cech…</div>}>
+          <GuildView onJoin={() => setModal('join')} onSelectPlayer={setProfileId} onFound={() => setModal('foundGuild')} />
+        </Suspense>
       ) : (
         <Suspense fallback={<div className="board-loading">Načítám žebříček…</div>}>
           <Seasons onJoin={() => setModal('join')} onSelectPlayer={setProfileId} />
@@ -98,6 +105,7 @@ export default function Game() {
       <SideBanners />
       {view === 'game' && <EffectsLayer />}
       <ToastHost />
+      <UpdateBanner />
 
       <Suspense fallback={<ModalFallback />}>
         {modal === 'settings' && <SettingsModal onClose={() => setModal(null)} />}
@@ -112,6 +120,7 @@ export default function Game() {
         {modal === 'runes' && <RunesModal onClose={() => setModal(null)} />}
         {modal === 'mastery' && <MasteryModal onClose={() => setModal(null)} />}
         {modal === 'album' && <AlbumModal onClose={() => setModal(null)} />}
+        {modal === 'foundGuild' && <FoundGuildModal onClose={() => setModal(null)} />}
         {pendingEggId && <PetRevealModal key={pendingEggId} />}
         {modal === 'daily' && <DailyQuests onClose={() => setModal(null)} />}
         {offline && <OfflineModal offline={offline} onClose={() => setOffline(null)} />}

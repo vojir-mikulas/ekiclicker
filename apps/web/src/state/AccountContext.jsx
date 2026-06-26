@@ -55,6 +55,8 @@ export function AccountProvider({ children }) {
     const res = await api.enterSeason(); // vyhodí chybu → modal ji ošetří
     engine.hardReset();
     if (res.reward && res.reward.forgiveness) engine.grantForgiveness(res.reward.forgiveness);
+    // odměna za umístění cechu z minulé sezóny (bounded 🕊+💠; připíše do čerstvého běhu)
+    if (res.guildReward && (res.guildReward.doves || res.guildReward.dust)) engine.grantRaidLoot(res.guildReward);
     const number = pendingSeason?.activeNumber;
     setPendingSeason(null);
     setNewSeason({ number, reward: res.reward || null }); // hype: „Sezóna N je tady!"

@@ -32,6 +32,7 @@ import seasonsRoutes from './routes/seasons.js';
 import playersRoutes from './routes/players.js';
 import worldBossRoutes from './routes/worldboss.js';
 import raidsRoutes from './routes/raids.js';
+import guildsRoutes, { meGuildRouter } from './routes/guilds.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number.parseInt(process.env.PORT ?? '', 10) || 3000;
@@ -76,6 +77,8 @@ api.use('/seasons', seasonsRoutes);
 api.use('/players', playersRoutes);
 api.use('/world-boss', worldBossRoutes);
 api.use('/raids', raidsRoutes);
+api.use('/guilds', guildsRoutes);
+api.use('/me/guild', meGuildRouter);
 
 app.use('/api', api);
 

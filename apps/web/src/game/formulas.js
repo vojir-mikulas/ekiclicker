@@ -33,6 +33,13 @@ export function combatStats(s) {
   const mastery = masteryStats(s); // 🔱 mistrovská mřížka (afixové klíče; bez dmgPct)
   const out = {};
   for (const k in gear) out[k] = gear[k] + (pet[k] || 0) + (album[k] || 0) + (socket[k] || 0) + (mastery[k] || 0);
+  // 🛡️ perky cechu (server-derived): bounded goldPct + luck, BEZ dmgPct → mimo
+  // difficultyScale. dustFind jede zvlášť přes dustMult (stejně jako Klenotník).
+  const guild = s.guildPerks;
+  if (guild) {
+    out.goldPct = (out.goldPct || 0) + (guild.goldFind || 0);
+    out.luck = (out.luck || 0) + (guild.luck || 0);
+  }
   return out;
 }
 
@@ -116,7 +123,7 @@ export const comboCap = (s) => CONFIG.comboMax + capLevel(s, 'comboMaster') * CA
 export const bossTimeMult = (s) => 1 + capLevel(s, 'bossHunter') * CAPS.bossTimePerLevel + (masteryStats(s).bossTime || 0);
 export const bossGoldMult = (s) => 1 + capLevel(s, 'bossHunter') * CAPS.bossGoldPerLevel + (masteryStats(s).bossGold || 0);
 /* ⚒️ Klenotník — víc úlomků a vyšší šance na drop (+ mřížka ⚒️ Kovář / 🌟 / 🎯 / 👑). */
-export const dustMult = (s) => 1 + capLevel(s, 'jeweler') * CAPS.dustPerLevel + (masteryStats(s).dustPct || 0);
+export const dustMult = (s) => 1 + capLevel(s, 'jeweler') * CAPS.dustPerLevel + (masteryStats(s).dustPct || 0) + ((s.guildPerks && s.guildPerks.dustFind) || 0);
 export const dropChanceBonus = (s) => capLevel(s, 'jeweler') * CAPS.dropChancePerLevel + (masteryStats(s).dropChance || 0);
 
 export function speedMult(s) {

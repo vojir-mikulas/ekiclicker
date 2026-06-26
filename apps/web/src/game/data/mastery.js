@@ -20,7 +20,11 @@
 
 export const MASTERY = {
   unlockLevel: 4000, // od této NEJVYŠŠÍ dosažené úrovně se mřížka odemkne (laditelné; sniž pro testy)
-  pointsPerLevel: 1, // 🔱 za každou úroveň zabitou NAD unlockLevel
+  // 🔱 za každou úroveň zabitou NAD unlockLevel — ZÁMĚRNĚ zlomek: body se sčítají
+  // průběžně (i při re-climbu po rebirthu), ale POMALU. 0.002 = 1 bod / 500 úrovní,
+  // tj. ~2 body za běh, který vyšplhá k ~5000 (1000 úrovní nad prahem). Paragon grind:
+  // celá mřížka (69 bodů) ~ 35 běhů. Body jsou zlomkové ve stavu, v UI se floorují.
+  pointsPerLevel: 0.002,
   emoji: '🔱',
   currencyName: 'Mistrovské body',
   // Kolik bodů (ranků) ve VĚTVI je potřeba, aby se odemkla daná řada (tier).
@@ -101,6 +105,14 @@ export function spentTotal(s) {
   for (const node of MASTERY_NODES) n += nodeRank(s, node.id);
   return n;
 }
+
+/* Strop bodů: kolik se jich za celou sezónu vůbec dá utratit (Σ max × cost všech
+   uzlů). Nad to nemá smysl body sbírat — celá mřížka by stejně byla plná. */
+export const MASTERY_MAX_POINTS = MASTERY_NODES.reduce((n, node) => n + node.max * (node.cost || 1), 0);
+
+/* Kolik bodů ještě LZE získat (strop − už utracené). Engine nepřipíše nad tuto
+   mez → nikdy nebudeš mít víc bodů, než kolik reálně utratíš. */
+export const masteryRemaining = (s) => Math.max(0, MASTERY_MAX_POINTS - spentTotal(s));
 
 export const tierUnlocked = (s, tree, tier) => pointsInTree(s, tree.id) >= (MASTERY.tierGates[tier] || 0);
 

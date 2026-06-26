@@ -81,6 +81,33 @@ docker compose -f docker-compose.yml -f docker-compose.local.yml up --build
 
 Jeden Node proces servíruje statický web i `/api`; migrace proběhnou při startu.
 
+## Verze a release tagy
+
+Každý build dostane jedinečnou verzi (`pkgVersion+gitSha.timestamp`) — zapeče se
+do klienta (`__APP_VERSION__`) a zároveň do `dist/version.json`. Běžící karta si
+ji každých 5 min (a při návratu na záložku) porovnává se serverem; po nasazení
+nové várky ukáže plovoucí banner „**Čerstvá várka je na čepu!**" s tlačítkem na
+načtení. (`apps/web/src/hooks/useVersionCheck.js`, `components/UpdateBanner.jsx`.)
+
+**Vydání jedním příkazem** (`scripts/release.sh`) — zvedne verzi, srovná ji ve
+všech package.json, zacommituje **celý** pracovní strom a otaguje:
+
+```bash
+npm run release             # patch: 1.0.0 → 1.0.1
+npm run release -- minor    # 1.0.x → 1.1.0
+npm run release -- major    # 0.x   → 1.0.0
+npm run release -- patch "vlastni zprava commitu"
+git push && git push --tags # push je vědomě na tobě
+```
+
+Tag `v<verze>` vytvoří git hook `post-commit` (`.githooks/post-commit`) pokaždé,
+když se v kořenovém `package.json` změní pole `version` — funguje tedy i při
+ručním bumpu + `git commit` bez release skriptu. Hook je aktivní po `npm install`
+(skript `prepare` nastaví `core.hooksPath .githooks`); ručně:
+`git config core.hooksPath .githooks`.
+
+Hook mlčí, když se verze nezměnila, a přeskočí, pokud tag už existuje.
+
 ## Architektura webu
 
 Oddělené **herní jádro** (čistá logika, bez Reactu) a **vrstva zobrazení** (React).

@@ -121,7 +121,7 @@ export default function Leaderboard({ onJoin, season, active, onSelectPlayer }) 
                 onClick={() => selectPlayer(row.id)}
               >
                 <td className="rank">{medal(row.rank) || row.rank}</td>
-                <td className="nick">{row.nickname}</td>
+                <td className="nick">{row.tag && <span className="guild-tag">[{row.tag}]</span>}{row.nickname}</td>
                 <td className="val">{formatValue(board.field, row.value)}</td>
               </tr>
             ))}

@@ -26,7 +26,7 @@ import {
   comboCap, forgivenessMult, bossTimeMult, bossGoldMult, dustMult, dropChanceBonus,
 } from './formulas.js';
 import {
-  ITEMS, CHESTS, SLOT_IDS, itemScore,
+  ITEMS, CHESTS, SLOT_IDS, itemScore, upgradeDelta,
   salvageValue, rerollCost, rerollItem, upgradeRarityCost, upgradeRarity, nextRarity,
   rollChestResult, buildRouletteStrip, chestMissDust, chestCost, doveExchangeCost,
 } from './data/items.js';
@@ -37,7 +37,7 @@ import { ELIXIRS, elixirCostAt, ELIXIRS_CFG } from './data/elixirs.js';
 import {
   ENCHANTS_CFG, canEnchant, rollEnchantOffers, applyOffer, rerollOffersCost,
 } from './data/enchants.js';
-import { MASTERY, NODE_BY_ID, TREE_BY_NODE, pointsInTree } from './data/mastery.js';
+import { MASTERY, NODE_BY_ID, TREE_BY_NODE, pointsInTree, masteryRemaining } from './data/mastery.js';
 
 let nextEnemyId = 1;
 
@@ -185,8 +185,12 @@ export class Engine {
     this.maybeDropEgg(v);
     this.maybeDropRune(v);
     // 🔱 mistrovské body — za každou poraženou úroveň NAD prahem mřížky (∝ hloubce běhu).
-    // Body přežívají rebirth (jako prestige); utratí se v Mistrovské mřížce.
-    if (s.level >= MASTERY.unlockLevel) s.mastery.points += MASTERY.pointsPerLevel;
+    // Body přežívají rebirth (jako prestige); utratí se v Mistrovské mřížce. Strop:
+    // nikdy nepřipíšeme víc, než kolik zbývá v mřížce utratit (masteryRemaining).
+    if (s.level >= MASTERY.unlockLevel) {
+      const cap = masteryRemaining(s);
+      if (s.mastery.points < cap) s.mastery.points = Math.min(cap, s.mastery.points + MASTERY.pointsPerLevel);
+    }
     s.level++;
     if (s.level > s.highestLevel) s.highestLevel = s.level;
     this.checkLevelUnlocks();
@@ -353,6 +357,47 @@ export class Engine {
     }
     this.afterInventory();
     return { count, dust: amt };
+  }
+
+  /* Kusy v inventáři SLABŠÍ nebo stejně silné jako právě nasazený kus ve stejném
+     slotu (itemScore) — „trash", co bys nikdy nenasadil. CHRÁNÍ investici: kus se
+     zaklínadlem (zlato) nebo vsazenou runou se NIKDY nepovažuje za trash. Prázdný
+     slot → cokoliv je vylepšení → nic se nezahodí. */
+  _worseItems() {
+    const s = this.state;
+    return s.inventory.filter((it) => {
+      if (it.enchant?.lvl) return false;            // investice (zlato) — nech být
+      if (it.runes?.some(Boolean)) return false;    // investice (runy) — nech být
+      return !upgradeDelta(it, s.equipment[it.slot]); // null = není silnější → trash
+    });
+  }
+
+  /* Náhled hromadného rozkladu „slabších než nasazené" (BEZ mutace). */
+  dismantleWorseValue() {
+    const mult = dustMult(this.state);
+    const items = this._worseItems();
+    let dust = 0;
+    for (const it of items) dust += Math.round(salvageValue(it) * mult);
+    return { count: items.length, dust };
+  }
+
+  /* QoL: rozloží všechny kusy slabší/stejné než nasazené (per slot) na úlomky 💠
+     najednou. Nechá potenciální vylepšení i investované kusy. Jeden 'salvage'. */
+  dismantleWorse() {
+    const s = this.state;
+    const items = this._worseItems();
+    if (items.length === 0) return { count: 0, dust: 0 };
+    const ids = new Set(items.map((it) => it.id));
+    const mult = dustMult(s);
+    let dust = 0;
+    for (const it of items) dust += Math.round(salvageValue(it) * mult);
+    s.inventory = s.inventory.filter((it) => !ids.has(it.id));
+    if (dust > 0) {
+      s.dust = (s.dust || 0) + dust;
+      this.emit('salvage', { amount: dust, bulk: items.length });
+    }
+    this.afterInventory();
+    return { count: items.length, dust };
   }
 
   /* ---------- kovárna (úlomky → reroll / povýšení) ---------- */
@@ -1158,6 +1203,35 @@ export class Engine {
       this.notify();
       this.emit('vaultDeposit', { gold, doves, dust });
     }
+  }
+
+  /* Zaplať zakládací poplatek cechu (💠) z lokálního save. Měnový sink jako celá
+     ekonomika — server gateuje jen ATESTOVANOU úroveň, ne zůstatek. Vrátí true při
+     úspěchu (dost úlomků), jinak false (UI neodešle žádost o založení). */
+  payGuildFee(dust = 0) {
+    const s = this.state;
+    const cost = Math.max(0, Math.floor(dust));
+    if ((s.dust || 0) < cost) return false;
+    s.dust -= cost;
+    save(s);
+    this.notify();
+    return true;
+  }
+
+  /* Nastav perky cechu (server-derived z /api/me/guild). NEUKLÁDÁ se do save ani
+     skóre — po reloadu je znovu natáhne GuildProvider. Bounded gold/dust/luck, ŽÁDNÝ
+     dmgPct → mimo difficultyScale; promítnou se přes combatStats/dustMult jako
+     album/runy. Notifikuj jen při reálné změně (poll běží každou minutu). */
+  setGuildPerks(perks) {
+    const next = perks && (perks.goldFind || perks.dustFind || perks.luck)
+      ? { goldFind: perks.goldFind || 0, dustFind: perks.dustFind || 0, luck: perks.luck || 0 }
+      : null;
+    const cur = this.state.guildPerks || null;
+    const same = (!next && !cur)
+      || (!!next && !!cur && next.goldFind === cur.goldFind && next.dustFind === cur.dustFind && next.luck === cur.luck);
+    if (same) return;
+    this.state.guildPerks = next;
+    this.notify();
   }
 
   /* Nahraj stav ze save blobu (obnova účtu na novém zařízení / po smazání dat).

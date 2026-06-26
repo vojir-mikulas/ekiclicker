@@ -8,6 +8,8 @@
     "packages/*"
   ],
   "scripts": {
+    "prepare": "git config core.hooksPath .githooks || true",
+    "release": "sh scripts/release.sh",
     "dev": "concurrently -n web,api -c blue,green \"npm run dev -w @ekiclicker/web\" \"npm run dev -w @ekiclicker/server\"",
     "build": "npm run build -w @ekiclicker/web",
     "start": "npm run start -w @ekiclicker/server",

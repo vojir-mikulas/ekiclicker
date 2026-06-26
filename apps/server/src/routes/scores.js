@@ -15,6 +15,7 @@ import {
   rowToScore, updateScoreMonotonic,
   getActiveSeason, getPlayerSeasonRow, upsertSeasonScore, playerSeasonRank,
 } from '../lib/players.js';
+import { guildIdOf, maybeRecomputeGuildSeason } from '../lib/guilds.js';
 
 const router = Router();
 const defaultBoard = boardByKey(DEFAULT_BOARD);
@@ -68,6 +69,12 @@ router.post('/', requirePlayer, async (req, res, next) => {
     await upsertSeasonScore(active.id, p.id, v.value, achIds);
     const updated = await updateScoreMonotonic(p.id, v.value, save);
     const rank = await playerSeasonRank(active.id, p.id, defaultBoard);
+    // piggyback: přepočti sezónní postavení cechu hráče (throttled, best-effort —
+    // selhání nikdy nesmí shodit zápis skóre)
+    try {
+      const gid = await guildIdOf(p.id);
+      if (gid) await maybeRecomputeGuildSeason(active.id, gid);
+    } catch { /* best-effort */ }
     res.status(200).json({ ok: true, rank, score: rowToScore(updated) });
   } catch (err) {
     next(err);

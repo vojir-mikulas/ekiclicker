@@ -410,13 +410,22 @@ export default function InventoryModal({ onClose }) {
 function InventoryGrid({ inv, dust, engine }) {
   const { setNodeRef, isOver } = useDroppable({ id: 'inv-zone' });
   const [confirmDismantle, setConfirmDismantle] = useState(false);
+  const [confirmWorse, setConfirmWorse] = useState(false);
   const dismantleValue = engine.dismantleAllValue();
+  const worse = engine.dismantleWorseValue();
   return (
     <div ref={setNodeRef} className={'inv-grid-wrap' + (isOver ? ' over' : '')}>
       <div className="inv-grid-head">
         <span>Inventář</span>
         <div className="inv-grid-head-right">
           <span className="inv-count">{inv.length} / {ITEMS.invCap}</span>
+          {worse.count > 0 && (
+            <button
+              className="inv-dismantle-worse"
+              onClick={() => setConfirmWorse(true)}
+              title="Rozloží kusy slabší (nebo stejné) než právě nasazené ve stejném slotu. Vylepšení i zakleté/runové kusy zůstanou."
+            >Rozložit horší ({worse.count}) 💠 {fmt(worse.dust)}</button>
+          )}
           {inv.length > 0 && (
             <button
               className="inv-dismantle-all"
@@ -426,6 +435,16 @@ function InventoryGrid({ inv, dust, engine }) {
           )}
         </div>
       </div>
+      {confirmWorse && (
+        <ConfirmModal
+          title="Rozložit slabší kusy?"
+          message={`Rozloží ${worse.count} ${worse.count === 1 ? 'kus' : worse.count < 5 ? 'kusy' : 'kusů'}, které jsou slabší (nebo stejně silné) než právě nasazené ve stejném slotu, na 💠 ${fmt(worse.dust)} úlomků. Potenciální vylepšení i zakleté/runové kusy zůstanou. Tohle nelze vrátit.`}
+          confirmLabel={`Rozložit (💠 ${fmt(worse.dust)})`}
+          danger
+          onConfirm={() => engine.dismantleWorse()}
+          onClose={() => setConfirmWorse(false)}
+        />
+      )}
       {confirmDismantle && (
         <ConfirmModal
           title="Rozložit celý inventář?"

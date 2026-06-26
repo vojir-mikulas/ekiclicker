@@ -366,6 +366,34 @@ body{
 .toast .t-sub{ font-size:11px; color:var(--good); }
 @keyframes toastIn{ 0%{opacity:0; transform:translateY(-14px) scale(.9);} 100%{opacity:1; transform:translateY(0) scale(1);} }
 
+/* ---------- Update banner: „nová várka — načti hru" ---------- */
+.update-banner{ position:fixed; left:50%; bottom:18px; transform:translateX(-50%); z-index:2500;
+  display:flex; align-items:center; gap:14px; max-width:min(560px,92vw);
+  background:linear-gradient(180deg,#22283a,#171b28); border:1px solid var(--gold); border-radius:14px;
+  padding:12px 16px; box-shadow:0 14px 40px rgba(0,0,0,.55), 0 0 0 1px rgba(255,210,63,.08);
+  animation:updateBannerIn .4s cubic-bezier(.2,.9,.3,1.2); }
+.update-banner .ub-ico{ font-size:30px; line-height:1; filter:drop-shadow(0 2px 4px rgba(0,0,0,.5)); }
+.update-banner .ub-txt{ display:flex; flex-direction:column; line-height:1.3; min-width:0; }
+.update-banner .ub-title{ font-weight:800; font-size:14px; color:var(--gold); }
+.update-banner .ub-sub{ font-size:12px; color:var(--muted); }
+.update-banner .ub-actions{ display:flex; align-items:center; gap:6px; margin-left:auto; }
+.update-banner .ub-cta{ border:0; background:linear-gradient(180deg,var(--gold),var(--orange)); color:#1a1205;
+  font-weight:800; font-size:13px; padding:9px 14px; border-radius:10px; cursor:pointer; white-space:nowrap;
+  box-shadow:0 2px 0 rgba(0,0,0,.3); transition:transform .12s, filter .12s; }
+.update-banner .ub-cta:hover{ filter:brightness(1.08); transform:translateY(-1px); }
+.update-banner .ub-cta:active{ transform:translateY(0); }
+.update-banner .ub-dismiss{ border:0; background:transparent; color:var(--muted); font-size:20px; line-height:1;
+  width:28px; height:28px; border-radius:8px; cursor:pointer; transition:color .12s, background .12s; }
+.update-banner .ub-dismiss:hover{ color:var(--text); background:rgba(255,255,255,.06); }
+@keyframes updateBannerIn{ 0%{opacity:0; transform:translate(-50%,18px) scale(.96);} 100%{opacity:1; transform:translate(-50%,0) scale(1);} }
+@keyframes updateBannerInMobile{ 0%{opacity:0; transform:translateY(18px);} 100%{opacity:1; transform:translateY(0);} }
+@media (max-width:560px){
+  .update-banner{ left:8px; right:8px; bottom:8px; transform:none; max-width:none; flex-wrap:wrap;
+    animation-name:updateBannerInMobile; }
+  .update-banner .ub-actions{ width:100%; margin-left:0; }
+  .update-banner .ub-cta{ flex:1; }
+}
+
 /* ---------- Top bar: navigace (segment + identita) ---------- */
 .topbar-nav{ display:flex; align-items:center; gap:10px; margin:0 0 10px; }
 .topbar-nav-right{ margin-left:auto; display:flex; align-items:center; gap:8px; }
@@ -642,6 +670,9 @@ body{
 .inv-dismantle-all{ border:1px solid var(--line); border-radius:8px; background:var(--ink); color:var(--muted);
   font-size:11px; font-weight:800; padding:4px 9px; cursor:pointer; white-space:nowrap; transition:background .12s, border-color .12s, color .12s; }
 .inv-dismantle-all:hover{ border-color:var(--red); color:#fff; background:var(--red-dark); }
+.inv-dismantle-worse{ border:1px solid #2a6b73; border-radius:8px; background:var(--ink); color:#46d6e0;
+  font-size:11px; font-weight:800; padding:4px 9px; cursor:pointer; white-space:nowrap; transition:background .12s, border-color .12s, color .12s; }
+.inv-dismantle-worse:hover{ border-color:#46d6e0; color:#06222a; background:#46d6e0; }
 .inv-empty{ font-size:12px; color:var(--muted); padding:14px 4px; }
 .inv-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:9px; }
 
@@ -1309,3 +1340,115 @@ body{
 .raid-foot b{ color:var(--text); }
 
 @media (max-width:520px){ .raid-stats{ grid-template-columns:repeat(2,1fr); } .raid-fighter img{ width:68px; height:68px; } }
+
+/* =========================================================================
+   CECHY (guilds) — záložka 🛡️ Cech. Stejná vizuální řeč jako aréna/žebříček.
+   ========================================================================= */
+.guild-page{ max-width:480px; margin:18px auto 40px; padding:0 16px; }
+.guild-page .board-cta{ margin-bottom:0; }
+.guild-seg.active{ box-shadow:inset 0 -2px 0 var(--blue); }
+
+/* [TAG] odznak (žebříček, profily, hlavička) */
+.guild-tag{ font-family:'Anton',sans-serif; font-size:.85em; color:var(--blue); letter-spacing:.02em; margin-right:4px; }
+.guild-tag.big{ font-size:22px; }
+
+/* sekční hlavička sdílená napříč panely cechu */
+.guild-section-head{ font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted);
+  padding:10px 14px; border-bottom:1px solid var(--line); display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.guild-subhead{ font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); padding:8px 14px 4px; }
+.guild-foot{ font-size:11px; color:var(--muted); line-height:1.55; margin:10px 14px 14px; }
+.guild-foot b{ color:var(--text); }
+
+/* bez cechu: hero + prohlížeč */
+.guild-hero{ display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap;
+  background:linear-gradient(180deg,rgba(127,200,255,.08),rgba(0,0,0,.25)); border:1px solid var(--line);
+  border-radius:14px; padding:16px; margin-bottom:16px; }
+.guild-hero-txt h2{ margin:0 0 4px; font-family:'Anton',sans-serif; font-size:24px; letter-spacing:.02em; }
+.guild-hero-txt p{ margin:0; font-size:12.5px; color:var(--muted); line-height:1.5; max-width:42ch; }
+.guild-hero .primary-btn{ width:auto; margin:0; padding:10px 16px; white-space:nowrap; }
+.guild-hero .primary-btn .dim{ font-weight:400; }
+
+.guild-invites, .guild-browse, .guild-motd, .guild-roster, .guild-perks, .guild-officer, .guild-standing, .guild-feed{
+  background:var(--panel); border:1px solid var(--line); border-radius:12px; overflow:hidden; margin-bottom:16px; }
+.guild-feed-row{ display:flex; align-items:center; justify-content:space-between; gap:10px;
+  padding:8px 14px; border-bottom:1px solid rgba(42,49,66,.5); font-size:12.5px; }
+.guild-feed-row:last-child{ border-bottom:0; }
+.guild-feed-txt{ color:var(--text); min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.guild-feed-time{ color:var(--muted); font-size:11px; flex:none; }
+.guild-invite-row{ display:flex; align-items:center; justify-content:space-between; gap:10px;
+  padding:10px 14px; border-bottom:1px solid rgba(42,49,66,.5); font-size:13px; }
+.guild-invite-row:last-child{ border-bottom:0; }
+.guild-row-actions{ display:flex; gap:6px; flex:none; }
+
+.guild-search{ width:auto; flex:1 1 140px; max-width:200px; padding:6px 10px; font-size:12px; margin:0; }
+.guild-list-row{ display:flex; align-items:center; gap:10px; padding:10px 14px; border-bottom:1px solid rgba(42,49,66,.5); }
+.guild-list-row:last-child{ border-bottom:0; }
+.guild-list-name{ background:none; border:none; cursor:pointer; color:var(--text); font-weight:700;
+  flex:1 1 auto; min-width:0; text-align:left; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; padding:0; }
+.guild-list-name:hover{ color:var(--blue); }
+.guild-list-meta{ font-size:12px; color:var(--muted); flex:none; }
+.guild-requested{ font-size:12px; color:var(--good); flex:none; }
+
+/* v cechu: hlavička + perky + roster */
+.guild-header{ display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap;
+  background:linear-gradient(180deg,rgba(127,200,255,.08),rgba(0,0,0,.25)); border:1px solid var(--line);
+  border-radius:14px; padding:14px 16px; margin-bottom:16px; }
+.guild-id{ display:flex; align-items:baseline; gap:8px; min-width:0; }
+.guild-name{ font-family:'Anton',sans-serif; font-size:24px; letter-spacing:.02em; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.guild-header-meta{ display:flex; gap:8px; flex-wrap:wrap; }
+.guild-pill{ font-size:12px; font-weight:800; color:var(--text); background:rgba(0,0,0,.25);
+  border:1px solid var(--line); border-radius:999px; padding:4px 10px; white-space:nowrap; }
+
+.guild-cols{ display:block; }
+@media (min-width:760px){
+  .guild-page{ max-width:900px; }
+  .guild-cols{ display:grid; grid-template-columns:1.15fr .85fr; gap:18px; align-items:start; }
+  .guild-col{ min-width:0; }
+  .guild-col > *:last-child{ margin-bottom:0; }
+}
+
+.guild-motd-text{ padding:12px 14px; margin:0; font-size:13px; color:var(--text); line-height:1.55; white-space:pre-wrap; word-break:break-word; }
+.guild-motd-input{ width:calc(100% - 28px); margin:10px 14px; resize:vertical; }
+.guild-motd.editing .guild-row-actions{ padding:0 14px 12px; }
+
+.guild-member{ display:flex; align-items:center; gap:10px; padding:9px 14px; border-bottom:1px solid rgba(42,49,66,.5); }
+.guild-member:last-child{ border-bottom:0; }
+.guild-member.me{ background:rgba(127,200,255,.08); }
+.guild-member-name{ background:none; border:none; cursor:pointer; color:var(--text); font-weight:700;
+  flex:1 1 auto; min-width:0; text-align:left; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; padding:0; }
+.guild-member-name:hover{ color:var(--blue); }
+.guild-member-name .crown{ margin-right:3px; }
+.guild-member-role{ font-size:11px; color:var(--muted); flex:none; white-space:nowrap; }
+.guild-member-tools{ display:flex; gap:4px; flex:none; }
+.guild-tool{ background:var(--panel-2); border:1px solid var(--line); border-radius:7px; cursor:pointer;
+  font-size:12px; line-height:1; padding:5px 6px; transition:border-color .12s, background .12s; }
+.guild-tool:hover{ border-color:var(--line-hi); }
+.guild-tool.danger:hover{ border-color:var(--red); background:rgba(255,59,71,.12); }
+
+.guild-perk-list{ list-style:none; margin:0; padding:10px 14px; }
+.guild-perk-list li{ display:flex; align-items:center; justify-content:space-between; padding:5px 0; font-size:13px; color:var(--muted); }
+.guild-perk-list li b{ color:var(--good); font-family:'Anton',sans-serif; font-size:15px; }
+
+.guild-invite-form{ display:flex; gap:8px; padding:12px 14px; }
+.guild-invite-form .text-input{ flex:1 1 auto; margin:0; padding:8px 10px; font-size:13px; }
+.guild-mini-msg{ font-size:12px; color:var(--muted); margin:0 14px 8px; }
+.guild-request-row{ display:flex; align-items:center; justify-content:space-between; gap:10px;
+  padding:8px 14px; border-top:1px solid rgba(42,49,66,.5); font-size:13px; }
+.guild-request-row b{ color:var(--text); }
+
+.guild-leave{ text-align:center; margin-bottom:16px; }
+.guild-leave .ghost-btn{ width:auto; }
+.guild-confirm{ display:flex; align-items:center; justify-content:center; gap:8px; flex-wrap:wrap; font-size:13px; color:var(--muted); }
+
+/* malé varianty tlačítek (sdílené) */
+.primary-btn.sm{ width:auto; margin:0; padding:7px 12px; font-size:12px; }
+.primary-btn.sm.danger{ background:var(--red); border-color:var(--red-dark); }
+.ghost-btn.danger{ color:var(--red); border-color:rgba(255,59,71,.4); }
+.ghost-btn.danger:hover{ background:rgba(255,59,71,.1); border-color:var(--red); }
+
+/* zakládací modal */
+.guild-tag-input{ text-transform:uppercase; letter-spacing:.12em; font-family:'Anton',sans-serif; }
+.guild-fee-row{ display:flex; align-items:center; gap:8px; margin:12px 0 6px; font-size:13px; color:var(--muted); }
+.guild-fee-row b{ color:var(--gold); }
+.guild-fee-row b.short{ color:var(--red); }
+.guild-fee-row .dim{ font-size:12px; }

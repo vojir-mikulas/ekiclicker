@@ -31,6 +31,12 @@ export const ALBUM = {
       { count: 5,  stats: { goldPct: 0.05 } },
       { count: 10, stats: { goldPct: 0.07, luck: 0.05 } },
       { count: 15, stats: { goldPct: 0.10, critChance: 0.02 } },
+      { count: 20, stats: { goldPct: 0.12, luck: 0.08 } },
+      { count: 25, stats: { goldPct: 0.15, critChance: 0.04, luck: 0.10 } },
+      { count: 30, stats: { goldPct: 0.10, luck: 0.07 } },
+      // capstone: kompletní Bestiář (vč. hlubinných variant až do lvl 4200) →
+      // bounded bonus ekonomiky/štěstí (bez dmgPct → bez vlivu na obtížnost).
+      { count: 35, stats: { goldPct: 0.12, critChance: 0.03, luck: 0.08 } },
     ],
   },
   arsenal: {

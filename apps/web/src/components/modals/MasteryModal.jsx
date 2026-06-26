@@ -4,8 +4,8 @@
    řízený kompaktním podpisem bodů + ranků (engine mutuje state.mastery na místě). */
 import { useEngine, useEngineSelector, shallowEqual } from '../../hooks/useEngine.js';
 import {
-  MASTERY, MASTERY_TREES, MASTERY_NODES, treeTiers, nodeRank, pointsInTree,
-  spentTotal, tierUnlocked, canBuyNode, nodeStats, masteryStats, masteryBonusText,
+  MASTERY, MASTERY_TREES, MASTERY_NODES, MASTERY_MAX_POINTS, treeTiers, nodeRank, pointsInTree,
+  spentTotal, masteryRemaining, tierUnlocked, canBuyNode, nodeStats, masteryStats, masteryBonusText,
 } from '../../game/data/mastery.js';
 import Modal from './Modal.jsx';
 import { fmt } from '../../game/format.js';
@@ -49,8 +49,11 @@ export default function MasteryModal({ onClose }) {
     <Modal onClose={onClose} className="mastery-modal">
       <h2>🔱 Mistrovská mřížka</h2>
       <p className="mastery-head">
-        Body: <b>{fmt(points)} 🔱</b> · utraceno {spentTotal(s)} · padají za každou úroveň nad{' '}
-        {fmt(MASTERY.unlockLevel)}.
+        Body: <b>{fmt(points)} 🔱</b> · utraceno {spentTotal(s)}/{MASTERY_MAX_POINTS} ·{' '}
+        {masteryRemaining(s) <= 0
+          ? 'mřížka je plná'
+          : `padají za úrovně nad ${fmt(MASTERY.unlockLevel)} (1 bod / ${Math.round(1 / MASTERY.pointsPerLevel)} úrovní)`}
+        .
       </p>
       <p className="mastery-total">
         {totalBonus ? (

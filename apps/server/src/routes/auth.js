@@ -151,8 +151,8 @@ router.post('/me/enter-season', requirePlayer, async (req, res, next) => {
   try {
     const active = await getActiveSeason();
     if (!active) return res.status(409).json({ error: 'Žádná aktivní sezóna.', code: 'no_active_season' });
-    const { reward } = await enterSeason(req.player.id, active.id);
-    res.status(200).json({ ok: true, season: { number: active.number }, reward });
+    const { reward, guildReward } = await enterSeason(req.player.id, active.id);
+    res.status(200).json({ ok: true, season: { number: active.number }, reward, guildReward });
   } catch (err) {
     next(err);
   }

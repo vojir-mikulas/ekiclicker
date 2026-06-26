@@ -1,0 +1,53 @@
+#!/bin/sh
+# =====================================================================
+# post-commit — automatický tag nové verze ("release").
+#
+# Když se v právě vytvořeném commitu změní pole "version" v kořenovém
+# package.json, vytvoří anotovaný tag v<verze> (např. v1.0.1).
+# Tag se jen vytvoří lokálně — nahrání je na tobě:
+#     git push origin v<verze>      (nebo: git push --tags)
+#
+# Chování:
+#   • verze beze změny  → mlčí, nic nedělá
+#   • tag už existuje    → přeskočí (nic nepřepisuje)
+#   • první commit / chybí předchozí verze → bezpečně přeskočí
+#
+# Aktivace (jednorázově, nebo automaticky přes `npm install` → "prepare"):
+#     git config core.hooksPath .githooks
+# =====================================================================
+
+PKG="package.json"
+
+# Přečte pole "version" z package.json v daném git refu ($1). Robustní JSON
+# parsing přes node (projekt na něm stejně stojí); při chybě vrátí prázdno.
+read_version() {
+  git show "$1:$PKG" 2>/dev/null | node -e '
+    let s = "";
+    process.stdin.on("data", (d) => (s += d));
+    process.stdin.on("end", () => {
+      try { process.stdout.write(String(JSON.parse(s).version || "")); } catch { /* nevadí */ }
+    });
+  ' 2>/dev/null
+}
+
+NEW=$(read_version HEAD)
+[ -n "$NEW" ] || exit 0
+
+OLD=$(read_version HEAD~1)
+
+# Tagujeme jen při skutečné změně verze.
+[ "$NEW" = "$OLD" ] && exit 0
+
+TAG="v$NEW"
+
+if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null 2>&1; then
+  echo "post-commit: tag $TAG už existuje — přeskakuji."
+  exit 0
+fi
+
+if git tag -a "$TAG" -m "Release $TAG"; then
+  echo "post-commit: 🏷  vytvořen tag $TAG"
+  echo "             nahraj ho: git push origin $TAG   (nebo: git push --tags)"
+fi
+
+exit 0

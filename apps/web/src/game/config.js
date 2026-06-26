@@ -63,7 +63,14 @@ export const CONFIG = {
   // OMEZENÝ, ne neomezený. První běh (bez prestige) je nedotčený (power=1 → ×1).
   // Laděno simulátorem (`npm run balance --blitz`). Vyšší exp = kratší blitz, ale
   // menší přínos prestige; 0 = vypnuto (původní chování).
-  difficultyExp: 0.78,
+  // POZN. (decaying-curve přestavba): při ploché pozdní křivce hluboká prestiž jinak
+  // „burstne" instakillem (vše one-hit). HLAVNÍ páka proti one-hitu ⇄ dosahu:
+  //   nižší exp = větší dosah prestiže, ale delší one-hit burst po rebirthu;
+  //   vyšší exp = krátký/žádný burst (svižnější tempo), ale menší přínos prestiže.
+  // Laděno simulátorem (blitz tabulka): @0,95 hluboká prestiž one-hitne jen ~300-600 lvl
+  // pak GRIND na ~2300-3200 (whale). Nad ~0,97 se prestiž slévá; @1,0 už škodí (fist se
+  // ve snapshotu přepočítává). 0,95 = „svižné tempo, prestiž pořád odměňuje hloubku".
+  difficultyExp: 0.95,
 
   // --- souboj ---
   critChance: 0.1,

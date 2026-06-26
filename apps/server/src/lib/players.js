@@ -63,17 +63,23 @@ export async function playerRank(playerId, board = boardByKey(DEFAULT_BOARD)) {
   return rows[0]?.rank ?? null;
 }
 
-/* Žebříček: top N hráčů dle pole sestupně, remíza created_at vzestupně. */
+/* Žebříček: top N hráčů dle pole sestupně, remíza created_at vzestupně.
+   `tag` = [TAG] cechu hráče (left join na aktivní cech), nebo null. */
 export async function leaderboardTop(board, limit) {
   const col = boardColumn(board);
   const { rows } = await query(
-    `select * from players order by ${col} desc, created_at asc limit $1`,
+    `select p.*, g.tag as guild_tag
+       from players p
+       left join guild_members gm on gm.player_id = p.id
+       left join guilds g on g.id = gm.guild_id and g.disbanded_at is null
+      order by p.${col} desc, p.created_at asc limit $1`,
     [limit],
   );
   return rows.map((row, i) => ({
     rank: i + 1,
     id: row.id,
     nickname: row.nickname,
+    tag: row.guild_tag || null,
     value: rowToScore(row)[board.field],
     score: rowToScore(row),
   }));
@@ -232,9 +238,11 @@ export async function playerSeasonRank(seasonId, playerId, board = boardByKey(DE
 export async function leaderboardTopSeason(seasonId, board, limit) {
   const col = boardColumn(board);
   const { rows } = await query(
-    `select ss.*, p.nickname
+    `select ss.*, p.nickname, g.tag as guild_tag
        from season_scores ss
        join players p on p.id = ss.player_id
+       left join guild_members gm on gm.player_id = ss.player_id
+       left join guilds g on g.id = gm.guild_id and g.disbanded_at is null
       where ss.season_id = $1
       order by ss.${col} desc, ss.created_at asc
       limit $2`,
@@ -244,6 +252,7 @@ export async function leaderboardTopSeason(seasonId, board, limit) {
     rank: i + 1,
     id: row.player_id,
     nickname: row.nickname,
+    tag: row.guild_tag || null,
     value: rowToScore(row)[board.field],
     score: rowToScore(row),
   }));
@@ -346,13 +355,27 @@ export async function enterSeason(playerId, activeSeasonId) {
        on conflict (season_id, player_id) do nothing`,
       [activeSeasonId, playerId],
     );
+    // nárokuj i nevyzvednuté odměny cechu (placement spočtený při uzávěrce) — idempotentně
+    const { rows: guildRows } = await client.query(
+      `update guild_member_season set claimed_at = now()
+        where player_id = $1 and claimed_at is null
+          and (coalesce(reward_doves, 0) > 0 or coalesce(reward_dust, 0) > 0)
+        returning reward_doves, reward_dust`,
+      [playerId],
+    );
     let reward = null;
     if (rewardRows.length) {
       const forgiveness = rewardRows.reduce((a, r) => a + r.forgiveness, 0);
       const latest = rewardRows.reduce((a, b) => (b.season_number > a.season_number ? b : a));
       reward = { forgiveness, rank: latest.rank, seasonNumber: latest.season_number };
     }
-    return { reward };
+    let guildReward = null;
+    if (guildRows.length) {
+      const doves = guildRows.reduce((a, r) => a + (r.reward_doves || 0), 0);
+      const dust = guildRows.reduce((a, r) => a + (r.reward_dust || 0), 0);
+      if (doves > 0 || dust > 0) guildReward = { doves, dust };
+    }
+    return { reward, guildReward };
   });
 }
 

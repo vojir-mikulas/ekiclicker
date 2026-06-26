@@ -2,6 +2,7 @@ import { useEngineSelector, shallowEqual } from '../hooks/useEngine.js';
 import { useAccount } from '../hooks/useAccount.js';
 import { useWorldBoss } from '../hooks/useWorldBoss.js';
 import { useRaid } from '../hooks/useRaid.js';
+import { useGuild } from '../hooks/useGuild.js';
 import { fmt } from '../game/format.js';
 import { clickDamage } from '../game/formulas.js';
 import { claimableCount } from '../game/data/quests.js';
@@ -34,6 +35,7 @@ export default function TopBar({ view, onView, onOpenSettings, onOpenJoin, onOpe
   const account = useAccount();
   const wb = useWorldBoss();
   const rd = useRaid();
+  const gd = useGuild();
 
   return (
     <div className="topbar">
@@ -60,6 +62,14 @@ export default function TopBar({ view, onView, onOpenSettings, onOpenJoin, onOpe
             onClick={() => onView('raid')}
           >⚔️ Aréna{rd?.badge && (
             <span className={'seg-dot' + (rd.unseen > 0 ? ' alert' : '')}>{rd.unseen > 0 ? '!' : '•'}</span>
+          )}</button>
+          <button
+            role="tab"
+            aria-selected={view === 'guild'}
+            className={'seg guild-seg' + (view === 'guild' ? ' active' : '')}
+            onClick={() => onView('guild')}
+          >🛡️ Cech{gd?.badge > 0 && (
+            <span className="seg-dot alert">{gd.badge > 9 ? '!' : gd.badge}</span>
           )}</button>
           <button
             role="tab"
@@ -105,7 +115,7 @@ export default function TopBar({ view, onView, onOpenSettings, onOpenJoin, onOpe
           )}
           {masteryUnlocked && (
             <button className="topbar-btn badged" onClick={onOpenMastery} title="Mistrovská mřížka" aria-label="Mistrovská mřížka">
-              🔱{masteryPoints > 0 && <span className="topbar-badge">{masteryPoints > 99 ? '99+' : masteryPoints}</span>}
+              🔱{masteryPoints >= 1 && <span className="topbar-badge">{masteryPoints > 99 ? '99+' : Math.floor(masteryPoints)}</span>}
             </button>
           )}
           <button className="topbar-btn badged" onClick={onOpenAlbum} title="Sběratelský deník" aria-label="Sběratelský deník">
