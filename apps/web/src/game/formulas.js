@@ -28,7 +28,30 @@ export function equipStats(s) {
    místo holého equipStats — mazlíček, deník i runy se tak promítnou všude, kde
    výbava, BEZ nového exponenciálu. (Deník i runy ZÁMĚRNĚ nemají dmgPct → žádný
    vliv na obtížnost/blitz; jediný dmgPct ze snapshotu zůstává výbava + mazlíček.) */
+/* Mezipaměť combatStats v rámci jednoho překreslení / dávky tiků.
+   combatStats agreguje výbavu + mazlíčka + deník + runy + mřížku + cech + peklo +
+   téma sezóny a volá ho DESÍTKY bojových formulek za jeden render (globalMult,
+   goldMult, critChance, critMult, totalDps…). Jeho výsledek se ale mění JEN při
+   diskrétní změně výbavy/mazlíčka/run/… — a všechny ty cesty volají engine.notify(),
+   který tuto cache čistí (clearStatCache). Mezi notify() se gear nemění, takže je
+   bezpečné výsledek sdílet. Jednoprvková cache klíčovaná identitou stavu:
+   simulátor (žene tick bez notify) volá s týmž `s` → po prvním tiku cache drží,
+   ale gear v čistém tick-loopu nemění nic → korektní i tam. */
+let _csKey = null;
+let _csVal = null;
+export function clearStatCache() {
+  _csKey = null;
+  _csVal = null;
+}
+
 export function combatStats(s) {
+  if (_csKey === s) return _csVal;
+  _csVal = _combatStats(s);
+  _csKey = s;
+  return _csVal;
+}
+
+function _combatStats(s) {
   const gear = equipStats(s);
   const pet = equippedPetStats(s);
   const album = albumStats(s);

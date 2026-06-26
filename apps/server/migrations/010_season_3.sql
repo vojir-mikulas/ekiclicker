@@ -1,0 +1,14 @@
+-- =========================================================================
+-- 010_season_3 — otevření Sezóny 3 (🎡 MATĚJSKÁ).
+--   Jednořádková release migrace: uzavře aktivní Sezónu 2, spočítá odměny za
+--   umístění (season_rewards) a otevře Sezónu 3. Žebříčky odměn i celá logika
+--   žijí v rotate_season() (definice z 002, rozšířená o cechy v 007). Hráči při
+--   dalším syncu projdou gate → klient spustí reset (server-wide rebirth) a
+--   claimne odměnu.
+--
+--   Sezóna 3 je dle deterministické rotace témat (klient: themeForSeason(3))
+--   explicitně MATĚJSKÁ → automaticky se zpřístupní Matějská pouť 🎡
+--   (kolo štěstí + střelnice). Server nic dalšího posílat nemusí; téma i pouť
+--   si klient odvodí z čísla aktivní sezóny.
+-- =========================================================================
+select rotate_season();

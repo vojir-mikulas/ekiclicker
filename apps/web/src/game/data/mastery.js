@@ -28,8 +28,11 @@ export const MASTERY = {
   emoji: '🔱',
   currencyName: 'Mistrovské body',
   // Kolik bodů (ranků) ve VĚTVI je potřeba, aby se odemkla daná řada (tier).
-  // Řada 4 = klíčový uzel (keystone). Hradlo = "soft-cap zadarmo".
-  tierGates: { 1: 0, 2: 5, 3: 10, 4: 18 },
+  // Řada 4 = klíčový uzel (keystone), řada 5 = velmistr (grandmaster). Hradlo =
+  // "soft-cap zadarmo". Pozn.: max ranků v jedné větvi přes tiery 1–4 je 23
+  // (5+5+5+5+3) → hradlo řady 5 musí být < 23, jinak by nešla odemknout. 22 =
+  // (skoro) plná investice do větve, než se velmistr otevře.
+  tierGates: { 1: 0, 2: 5, 3: 10, 4: 18, 5: 22 },
 };
 
 /* Tři větve × řady (tier). Každý uzel: bounded stats za 1 rank, strop `max`,
@@ -44,6 +47,7 @@ export const MASTERY_TREES = [
       { id: 'fury_hard',   tier: 2, name: 'Tvrdost',       emoji: '💢', max: 5, cost: 1, stats: { critMult: 0.3 } },
       { id: 'fury_rhythm', tier: 3, name: 'Rytmus',        emoji: '🥁', max: 5, cost: 1, stats: { comboCap: 4 } },
       { id: 'fury_blood',  tier: 4, name: 'Krvežíznivost', emoji: '🩸', max: 3, cost: 1, keystone: true, stats: { weaponPct: 0.06, critChance: 0.02 } },
+      { id: 'fury_apex',   tier: 5, name: 'Apoteóza',      emoji: '👹', max: 3, cost: 1, keystone: true, stats: { weaponPct: 0.07, critMult: 0.5, comboCap: 3 } },
     ],
   },
   {
@@ -55,6 +59,7 @@ export const MASTERY_TREES = [
       { id: 'bounty_smith',  tier: 2, name: 'Kovář',         emoji: '⚒️', max: 5, cost: 1, stats: { dustPct: 0.1 } },
       { id: 'bounty_patron', tier: 3, name: 'Mecenáš',       emoji: '💰', max: 5, cost: 1, stats: { bossGold: 0.08 } },
       { id: 'bounty_rush',   tier: 4, name: 'Zlatá horečka', emoji: '🌟', max: 3, cost: 1, keystone: true, stats: { goldPct: 0.1, dustPct: 0.15 } },
+      { id: 'bounty_eldorado', tier: 5, name: 'Eldorádo',  emoji: '🏆', max: 3, cost: 1, keystone: true, stats: { goldPct: 0.12, dustPct: 0.18, bossGold: 0.1 } },
     ],
   },
   {
@@ -66,6 +71,7 @@ export const MASTERY_TREES = [
       { id: 'guile_time',   tier: 2, name: 'Trpělivost',   emoji: '⏳', max: 5, cost: 1, stats: { bossTime: 0.08 } },
       { id: 'guile_fore',   tier: 3, name: 'Předvídavost', emoji: '🔭', max: 5, cost: 1, stats: { critChance: 0.01 } },
       { id: 'guile_master', tier: 4, name: 'Mistr lovu',   emoji: '👑', max: 3, cost: 1, keystone: true, stats: { dropChance: 0.004, bossTime: 0.06, luck: 0.05 } },
+      { id: 'guile_omni',   tier: 5, name: 'Vševědoucí',   emoji: '🦉', max: 3, cost: 1, keystone: true, stats: { dropChance: 0.005, bossTime: 0.08, frenzyDur: 600 } },
     ],
   },
 ];

@@ -272,6 +272,12 @@ body::after{
 .frenzy-bar .lbl{ position:absolute; left:0; top:-15px; font-size:9px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); }
 .frenzy-bar.active .fill{ width:100% !important; animation:frenzyPulse .6s ease-in-out infinite; }
 
+@media (max-width:560px){
+  .combo{ top:10px; right:12px; font-size:20px; }
+  .frenzy-bar{ top:10px; left:12px; width:84px; height:8px; }
+  .frenzy-bar .lbl{ top:-13px; font-size:8px; }
+}
+
 /* lucky eki */
 .lucky-eki{ position:absolute; z-index:50; font-size:46px; cursor:pointer; filter:drop-shadow(0 0 12px var(--good));
   animation:luckyFloat 2.2s ease-in-out infinite, luckyPop .3s ease-out; border:none; background:none; padding:6px; }

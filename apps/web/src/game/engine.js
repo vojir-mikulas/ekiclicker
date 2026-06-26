@@ -24,7 +24,7 @@ import {
   enemyMaxHp, enemyReward, prestigeCost, difficultyScale, luckSpawnMult,
   upgradeCostAt, weaponCostAt, buyBatch, forgivenessGain,
   comboCap, forgivenessMult, bossTimeMult, bossGoldMult, dustMult, dropChanceBonus,
-  hellFloorHp,
+  hellFloorHp, clearStatCache,
 } from './formulas.js';
 import {
   HELLEVATOR, HELL_SHOP, hellPerkCost, siraForRun, isHellBossFloor,
@@ -80,6 +80,7 @@ export class Engine {
   };
   getVersion = () => this.version;
   notify() {
+    clearStatCache(); // gear se mohl změnit → zahoď cache odvozených statů (viz formulas.js)
     this.version++;
     for (const l of this._listeners) l();
   }
@@ -158,7 +159,7 @@ export class Engine {
        - punch: nominální výstup z manuálních úderů (combo/krit/zuřivost jak padly),
        - real:  skutečná průchodnost obou zdrojů (eff — bez overkillu).
      real může být < auto+punch kvůli overkillu / útěku bosse — to je záměr. */
-  meteredDps() {
+  meteredDps(auto) {
     const now = performance.now();
     const win = CONFIG.dpsWindowMs;
     while (this._dmg.length && now - this._dmg[0].t > win) this._dmg.shift();
@@ -169,7 +170,8 @@ export class Engine {
       if (d.src === 'punch') punchNom += d.nominal;
     }
     const sec = win / 1000;
-    return { auto: totalDps(this.state), punch: punchNom / sec, real: allEff / sec };
+    // `auto` lze předat z volajícího, který už totalDps spočítal (tick) → bez dvojího výpočtu
+    return { auto: auto ?? totalDps(this.state), punch: punchNom / sec, real: allEff / sec };
   }
   defeat() {
     const s = this.state;
@@ -2041,8 +2043,8 @@ export class Engine {
     const dps = totalDps(s);
     if (dps > 0) this.applyDamage(dps * dt, 'auto');
 
-    // špičkové (skutečné) DPS — pro staty/žebříček
-    const real = this.meteredDps().real;
+    // špičkové (skutečné) DPS — pro staty/žebříček (totalDps už máme → předej ho)
+    const real = this.meteredDps(dps).real;
     if (real > s.stats.peakDps) s.stats.peakDps = real;
 
     // boss časomíra

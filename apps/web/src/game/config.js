@@ -66,14 +66,17 @@ export const CONFIG = {
   archonBossLootMult: 8, // Eki Archón: obří balík zlata…
   archonBossDoves: 5, // …a zaručeně 5 🕊 + jeden kus sady „Věčný" (rollSetItem)
 
-  // --- HLUBOKÝ HARDEN (geometrický ocas obtížnosti) — VYPNUTO (ramp=1,0) ---
-  // POZN.: strmý harden (1,018) je NESLUČITELNÝ s cílem „hratelné do 200k" — jakýkoli
-  // růst dost strmý, aby zdil silný build, PŘETEČE float (Infinity) kolem L~34000.
-  // Pro 200k musí být vypnutý → hloubku tvaruje jen mírná polynomiální křivka (hpCurve
-  // dojede na ~1e95 @200k, konečné). Kdo chce zpět TVRDOU zeď místo dosahu na 200k:
-  // HRAMP=1.018 HFROM=3000 (ale pak hra walluje ~5000-34000, dál NE). Páka dosah⇄tvrdost.
+  // --- HLUBOKÝ HARDEN (geometrický ocas obtížnosti) — ENDGAME STROP ~5000 ---
+  // Plochý ocas křivky (floor=1,0) sám HP asymptotuje → koupená síla ho v endgame
+  // přeroste DONEKONEČNA = žádný strop (whale „utíkal" za 6000+, nikdy nezdil).
+  // MÍRNÝ harden to opravuje: +0,1 %/úr HP nad křivku od hardenFrom. To dá nejhlubší
+  // prestiži REÁLNÝ endgame strop ~5000 (whale zeď 4989), ale je dost mírný, aby
+  // ZŮSTAL POLYNOMIÁLNĚ MĚKKÝ → hlubší prestiž ho dál posouvá (žebřík ...3351→4989→…
+  // pokračuje DONEKONEČNA, žádná cihlová zeď). Bezpečný proti přetečení: 1,001 drží
+  // HP konečné do ~L450k (a ENEMY_HP_CAP=1e300 chrání i dál → vždy zabitelné). Strmější
+  // harden (1,018) přeteče float kolem L~34000 — proto JEN mírný. Páka „tvrdost endgame".
   hardenFrom: tune('HFROM', 3000),
-  hardenRamp: tune('HRAMP', 1.0), // 1,0 = vypnuto (×1 vždy). >1 = tvrdá zeď, ale rozbije 200k.
+  hardenRamp: tune('HRAMP', 1.001), // 1,0 = vypnuto. 1,001 = mírný endgame strop ~5000 (viz výš).
 
   // --- obtížnost škáluje s prestige silou (ANTI-BLITZ) ---
   // Problém: po rebirthu si neseš veškerou prestige sílu (hlavně Věčný hněv,

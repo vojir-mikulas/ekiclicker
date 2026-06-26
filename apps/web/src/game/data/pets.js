@@ -24,11 +24,11 @@ export const PETS_CFG = {
   // Sazby jsou ~8× níž a navíc platí maxEggsPerRun → ~1–2 vejce za běh = vzácný
   // endgame lov. Vyšší boss-tier = vyšší šance (zrcadlí items.js); Archón už NEDÁVÁ
   // vejce zaručeně (jinak by sám naplnil strop) — jen nejvyšší šanci.
-  eggDropChance: 0.00006,    // běžný nepřítel (objemový zdroj — drž nízko)
-  eggBossDropChance: 0.001,  // boss (Golden Eki, po 5)
-  eggMegaDropChance: 0.006,  // mega boss (Eki Král, po 25)
-  eggUltraDropChance: 0.025, // ultra boss (Eki Titán, po 100)
-  eggArchonDropChance: 0.05, // Archón (po 500 — nejvzácnější, nejvyšší šance)
+  eggDropChance: 0.00009,    // běžný nepřítel (objemový zdroj — drž nízko)
+  eggBossDropChance: 0.0015,  // boss (Golden Eki, po 5)
+  eggMegaDropChance: 0.009,  // mega boss (Eki Král, po 25)
+  eggUltraDropChance: 0.038, // ultra boss (Eki Titán, po 100)
+  eggArchonDropChance: 0.075, // Archón (po 500 — nejvzácnější, nejvyšší šance)
   maxEggsPerRun: 2,    // strop vajec za jeden běh → ~1–2 mazlíčci/běh
   maxDupeDust: 250,    // útěcha v úlomcích 💠, když padne duplikát už vymaxovaného mazlíčka
 
