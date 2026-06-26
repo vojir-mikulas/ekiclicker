@@ -31,6 +31,10 @@ function shapeBoss(b) {
     startedAt: b.started_at,
     endsAt: b.ends_at,
     endedAt: b.ended_at,
+    // po konci běží respawn pauza — kdy naskočí další boss (pro živý odpočet v UI)
+    respawnAt: b.status !== 'active' && b.ended_at
+      ? new Date(ms(b.ended_at) + WORLD_BOSS.respawnDelayMs)
+      : null,
   };
 }
 

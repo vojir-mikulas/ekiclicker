@@ -172,6 +172,7 @@ export default function WorldBossView({ onJoin, onSelectPlayer }) {
   const hp = Math.max(0, boss.hp);
   const pct = Math.max(0, Math.min(100, (hp / maxHp) * 100));
   const deadlineMs = Math.max(0, new Date(boss.endsAt).getTime() - Date.now());
+  const respawnMs = boss.respawnAt ? Math.max(0, new Date(boss.respawnAt).getTime() - Date.now()) : 0;
   const charge = chargeRef.current;
   const v = worldBossVariant(boss.number);
   const combo = comboRef.current;
@@ -248,7 +249,11 @@ export default function WorldBossView({ onJoin, onSelectPlayer }) {
             </div>
           </>
         ) : (
-          <p className="wb-ended">Další boss naskočí za chvíli — vrať se a přidej se k němu.</p>
+          <p className="wb-ended">
+            {respawnMs > 0
+              ? <>🐲 Další boss naskočí za <b>{fmtDuration(respawnMs / 1000)}</b> — vrať se a přidej se k němu.</>
+              : 'Další boss už naskakuje… vydrž chvilku. 🐉'}
+          </p>
         )}
       </div>
 

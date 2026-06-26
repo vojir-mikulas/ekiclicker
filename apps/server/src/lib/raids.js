@@ -350,15 +350,23 @@ export async function getRaidView(seasonId, playerId, nowMs = Date.now()) {
   }));
 
   const topRes = await query(
-    `select rs.player_id, rs.rating, rs.wins, rs.best_streak, p.nickname
-       from raid_state rs join players p on p.id = rs.player_id
+    `select rs.player_id, rs.rating, rs.wins, rs.best_streak, rs.shield_until, ss.highest_level, p.nickname
+       from raid_state rs
+       join players p on p.id = rs.player_id
+       left join season_scores ss on ss.season_id = rs.season_id and ss.player_id = rs.player_id
       where rs.season_id = $1
       order by rs.rating desc, rs.wins desc, rs.best_streak desc limit 10`,
     [seasonId],
   );
-  const top = topRes.rows.map((r, i) => ({
-    rank: i + 1, id: r.player_id, nickname: r.nickname, rating: r.rating, wins: r.wins,
-  }));
+  const top = topRes.rows.map((r, i) => {
+    const shieldMs = r.shield_until ? Math.max(0, ms(r.shield_until) - nowMs) : 0;
+    return {
+      rank: i + 1, id: r.player_id, nickname: r.nickname, rating: r.rating, wins: r.wins,
+      // koho teď nelze přepadnout: pod štítem nebo chráněný nováček (pod úrovní arény)
+      shieldMs,
+      immune: shieldMs > 0 || (Number(r.highest_level) || 1) < RAIDS.newbieShieldLevel,
+    };
+  });
 
   return { me, incoming, unseen, mine, top };
 }

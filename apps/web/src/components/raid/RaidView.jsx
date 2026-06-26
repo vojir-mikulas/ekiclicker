@@ -7,6 +7,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { RAID_TACTICS, RAIDS } from '@ekiclicker/shared';
 import { useRaid } from '../../hooks/useRaid.js';
 import { useAccount } from '../../hooks/useAccount.js';
+import { useEngineSelector } from '../../hooks/useEngine.js';
 import { fmt, fmtDuration } from '../../game/format.js';
 import { PLACEHOLDER } from '../../game/data/texts.js';
 
@@ -16,6 +17,7 @@ const FIGHT_MS = 1100;
 const medal = (r) => (r === 1 ? '🥇' : r === 2 ? '🥈' : r === 3 ? '🥉' : null);
 const tacticDef = (id) => RAID_TACTICS.find((t) => t.id === id) || RAID_TACTICS[0];
 const tacticName = (id) => `${tacticDef(id).emoji} ${tacticDef(id).label}`;
+const selectHighest = (s) => s.highestLevel || 1;
 
 const REASON = {
   cooldown: 'Eki se ještě sbírá — zkus to za chvíli.',
@@ -34,6 +36,8 @@ const REASON = {
 export default function RaidView({ onJoin, onSelectPlayer }) {
   const rd = useRaid();
   const account = useAccount();
+  const highestLevel = useEngineSelector(selectHighest);
+  const tooLow = highestLevel < RAIDS.newbieShieldLevel; // pod úrovní arény → nelze přepadat (ani být přepaden)
 
   const [phase, setPhase] = useState('idle');   // idle | scouted | fighting | result
   const [target, setTarget] = useState(null);    // naskautovaná oběť (nebo cíl pomsty)
@@ -62,7 +66,7 @@ export default function RaidView({ onJoin, onSelectPlayer }) {
   const cdMs = Math.max(0, rd.cooldownUntil - performance.now());
   const cdReady = cdMs <= 0;
   const dailyLeft = me?.dailyLeft ?? 0;
-  const canRaid = cdReady && dailyLeft > 0 && !rd.busy;
+  const canRaid = cdReady && dailyLeft > 0 && !rd.busy && !tooLow;
 
   const doScout = useCallback(async () => {
     setResult(null);
@@ -104,14 +108,25 @@ export default function RaidView({ onJoin, onSelectPlayer }) {
   }
   if (!rd.data || !me) return <div className="raid-page"><div className="board-loading">Načítám arénu…</div></div>;
 
-  const scoutLabel = !cdReady ? `⏱ Další přepad za ${Math.ceil(cdMs / 1000)} s`
-    : dailyLeft <= 0 ? '🌙 Dnes došly přepady'
-      : rd.busy ? 'Hledám oběť…' : '🗡️ Najít oběť';
+  const scoutLabel = tooLow ? `🔒 Aréna od úrovně ${RAIDS.newbieShieldLevel}`
+    : !cdReady ? `⏱ Další přepad za ${Math.ceil(cdMs / 1000)} s`
+      : dailyLeft <= 0 ? '🌙 Dnes došly přepady'
+        : rd.busy ? 'Hledám oběť…' : '🗡️ Najít oběť';
 
   const hasLoot = !!vault && (vault.gold > 0 || vault.doves > 0 || vault.dust > 0);
 
   return (
     <div className="raid-page">
+      {tooLow && (
+        <div className="raid-locked">
+          <span className="raid-locked-icon">🔒</span>
+          <div className="raid-locked-body">
+            <div className="raid-locked-title">Aréna se otevírá od úrovně {RAIDS.newbieShieldLevel}</div>
+            <p>Teď jsi na úrovni <b>{fmt(highestLevel)}</b>. Jako nováček tě nikdo nepřepadne — a ty zatím taky ne. Vyšplhej výš a vrať se lovit duchy.</p>
+          </div>
+        </div>
+      )}
+
       {/* hlavička: rating / pořadí / bilance / série */}
       <div className="raid-stats">
         <div className="raid-stat"><span className="lbl">Rating</span><span className="val">{me.rating}</span></div>
@@ -120,137 +135,146 @@ export default function RaidView({ onJoin, onSelectPlayer }) {
         <div className="raid-stat"><span className="lbl">Série</span><span className="val">{me.streak > 0 ? `🔥${me.streak}` : '—'}</span></div>
       </div>
 
-      {/* trezor — ukraditelný lup; vyber do bezpečí */}
-      <div className={'raid-vault' + (hasLoot ? ' loot' : '')}>
-        <div className="raid-vault-head">🏦 Trezor {me.shieldMs > 0 && <span className="raid-shield">🛡️ štít {fmtDuration(me.shieldMs / 1000)}</span>}</div>
-        <div className="raid-vault-amts">
-          <span>💰 {fmt(vault?.gold || 0)}</span>
-          <span>🕊 {fmt(vault?.doves || 0)}</span>
-          <span>💠 {fmt(vault?.dust || 0)}</span>
-        </div>
-        <button className="primary-btn" onClick={doWithdraw} disabled={!hasLoot || (me.withdrawCooldownMs || 0) > 0}>
-          {(me.withdrawCooldownMs || 0) > 0 ? `⏳ Výběr za ${fmtDuration(me.withdrawCooldownMs / 1000)}`
-            : hasLoot ? '🔒 Vybrat do bezpečí' : 'Trezor je prázdný'}
-        </button>
-        <p className="raid-vault-hint">
-          Hra ti pravidelně strhává díl peněz z účtu do trezoru — a ten ti můžou ostatní vyloupit.
-          Vybrat do bezpečí jde jen <b>jednou za pár hodin</b>, tak dobře načasuj, kdy je v trezoru nejvíc.
-        </p>
-      </div>
-
-      {/* jádro: přepad */}
-      <div className="raid-arena">
-        {phase === 'idle' || phase === 'noone' ? (
-          <div className="raid-hunt">
-            <button className="punch-btn raid-scout" onClick={doScout} disabled={!canRaid}>{scoutLabel}</button>
-            {phase === 'noone' && <p className="raid-msg">Nikdo k přepadení není (málo hráčů nebo všichni pod štítem). Zkus později.</p>}
-            <p className="raid-sub">Zbývá dnes <b>{dailyLeft}</b> přepadů.</p>
+      <div className="raid-cols">
+        <div className="raid-col raid-col-main">
+          {/* trezor — ukraditelný lup; vyber do bezpečí */}
+          <div className={'raid-vault' + (hasLoot ? ' loot' : '')}>
+            <div className="raid-vault-head">🏦 Trezor {me.shieldMs > 0 && <span className="raid-shield">🛡️ štít {fmtDuration(me.shieldMs / 1000)}</span>}</div>
+            <div className="raid-vault-amts">
+              <span>💰 {fmt(vault?.gold || 0)}</span>
+              <span>🕊 {fmt(vault?.doves || 0)}</span>
+              <span>💠 {fmt(vault?.dust || 0)}</span>
+            </div>
+            <button className="primary-btn" onClick={doWithdraw} disabled={!hasLoot || (me.withdrawCooldownMs || 0) > 0}>
+              {(me.withdrawCooldownMs || 0) > 0 ? `⏳ Výběr za ${fmtDuration(me.withdrawCooldownMs / 1000)}`
+                : hasLoot ? '🔒 Vybrat do bezpečí' : 'Trezor je prázdný'}
+            </button>
+            <p className="raid-vault-hint">
+              Hra ti pravidelně strhává díl peněz z účtu do trezoru — a ten ti můžou ostatní vyloupit.
+              Vybrat do bezpečí jde jen <b>jednou za pár hodin</b>, tak dobře načasuj, kdy je v trezoru nejvíc.
+            </p>
           </div>
-        ) : phase === 'scouted' && target ? (
-          <div className="raid-target">
-            <div className="raid-target-head">
-              {target.revenge ? '⚔️ Pomsta' : '🎯 Oběť na mušce'}
-            </div>
-            <div className="raid-victim">
-              <button className="raid-victim-name" onClick={onSelectPlayer && target.id ? () => onSelectPlayer(target.id) : undefined}>
-                {target.nickname}
-              </button>
-              {!target.revenge && (
-                <div className="raid-victim-meta">úroveň {fmt(target.level)} · rating {target.rating}</div>
-              )}
-            </div>
-            {target.loot && (target.loot.gold > 0 || target.loot.doves > 0 || target.loot.dust > 0) ? (
-              <div className="raid-offer">
-                💼 K ukradení: <b>💰 {fmt(target.loot.gold)}</b>
-                {target.loot.doves > 0 && <> · <b>🕊 {fmt(target.loot.doves)}</b></>}
-                {target.loot.dust > 0 && <> · <b>💠 {fmt(target.loot.dust)}</b></>}
-              </div>
-            ) : (
-              <div className="raid-offer dim">💼 {target.revenge ? 'Lup zjistíš až při útoku.' : 'Skoupý terč — hlavně rating a 💠 bonus.'}</div>
-            )}
 
-            <div className="raid-tactics">
+          {/* jádro: přepad */}
+          <div className="raid-arena">
+            {phase === 'idle' || phase === 'noone' ? (
+              <div className="raid-hunt">
+                <button className="punch-btn raid-scout" onClick={doScout} disabled={!canRaid}>{scoutLabel}</button>
+                {phase === 'noone' && <p className="raid-msg">Nikdo k přepadení není (málo hráčů nebo všichni pod štítem). Zkus později.</p>}
+                <p className="raid-sub">Zbývá dnes <b>{dailyLeft}</b> přepadů.</p>
+              </div>
+            ) : phase === 'scouted' && target ? (
+              <div className="raid-target">
+                <div className="raid-target-head">
+                  {target.revenge ? '⚔️ Pomsta' : '🎯 Oběť na mušce'}
+                </div>
+                <div className="raid-victim">
+                  <button className="raid-victim-name" onClick={onSelectPlayer && target.id ? () => onSelectPlayer(target.id) : undefined}>
+                    {target.nickname}
+                  </button>
+                  {!target.revenge && (
+                    <div className="raid-victim-meta">úroveň {fmt(target.level)} · rating {target.rating}</div>
+                  )}
+                </div>
+                {target.loot && (target.loot.gold > 0 || target.loot.doves > 0 || target.loot.dust > 0) ? (
+                  <div className="raid-offer">
+                    💼 K ukradení: <b>💰 {fmt(target.loot.gold)}</b>
+                    {target.loot.doves > 0 && <> · <b>🕊 {fmt(target.loot.doves)}</b></>}
+                    {target.loot.dust > 0 && <> · <b>💠 {fmt(target.loot.dust)}</b></>}
+                  </div>
+                ) : (
+                  <div className="raid-offer dim">💼 {target.revenge ? 'Lup zjistíš až při útoku.' : 'Skoupý terč — hlavně rating a 💠 bonus.'}</div>
+                )}
+
+                <div className="raid-tactics">
+                  {RAID_TACTICS.map((t) => (
+                    <button
+                      key={t.id}
+                      className={'raid-tactic' + (tactic === t.id ? ' on' : '')}
+                      onClick={() => setTactic(t.id)}
+                      title={`Poráží: ${tacticName(t.beats)}`}
+                    >
+                      <span className="emoji">{t.emoji}</span>
+                      <span className="name">{t.label}</span>
+                    </button>
+                  ))}
+                </div>
+                <p className="raid-tactic-hint">Soupeřovu obranu neznáš — ⚔️ poráží 🎭, 🎭 poráží 🛡️, 🛡️ poráží ⚔️. Trefa do protitahu = velká výhoda.</p>
+
+                <div className="raid-actions">
+                  <button className="punch-btn" onClick={() => doStrike(target.id)} disabled={!canRaid}>💥 Přepadnout!</button>
+                  <button className="ghost-btn" onClick={reset}>Zpět</button>
+                </div>
+              </div>
+            ) : phase === 'fighting' ? (
+              <div className="raid-fight">
+                <div className="raid-fighter me"><img src={PLACEHOLDER} alt="ty" draggable={false} /><span>Ty {tacticDef(tactic).emoji}</span></div>
+                <div className="raid-vs">⚔️</div>
+                <div className="raid-fighter foe"><img src={PLACEHOLDER} alt={target?.nickname} draggable={false} /><span>{target?.nickname}</span></div>
+              </div>
+            ) : phase === 'result' ? (
+              <RaidResult res={result} target={target} onAgain={() => { reset(); }} />
+            ) : null}
+          </div>
+
+          {/* obranná taktika ducha */}
+          <div className="raid-defense">
+            <div className="raid-defense-head">🛡️ Obrana tvého ducha</div>
+            <div className="raid-tactics small">
               {RAID_TACTICS.map((t) => (
                 <button
                   key={t.id}
-                  className={'raid-tactic' + (tactic === t.id ? ' on' : '')}
-                  onClick={() => setTactic(t.id)}
-                  title={`Poráží: ${tacticName(t.beats)}`}
+                  className={'raid-tactic' + (me.defenseTactic === t.id ? ' on' : '')}
+                  onClick={() => rd.setDefense(t.id)}
                 >
-                  <span className="emoji">{t.emoji}</span>
-                  <span className="name">{t.label}</span>
+                  <span className="emoji">{t.emoji}</span><span className="name">{t.label}</span>
                 </button>
               ))}
             </div>
-            <p className="raid-tactic-hint">Soupeřovu obranu neznáš — ⚔️ poráží 🎭, 🎭 poráží 🛡️, 🛡️ poráží ⚔️. Trefa do protitahu = velká výhoda.</p>
-
-            <div className="raid-actions">
-              <button className="punch-btn" onClick={() => doStrike(target.id)} disabled={!canRaid}>💥 Přepadnout!</button>
-              <button className="ghost-btn" onClick={reset}>Zpět</button>
-            </div>
+            <p className="raid-sub">Když jsi offline a někdo tě napadne, tvůj duch se brání touhle taktikou.</p>
           </div>
-        ) : phase === 'fighting' ? (
-          <div className="raid-fight">
-            <div className="raid-fighter me"><img src={PLACEHOLDER} alt="ty" draggable={false} /><span>Ty {tacticDef(tactic).emoji}</span></div>
-            <div className="raid-vs">⚔️</div>
-            <div className="raid-fighter foe"><img src={PLACEHOLDER} alt={target?.nickname} draggable={false} /><span>{target?.nickname}</span></div>
-          </div>
-        ) : phase === 'result' ? (
-          <RaidResult res={result} target={target} onAgain={() => { reset(); }} />
-        ) : null}
-      </div>
-
-      {/* obranná taktika ducha */}
-      <div className="raid-defense">
-        <div className="raid-defense-head">🛡️ Obrana tvého ducha</div>
-        <div className="raid-tactics small">
-          {RAID_TACTICS.map((t) => (
-            <button
-              key={t.id}
-              className={'raid-tactic' + (me.defenseTactic === t.id ? ' on' : '')}
-              onClick={() => rd.setDefense(t.id)}
-            >
-              <span className="emoji">{t.emoji}</span><span className="name">{t.label}</span>
-            </button>
-          ))}
         </div>
-        <p className="raid-sub">Když jsi offline a někdo tě napadne, tvůj duch se brání touhle taktikou.</p>
-      </div>
 
-      {/* příchozí přepady — pomsta */}
-      {rd.incoming.length > 0 && (
-        <div className="raid-incoming">
-          <div className="raid-board-head">📨 Kdo si na tebe troufl</div>
-          {rd.incoming.map((r) => (
-            <div key={r.id} className="raid-inc-row">
-              <span className="who">
-                <b>{r.nickname}</b> {r.looted
-                  ? <>tě obral o 💰 {fmt(r.loot.gold)}{r.loot.doves > 0 && ` · 🕊 ${fmt(r.loot.doves)}`}{r.loot.dust > 0 && ` · 💠 ${fmt(r.loot.dust)}`}</>
-                  : 'na tebe zaútočil, ale tvůj duch ho odrazil! 🛡️'}
-              </span>
-              <button className="ghost-btn sm" onClick={() => doRevenge(r.attackerId, r.nickname)} disabled={!canRaid}>⚔️ Pomsta</button>
+        <div className="raid-col raid-col-side">
+          {/* příchozí přepady — pomsta */}
+          {rd.incoming.length > 0 && (
+            <div className="raid-incoming">
+              <div className="raid-board-head">📨 Kdo si na tebe troufl</div>
+              {rd.incoming.map((r) => (
+                <div key={r.id} className="raid-inc-row">
+                  <span className="who">
+                    <b>{r.nickname}</b> {r.looted
+                      ? <>tě obral o 💰 {fmt(r.loot.gold)}{r.loot.doves > 0 && ` · 🕊 ${fmt(r.loot.doves)}`}{r.loot.dust > 0 && ` · 💠 ${fmt(r.loot.dust)}`}</>
+                      : 'na tebe zaútočil, ale tvůj duch ho odrazil! 🛡️'}
+                  </span>
+                  <button className="ghost-btn sm" onClick={() => doRevenge(r.attackerId, r.nickname)} disabled={!canRaid}>⚔️ Pomsta</button>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-      )}
+          )}
 
-      {/* žebříček arény */}
-      {rd.top.length > 0 && (
-        <div className="raid-board">
-          <div className="raid-board-head">🏅 Žebříček arény</div>
-          {rd.top.map((r) => (
-            <div
-              key={r.id || r.rank}
-              className={'raid-row' + (account.player?.id && r.id === account.player.id ? ' me' : '') + (onSelectPlayer && r.id ? ' clickable' : '')}
-              onClick={onSelectPlayer && r.id ? () => onSelectPlayer(r.id) : undefined}
-            >
-              <span className="rank">{medal(r.rank) || r.rank}</span>
-              <span className="nick">{r.nickname}</span>
-              <span className="val">{r.rating} <i>· {r.wins}🏆</i></span>
+          {/* žebříček arény — u koho je 🛡️, toho teď nelze přepadnout */}
+          {rd.top.length > 0 && (
+            <div className="raid-board">
+              <div className="raid-board-head">🏅 Žebříček arény</div>
+              {rd.top.map((r) => (
+                <div
+                  key={r.id || r.rank}
+                  className={'raid-row' + (account.player?.id && r.id === account.player.id ? ' me' : '') + (onSelectPlayer && r.id ? ' clickable' : '')}
+                  onClick={onSelectPlayer && r.id ? () => onSelectPlayer(r.id) : undefined}
+                >
+                  <span className="rank">{medal(r.rank) || r.rank}</span>
+                  <span className="nick">{r.nickname}</span>
+                  {r.shieldMs > 0
+                    ? <span className="raid-row-shield" title="Pod štítem — teď ho nelze přepadnout">🛡️ pod štítem</span>
+                    : r.immune ? <span className="raid-row-shield newbie" title="Chráněný nováček — nelze přepadnout">🍼 chráněn</span> : null}
+                  <span className="val">{r.rating} <i>· {r.wins}🏆</i></span>
+                </div>
+              ))}
             </div>
-          ))}
+          )}
         </div>
-      )}
+      </div>
 
       <p className="raid-foot">
         Přepadáš <b>ducha</b> offline hráče — stačí, že jsi online ty. Výsledek počítá server z vašeho
