@@ -188,7 +188,7 @@ function DuckGame({ onBack }) {
   if (phase === 'done') return <DuckResults onBack={onBack} />;
 
   return (
-    <div className="mat-screen duck">
+    <div className="mat-screen duck-screen">
       <button className="mat-back" onClick={onBack}>← Zpět</button>
       <div className="mat-screen-head">🦆 Střelnice</div>
       <p className="mat-tag">
