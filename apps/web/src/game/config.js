@@ -29,9 +29,13 @@ export const CONFIG = {
   baseHp: 10,
   baseGold: 14,
   curveG0: tune('G0', 1.16),    // počáteční růst HP/úroveň (≈ původní hpGrowth)
-  curveFloor: tune('FLOOR', 1.0), // asymptota růstu — 1,0 drží STŘEDNÍ hru mírnou
-  // (dosažitelnou, zbraně fungují). Tvrdost endgame řeší ZVLÁŠŤ hluboký harden níž
-  // (hardenFrom/Ramp), takže střed a hloubka mají oddělené páky a neperou se.
+  curveFloor: tune('FLOOR', 1.014), // asymptota růstu HP/úroveň. Efekt SE SČÍTÁ S HLOUBKOU
+  // (kumulativní součin), takže páčka se chová jako „strmost coastu PO startu": brzká/landing
+  // zóna se skoro nehne, ale každá úroveň nad kolenem je čím dál tvrdší. 1,0 = stará mírná
+  // (whale coastoval na ~1500 / r260-prestiž na ~5000); 1,012 utahuje pozdní climb VÝRAZNĚ
+  // (whale coast ~850, r260 ~2300) — hluboká prestiž pořád PLYNULE stoupá k branám
+  // (r400→~3800, r550→~4900, r700→~6300, žádný strop), jen vyžaduje víc grindu. Vyšší = tvrdší
+  // (1,016 stlačí žebřík až k landing zóně). Tvrdost endgame STROPU řeší zvlášť harden níž.
   curveKnee: tune('KNEE', 200),   // „koleno": L, kde růst klesne na půl cesty mezi G0 a floor
   // Zlato je svázané se STEJNOU křivkou: goldGrowth(L) = 1 + goldRatio×(g(L)-1).
   // goldRatio<1 → mírná, ale TRVALÁ brzda (odměna/HP pomalu klesá → zeď existuje
