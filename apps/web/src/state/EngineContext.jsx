@@ -23,16 +23,15 @@ export function EngineProvider({ children }) {
     window.addEventListener('beforeunload', onHide);
     document.addEventListener('visibilitychange', onVisibility);
 
-    // Konzolové cheaty — zapnuté ve výchozím stavu; vypneš jen explicitně VITE_CHEATS=0
-    // (viz apps/web/.env). Při '0' Vite tenhle blok při buildu úplně odstraní (dead-code
-    // elimination). VITE_CHEATS se čte při startu dev serveru / při buildu, takže po
-    // změně .env je třeba restart `npm run dev` (prod: `npm run build`).
+    // Konzolové cheaty — NATVRDO VYPNUTÉ (false). Kód je tu ponechán pro budoucí
+    // ladění; přepni gate na true (nebo zpět na env check), když je budeš potřebovat.
     // Mění ŽIVÝ stav enginu (ne localStorage), pak notify() překreslí UI a save() to
     // uloží → přežije i reload. Žebříček je tím neohrožený: server má sezónně-relativní
     // monotonii + věrohodnostní strop tempa (checkPlausibility), takže skok úrovně/zlata
     // se do ranku stejně neprotlačí.
     // Použití:  eki.setMoney(1e12)   eki.setLevel(1000)   eki.dropItem(5)
-    if (import.meta.env.VITE_CHEATS !== '0') {
+    const CHEATS_ENABLED = false;
+    if (CHEATS_ENABLED) {
       const cheats = {
         engine,
         setMoney(n = 1e12) {
@@ -124,7 +123,7 @@ export function EngineProvider({ children }) {
       save(engine.state);
       window.removeEventListener('beforeunload', onHide);
       document.removeEventListener('visibilitychange', onVisibility);
-      if (import.meta.env.VITE_CHEATS !== '0') {
+      if (CHEATS_ENABLED) {
         delete window.eki;
         delete window.__eki;
       }

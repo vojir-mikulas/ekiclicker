@@ -51,6 +51,42 @@ export const VARIANTS = {
 /* Lucky Eki (zlatá sušenka) — neobjevuje se v aréně, je to klikací bonus. */
 export const LUCKY = { emoji: '🍀', name: 'Lucky Eki', glow: '#46e08a' };
 
+/* Přístupná barva nadpisu z varianty: vezme `glow` (signaturní odstín varianty)
+   a podrží jeho ODSTÍN, ale ukotví jas/sytost tak, aby text byl čitelný na tmavém
+   navy pozadí — i u tmavých variant (Void, Abyss…) a zároveň ne oslnivě bílý.
+   Vrací { color } pro plný text a { light } pro horní konec přechodu. */
+function hexToRgb(hex) {
+  const h = hex.replace('#', '');
+  const f = h.length === 3 ? h.split('').map((c) => c + c).join('') : h;
+  const n = parseInt(f, 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+function rgbToHsl(r, g, b) {
+  r /= 255; g /= 255; b /= 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  let h = 0, s = 0; const l = (max + min) / 2;
+  if (max !== min) {
+    const d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    if (max === r) h = (g - b) / d + (g < b ? 6 : 0);
+    else if (max === g) h = (b - r) / d + 2;
+    else h = (r - g) / d + 4;
+    h /= 6;
+  }
+  return [h * 360, s, l];
+}
+export function variantNameColors(glow) {
+  const [h, s, l] = rgbToHsl(...hexToRgb(glow || '#9fd4f5'));
+  const sat = Math.min(1, Math.max(s, 0.4));        // ať je hue vidět i u šedivých
+  const baseL = Math.min(0.82, Math.max(l, 0.68));  // dolní strop jasu = čitelnost
+  const topL = Math.min(0.95, baseL + 0.2);
+  const hh = h.toFixed(0);
+  return {
+    color: `hsl(${hh} ${(sat * 100).toFixed(0)}% ${(baseL * 100).toFixed(0)}%)`,
+    light: `hsl(${hh} ${(Math.min(1, sat + 0.08) * 100).toFixed(0)}% ${(topL * 100).toFixed(0)}%)`,
+  };
+}
+
 export function variantPool(level) {
   return Object.entries(VARIANTS)
     .filter(([, v]) => !v.boss && !v.trip && level >= v.minLevel)

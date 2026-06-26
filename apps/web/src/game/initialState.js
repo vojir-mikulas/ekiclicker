@@ -131,6 +131,10 @@ export function createState() {
     hellCurses: {},               // 💀 zapnuté kletby běhu (id -> bool; víc 🔥 za těžší běh)
     hellExch: { day: '', dust: 0 }, // denní strop směny 🔥→💠
     hellRun: null,                // PŘECHODNÝ stav běhu (neukládá se — jako pendingOpen)
+    // --- Matějská pouť 🎡 (sezónní atrakce tématu „matejska"; gatuje seasonTheme) ---
+    fair: { tickets: 0, ticketAt: 0, freeDay: '' }, // 🎟️ lístky + regen + denní dorovnání (přežívá rebirth, mře sezónou)
+    fairWheel: null,              // PŘECHODNÝ výsledek točení kola (neukládá se — jako pendingOpen)
+    fairRun: null,                // PŘECHODNÝ stav střelnice (neukládá se)
     // --- téma sezóny (server-derived z čísla sezóny; NEUKLÁDÁ se do save ani skóre) ---
     seasonTheme: null,            // { id, mods } aktivní sezóny | null — bounded buff bez dmgPct (viz data/seasonThemes.js)
     buyAmount: 1,
@@ -159,6 +163,8 @@ export function resetRun(state, startLevel) {
   state.eggsThisRun = 0;    // strop vajec je per-běh → na začátku běhu vynuluj
   state.runesThisRun = 0;   // strop run je per-běh → na začátku běhu vynuluj
   state.hellRun = null;     // přechodný běh výtahu — rebirth ho nenese (hell/sira/hellShop ANO)
+  state.fairWheel = null;   // přechodné točení kola — rebirth ho nenese (fair lístky ANO)
+  state.fairRun = null;     // přechodná střelnice — rebirth ji nenese
   // vybavení/inventář/bedny/úlomky/MAZLÍČCI se NEresetují (jako prestige) → snapshot síly
   // do obtížnosti (vybavení + nasazený mazlíček, viz formulas.difficultyScale)
   state.runGearPower = gearPower(state.equipment) * petPower(state);

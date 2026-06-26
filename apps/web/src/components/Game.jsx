@@ -5,6 +5,7 @@ import { FEATURE_UNLOCKS } from '../game/data/featureUnlocks.js';
 import TopBar from './TopBar.jsx';
 import Arena from './arena/Arena.jsx';
 import Shop from './shop/Shop.jsx';
+import BottomNav from './BottomNav.jsx';
 import EffectsLayer from './EffectsLayer.jsx';
 import ToastHost from './ToastHost.jsx';
 import UpdateBanner from './UpdateBanner.jsx';
@@ -40,6 +41,7 @@ const GuildView = lazy(() => import('./guild/GuildView.jsx'));
 const FoundGuildModal = lazy(() => import('./modals/FoundGuildModal.jsx'));
 const MailboxModal = lazy(() => import('./modals/MailboxModal.jsx'));
 const HellevatorModal = lazy(() => import('./hell/HellevatorModal.jsx'));
+const MatejskaModal = lazy(() => import('./matejska/MatejskaModal.jsx'));
 const UnlockModal = lazy(() => import('./modals/UnlockModal.jsx'));
 
 // Obrazovky, které se otevírají jako vsazená stránka v obsahu (ne overlay).
@@ -61,6 +63,7 @@ export default function Game() {
   const pendingOpenId = useEngineSelector((s) => s.pendingOpen?.id || null); // běžící ruleta bedny
   const pendingEggId = useEngineSelector((s) => s.pendingEgg?.id || null); // běžící líhnutí vejce
   const enchantOn = useEngineSelector((s) => !!s.pendingEnchant); // otevřený zaklínací stůl
+  const matejskaOn = useEngineSelector((s) => s.seasonTheme?.id === 'matejska'); // 🎡 pouť jen v sezóně Matějská
 
   // jednorázové připsání offline výdělku po načtení
   useEffect(() => {
@@ -143,6 +146,16 @@ export default function Game() {
               </ModalModeContext.Provider>
             ) : view === 'game' ? (
               <div className="game">
+                {matejskaOn && (
+                  <button className="mat-entry" onClick={() => setModal('matejska')}>
+                    <span className="mat-entry-ico">🎡</span>
+                    <span className="mat-entry-txt">
+                      <b>Matějská pouť</b>
+                      <small>Kolo štěstí · střelnice — pouťové výhry sezóny</small>
+                    </span>
+                    <span className="mat-entry-go">Vstoupit →</span>
+                  </button>
+                )}
                 <Arena onOpenRebirth={() => setModal('rebirth')} />
                 <Shop />
               </div>
@@ -169,6 +182,8 @@ export default function Game() {
         </div>
       </div>
 
+      <BottomNav view={view} onView={goView} />
+
       {view === 'game' && !page && <EffectsLayer />}
       <ElixirScreenFx />
       <ToastHost />
@@ -183,6 +198,7 @@ export default function Game() {
         {pendingOpenId && <RouletteModal key={pendingOpenId} />}
         {modal === 'foundGuild' && <FoundGuildModal onClose={() => setModal(null)} />}
         {modal === 'hellevator' && <HellevatorModal onClose={() => setModal(null)} />}
+        {modal === 'matejska' && <MatejskaModal onClose={() => setModal(null)} />}
         {pendingEggId && <PetRevealModal key={pendingEggId} />}
         {offline && <OfflineModal offline={offline} onClose={() => setOffline(null)} />}
         {gift && <GiftModal gift={gift} onClose={() => setGift(null)} />}

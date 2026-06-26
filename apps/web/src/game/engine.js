@@ -47,6 +47,7 @@ import {
   ENCHANTS_CFG, canEnchant, rollEnchantOffers, applyOffer, rerollOffersCost,
 } from './data/enchants.js';
 import { MASTERY, NODE_BY_ID, TREE_BY_NODE, pointsInTree, masteryRemaining } from './data/mastery.js';
+import { MATEJSKA, pickWheelSegment } from './data/matejska.js';
 import { GUILDS } from '@ekiclicker/shared';
 
 let nextEnemyId = 1;
@@ -60,6 +61,7 @@ export class Engine {
     this._raf = 0;
     this._lastFrame = 0;
     this._acc = 0;
+    this._uiAcc = 0; // akumulátor pro strop překreslování UI (viz frame())
     this._achTimer = 0;
     this._autosaveTimer = 0;
     this._openSeq = 0; // id přechodné rulety (pendingOpen)
@@ -1643,6 +1645,143 @@ export class Engine {
     this.notify();
   }
 
+  /* ========================================================================
+     MATĚJSKÁ POUŤ 🎡 — sezónní atrakce (jen téma „matejska"). Dvě hry sdílí
+     🎟️ pouťové lístky (regen v čase + denní dorovnání jako žetony výtahu).
+     Odměny jsou BOUNDED a difficulty-neutral (zlato = násobek DPS-sekund jako
+     Lucky/trip; žádný dmgPct) → nulový dopad na anti-blitz. Brána je klientská
+     (seasonTheme.id === 'matejska') — gating řeší UI; engine jen počítá.
+     ======================================================================== */
+
+  /* Je pouť právě dostupná? (aktivní téma sezóny = Matějská) */
+  fairAvailable() {
+    return this.state.seasonTheme?.id === MATEJSKA.themeId;
+  }
+
+  /* Dorovnej 🎟️ lístky: denní free + regen v čase (mirror tickHellPasses). */
+  tickFairTickets(now = Date.now()) {
+    const f = this.state.fair;
+    if (!f) return;
+    const today = dayStr();
+    if (f.freeDay !== today) {
+      f.freeDay = today;
+      if (f.tickets < MATEJSKA.freeDaily) f.tickets = MATEJSKA.freeDaily;
+    }
+    if (f.tickets < MATEJSKA.ticketMax) {
+      if (!f.ticketAt) f.ticketAt = now + MATEJSKA.ticketRegenMs;
+      let guard = 0;
+      while (f.tickets < MATEJSKA.ticketMax && now >= f.ticketAt && guard++ < 1000) {
+        f.tickets++;
+        f.ticketAt += MATEJSKA.ticketRegenMs;
+      }
+      if (f.tickets >= MATEJSKA.ticketMax) f.ticketAt = 0;
+    } else {
+      f.ticketAt = 0;
+    }
+  }
+
+  /* Spotřebuj 1 lístek (rozjede regen, pokud stál na stropu). Vrací true při úspěchu. */
+  _spendFairTicket() {
+    const f = this.state.fair;
+    this.tickFairTickets();
+    if (!this.fairAvailable() || f.tickets < 1) return false;
+    f.tickets -= 1;
+    if (!f.ticketAt && f.tickets < MATEJSKA.ticketMax) f.ticketAt = Date.now() + MATEJSKA.ticketRegenMs;
+    return true;
+  }
+
+  /* Bounded zlato pro pouť — jako Lucky: max(odměna·k, DPS·sekundy). */
+  _fairGold(dpsSeconds, rewardMult) {
+    const s = this.state;
+    return Math.max(
+      Math.floor(enemyReward(s.level, VARIANTS.gold, goldMult(s)) * (rewardMult || 1)),
+      Math.floor(totalDps(s) * (dpsSeconds || 0))
+    );
+  }
+
+  /* 🎡 Zatoč kolem štěstí. Spotřebuje 1 lístek, vybere váženou výseč, PŘIPÍŠE
+     bounded odměnu a uloží přechodný výsledek do s.fairWheel (UI na něj dotočí).
+     Vrací { index, segment, reward } nebo null (nejde / chybí lístek). */
+  spinWheel() {
+    const s = this.state;
+    if (s.fairWheel && s.fairWheel.phase === 'spinning') return null;
+    if (!this._spendFairTicket()) return null;
+    const { index, segment } = pickWheelSegment(Math.random());
+    const reward = this._grantWheelReward(segment);
+    s.stats.fairPlays = (s.stats.fairPlays || 0) + 1;
+    s.fairWheel = { phase: 'spinning', index, segId: segment.id, reward, at: Date.now() };
+    save(s);
+    this.emit('fairSpin', { index, seg: segment.id, reward });
+    this.checkAchievements();
+    this.notify();
+    return { index, segment, reward };
+  }
+
+  /* Připíše odměnu jedné výseče kola (bounded, dmgPct-free). */
+  _grantWheelReward(seg) {
+    const s = this.state;
+    const out = { kind: seg.kind, jackpot: !!seg.jackpot };
+    if (seg.kind === 'gold') {
+      const gold = this._fairGold(seg.dpsSeconds, seg.rewardMult);
+      s.gold += gold; s.stats.totalGold += gold; out.gold = gold;
+    } else if (seg.kind === 'dust') {
+      const dust = Math.max(1, Math.round(s.level * (seg.perLevel || 0) * dustMult(s)));
+      s.dust = (s.dust || 0) + dust; out.dust = dust;
+    } else if (seg.kind === 'doves') {
+      const doves = seg.doves || 1;
+      s.prestige.forgiveness += doves; s.stats.lootDoves += doves; out.doves = doves;
+    } else if (seg.kind === 'frenzy') {
+      this.startFrenzy(performance.now()); out.frenzy = true;
+    }
+    return out;
+  }
+
+  /* UI dotočilo kolo → přepni z 'spinning' na 'done' (zobrazí výsledek). */
+  settleWheel() {
+    const w = this.state.fairWheel;
+    if (w && w.phase === 'spinning') { w.phase = 'done'; this.notify(); }
+  }
+  dismissWheel() { this.state.fairWheel = null; this.notify(); }
+
+  /* 🦆 Spusť kolo střelnice. Spotřebuje 1 lístek, nastaví přechodný běh
+     (UI řídí kachny i klikání; engine jen hlídá dvojí útratu a strop trefů). */
+  startDuckRun() {
+    const s = this.state;
+    if (s.fairRun && s.fairRun.phase === 'running') return false;
+    if (!this._spendFairTicket()) return false;
+    const now = performance.now();
+    s.fairRun = { phase: 'running', startedAt: now, endsAt: now + MATEJSKA.duck.durationMs, hits: 0, summary: null };
+    s.stats.fairPlays = (s.stats.fairPlays || 0) + 1;
+    save(s);
+    this.emit('duckStart', {});
+    this.notify();
+    return true;
+  }
+
+  /* Ukonči střelnici se skóre `rawHits` (UI). Trefy se CLAMPnou na maxHits →
+     i podvržený výsledek je shora omezen. Připíše bounded odměnu. */
+  finishDuckRun(rawHits = 0) {
+    const s = this.state;
+    const r = s.fairRun;
+    if (!r || r.phase !== 'running') return;
+    const d = MATEJSKA.duck;
+    const hits = Math.max(0, Math.min(d.maxHits, Math.floor(rawHits) || 0));
+    const gold = Math.floor(totalDps(s) * hits * d.goldDpsPerHit);
+    const dust = Math.max(0, Math.round((hits * s.level * d.dustPerHit / 100) * dustMult(s)));
+    const doves = Math.floor(hits / d.doveEvery);
+    if (gold > 0) { s.gold += gold; s.stats.totalGold += gold; }
+    if (dust > 0) s.dust = (s.dust || 0) + dust;
+    if (doves > 0) { s.prestige.forgiveness += doves; s.stats.lootDoves += doves; }
+    r.phase = 'done';
+    r.hits = hits;
+    r.summary = { hits, gold, dust, doves };
+    save(s);
+    this.emit('duckDone', r.summary);
+    this.checkAchievements();
+    this.notify();
+  }
+  dismissDuckRun() { this.state.fairRun = null; this.notify(); }
+
   /* ---------- rebirth ---------- */
   forgivenessGain() {
     return Math.floor(forgivenessGain(this.state.highestLevel) * forgivenessMult(this.state)); // 🕯️ Věčné odpuštění
@@ -1857,7 +1996,15 @@ export class Engine {
       this.refreshDaily(); // no-op, pokud je pořád stejný den
       save(this.state);
     }
-    this.notify();
+    // React překresli NEJVÝŠ ~30×/s, ne na každý snímek displeje. Simulace běží dál
+    // na pevném tickMs; vizuály (projektily, plovoucí čísla) jedou ve vlastní RAF
+    // smyčce FxManageru, takže klikání zůstává okamžité. Diskrétní akce (nákup,
+    // otevření okna) volají notify() přímo → ty se projeví hned, mimo tento strop.
+    this._uiAcc += elapsed;
+    if (this._uiAcc >= CONFIG.uiTickMs) {
+      this._uiAcc = 0;
+      this.notify();
+    }
   }
   tick(dt) {
     const s = this.state;

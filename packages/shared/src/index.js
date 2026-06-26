@@ -280,6 +280,57 @@ export function raidRatingDelta(attackerRating, defenderRating, attackerWon) {
 }
 
 /* ---------- přezdívka ---------- */
+/* ---------- vulgarismy / nadávky (sdílený filtr pro jména) ----------
+   Záměrně malý seznam KOŘENŮ (substring po normalizaci). Normalizace srovná
+   diakritiku, leetspeak (0→o, 1→i, 3→e, 4→a, 5→s, 7→t, @→a, $→s) a zopakované
+   znaky, takže "n3gr", "n e g r", "négřř" apod. taky chytne. Krátké kořeny
+   (≤4) se kvůli Scunthorpe efektu matchují jen jako CELÉ slovo. */
+export const PROFANITY_ROOTS = [
+  'negr', 'nigger', 'nigga', 'cikan', 'zid', 'buzna', 'teplous',
+  'pico', 'kurva', 'mrdk', 'mrdat', 'hovno', 'prdel', 'curak', 'cura',
+  'kokot', 'debil', 'idiot', 'jebat', 'jeb', 'sracka', 'svine', 'hajzl',
+  'fuck', 'shit', 'bitch', 'cunt', 'asshole', 'retard',
+];
+
+const LEET_MAP = { '0': 'o', '1': 'i', '3': 'e', '4': 'a', '5': 's', '7': 't', '@': 'a', '$': 's' };
+
+/* Normalizuje text pro porovnání s kořeny nadávek. */
+function normalizeForProfanity(raw) {
+  return String(raw)
+    .toLowerCase()
+    .normalize('NFKD').replace(/[\u0300-\u036f]/g, '')   // pryč s diakritikou
+    .replace(/[013457@$]/g, (c) => LEET_MAP[c] || c)     // leetspeak
+    .replace(/[^a-z]+/g, ' ')                            // nech jen písmena, zbytek = mezera
+    .replace(/(.)\1+/g, '$1')                            // sraz zopakované znaky (kuuurva→kurva)
+    .trim();
+}
+
+/* Vrátí true, pokud text obsahuje nadávku. */
+export function containsProfanity(raw) {
+  if (typeof raw !== 'string') return false;
+  const norm = normalizeForProfanity(raw);
+  if (!norm) return false;
+  const collapsed = norm.replace(/ /g, '');              // dlouhé kořeny: hledej i přes mezery
+  // Sraz souvislé řady JEDNOPÍSMENNÝCH tokenů do slova ("n e g r" → "negr"),
+  // aby krátké kořeny chytly i prosypané písmenka, ale "zídka" zůstalo slovem.
+  const words = norm.split(' ').reduce((acc, w) => {
+    if (w.length === 1 && acc.length && acc[acc.length - 1].single) {
+      acc[acc.length - 1].text += w;
+    } else {
+      acc.push({ text: w, single: w.length === 1 });
+    }
+    return acc;
+  }, []).map((t) => t.text);
+  for (const root of PROFANITY_ROOTS) {
+    if (root.length <= 4) {
+      if (words.includes(root)) return true;             // krátké jen jako celé slovo
+    } else if (collapsed.includes(root)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 export const NICKNAME = {
   min: 2,
   max: 20,
@@ -295,6 +346,7 @@ export function validateNickname(raw) {
   // písmena (vč. diakritiky), číslice, mezera, _ a -
   if (!/^[\p{L}\p{N} _-]+$/u.test(value)) return { ok: false, error: 'Povolena jsou jen písmena, číslice, mezera, _ a -.' };
   if (NICKNAME.reserved.includes(value.toLowerCase())) return { ok: false, error: 'Tato přezdívka je rezervovaná.' };
+  if (containsProfanity(value)) return { ok: false, error: 'Přezdívka obsahuje nevhodné slovo.' };
   return { ok: true, value };
 }
 
@@ -528,6 +580,7 @@ export function validateGuildName(raw) {
   if (value.length > GUILDS.name.max) return { ok: false, error: `Jméno smí mít nejvýš ${GUILDS.name.max} znaků.` };
   if (!/^[\p{L}\p{N} _-]+$/u.test(value)) return { ok: false, error: 'Povolena jsou jen písmena, číslice, mezera, _ a -.' };
   if (GUILDS.name.reserved.includes(value.toLowerCase())) return { ok: false, error: 'Toto jméno je rezervované.' };
+  if (containsProfanity(value)) return { ok: false, error: 'Jméno obsahuje nevhodné slovo.' };
   return { ok: true, value };
 }
 
@@ -539,6 +592,7 @@ export function validateGuildTag(raw) {
     return { ok: false, error: `TAG musí mít ${GUILDS.tag.min}–${GUILDS.tag.max} znaky.` };
   }
   if (!/^[A-Z0-9]+$/.test(value)) return { ok: false, error: 'TAG smí mít jen písmena A–Z a číslice.' };
+  if (containsProfanity(value)) return { ok: false, error: 'TAG obsahuje nevhodné slovo.' };
   return { ok: true, value };
 }
 

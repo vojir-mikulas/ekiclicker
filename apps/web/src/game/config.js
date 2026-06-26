@@ -117,6 +117,11 @@ export const CONFIG = {
 
   // --- herní smyčka ---
   tickMs: 100, // sim krok (DPS se aplikuje spojitě)
+  // Strop překreslování UI (notify) ODPOJENÝ od obnovovací frekvence displeje.
+  // Bez něj jede React reconciliation na 120/144 Hz panelech 2–2,4× častěji než
+  // je potřeba (proto „seká" právě na výkonných zařízeních). 33 ms ≈ 30 Hz —
+  // HP/časomíry mají CSS transition, takže zůstanou plynulé i při tomto kroku.
+  uiTickMs: 33,
   dpsWindowMs: 1500, // okno pro měřené DPS (úder/skutečné) — plynulý klouzavý průměr
 
   // --- offline ---

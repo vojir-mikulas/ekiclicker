@@ -32,16 +32,26 @@ export const SEASON_THEMES = [
     id: 'matejska',
     label: 'Matějská',
     emoji: '🎡',
-    blurb: 'Pouťová štěstěna — častější Lucky Eki a vyšší šance na drop.',
-    perks: ['+12 % šance na Lucky Eki', '+5 % šance na drop'],
+    blurb: 'Pouťová štěstěna — častější Lucky Eki, vyšší šance na drop a otevřená Matějská pouť (kolo štěstí + střelnice).',
+    perks: ['+12 % šance na Lucky Eki', '+5 % šance na drop', '🎡 Matějská pouť'],
     mods: { luck: 0.12, dropChance: 0.05 },
+    // 🎡 Speciální atrakce tohoto tématu: data/matejska.js + components/matejska/.
+    // UI ji gatuje na seasonTheme.id === 'matejska' (engine.fairAvailable()).
+    fair: true,
   },
 ];
 
-/* Deterministická rotace podle čísla sezóny (1-based). number==null → bez tématu. */
+/* Deterministická rotace podle čísla sezóny (1-based). number==null → bez tématu.
+   Pořadí pole je ZÁVAZNÉ: Kalba=1, Lov=2, Matějská=3 → každá 3. sezóna (3, 6, 9…)
+   je explicitně MATĚJSKÁ (= sezóna s pouťovými atrakcemi). */
 export function themeForSeason(number) {
   if (number == null) return null;
   return SEASON_THEMES[(number - 1) % SEASON_THEMES.length];
+}
+
+/* Je v dané sezóně otevřená Matějská pouť? (téma s atrakcemi) */
+export function isMatejskaSeason(number) {
+  return themeForSeason(number)?.id === 'matejska';
 }
 
 /* Bounded příspěvky aktivního tématu ve sdíleném tvaru afixových klíčů, který

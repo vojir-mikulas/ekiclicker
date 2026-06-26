@@ -81,6 +81,9 @@ export function buildSnapshot(state) {
     hellForge: state.hellForge,
     hellCurses: state.hellCurses,
     hellExch: state.hellExch,
+    // Matějská pouť 🎡: pouťové lístky + regen + denní dorovnání (přežívá rebirth,
+    // mře sezónou; fairWheel/fairRun jsou PŘECHODNÉ → ZÁMĚRNĚ se neukládají)
+    fair: state.fair,
     runGearPower: state.runGearPower,
     // elixíry: aktivní buff (until = epoch ms) + sklad (aditivní — starý save bez nich = prázdný)
     elixir: state.elixir,
@@ -169,6 +172,12 @@ export function hydrateState(d) {
   state.hellCurses = (d.hellCurses && typeof d.hellCurses === 'object') ? { ...d.hellCurses } : {};
   state.hellExch = (d.hellExch && typeof d.hellExch === 'object') ? { day: d.hellExch.day || '', dust: d.hellExch.dust || 0 } : { day: '', dust: 0 };
   state.hellRun = null;
+  // Matějská pouť 🎡: lístky přežijí; fairWheel/fairRun jsou přechodné → null
+  state.fair = (d.fair && typeof d.fair === 'object')
+    ? { tickets: d.fair.tickets || 0, ticketAt: d.fair.ticketAt || 0, freeDay: d.fair.freeDay || '' }
+    : { tickets: 0, ticketAt: 0, freeDay: '' };
+  state.fairWheel = null;
+  state.fairRun = null;
   state.runGearPower = d.runGearPower || gearPower(state.equipment) * petPower(state);
   // elixíry: sklad (aditivní) + běžící buff jen pokud ještě nevypršel (jinak zahodit)
   state.elixirStock = (d.elixirStock && typeof d.elixirStock === 'object') ? d.elixirStock : {};
