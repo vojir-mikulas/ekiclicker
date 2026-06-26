@@ -24,10 +24,10 @@ export const PETS_CFG = {
   // jediný běh a „otevírání bedny" ztratilo náboj. Sníženo ~3–4× (hlavně boss-tiery,
   // ty objem dělají), aby vejce zůstala vzácný endgame lov. Ultra má vlastní (vyšší)
   // sazbu — vzácnější milník = šťavnatější (zrcadlí mega/ultra rozdíl v items.js).
-  eggDropChance: 0.0015,     // běžný nepřítel (objemový zdroj — drž nízko)
-  eggBossDropChance: 0.02,   // boss (Golden Eki, po 5)
-  eggMegaDropChance: 0.12,   // mega boss (Eki Král, po 25)
-  eggUltraDropChance: 0.35,  // ultra boss (Eki Titán, po 100 — vzácnější, štědřejší)
+  eggDropChance: 0.0008,     // běžný nepřítel (objemový zdroj — drž nízko)
+  eggBossDropChance: 0.01,   // boss (Golden Eki, po 5)
+  eggMegaDropChance: 0.06,   // mega boss (Eki Král, po 25)
+  eggUltraDropChance: 0.20,  // ultra boss (Eki Titán, po 100 — vzácnější, štědřejší)
   maxDupeDust: 250,    // útěcha v úlomcích 💠, když padne duplikát už vymaxovaného mazlíčka
 };
 

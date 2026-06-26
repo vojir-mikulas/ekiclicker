@@ -19,6 +19,8 @@ export function RaidProvider({ children }) {
   const cooldownUntilRef = useRef(0);
   const [cooldownUntil, setCooldownUntil] = useState(0);
 
+  const raidAlertedRef = useRef(new Set()); // id přepadů, na které už padlo upozornění (1×/relace)
+
   // ulož pohled + odvoď okamžik konce cooldownu z serverového snapshotu
   const applyView = useCallback((view) => {
     if (!view) return;
@@ -34,7 +36,23 @@ export function RaidProvider({ children }) {
     const until = performance.now() + cd;
     cooldownUntilRef.current = until;
     setCooldownUntil(until);
-  }, []);
+
+    // „Přepadli tě, dokud jsi byl pryč" — jeden toast za NOVÁ vyloupení (looted =
+    // útočník vyhrál), která jsi ještě neviděl. Drží grudge loop (→ pomsta).
+    const fresh = next.incoming.filter((r) => r.looted && !r.seen && !raidAlertedRef.current.has(r.id));
+    if (fresh.length) {
+      fresh.forEach((r) => raidAlertedRef.current.add(r.id));
+      const loot = fresh.reduce(
+        (a, r) => ({
+          gold: a.gold + (r.loot?.gold || 0),
+          doves: a.doves + (r.loot?.doves || 0),
+          dust: a.dust + (r.loot?.dust || 0),
+        }),
+        { gold: 0, doves: 0, dust: 0 },
+      );
+      engine.emit('arenaRaided', { count: fresh.length, ...loot });
+    }
+  }, [engine]);
 
   const refresh = useCallback(async () => {
     if (!joined) return;
@@ -68,13 +86,15 @@ export function RaidProvider({ children }) {
     try {
       const res = await api.raidStrike(defenderId, tactic);
       if (res?.view) applyView(res.view);
+      // výhra → lokální počítadla + úspěchy (lup je zatím jen v trezoru na serveru)
+      if (res?.ok && res.attackerWon) engine.recordRaidWin(res.loot || {});
       return res;
     } catch {
       return null;
     } finally {
       setBusy(false);
     }
-  }, [joined, busy, applyView]);
+  }, [joined, busy, applyView, engine]);
 
   // vyber trezor do bezpečí → lup se připíše do lokálního save (grantRaidLoot)
   const withdraw = useCallback(async () => {

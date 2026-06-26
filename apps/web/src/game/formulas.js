@@ -198,7 +198,7 @@ export function prestigeCost(key, level) {
 }
 
 export const forgivenessGain = (level) =>
-  Math.max(0, Math.floor(Math.pow(level, 1.3) / 14));
+  Math.max(0, Math.floor(Math.pow(level, 1.4) / 14));
 
 /* Hromadný nákup: kolik levelů a za kolik podle násobiče (1/10/100/'max'). */
 export function buyBatch(costAt, gold, buyAmount, cap = Infinity) {

@@ -22,6 +22,7 @@ import {
 import { itemImageUrl } from '../../game/data/itemImages.js';
 import { fmt } from '../../game/format.js';
 import Modal from './Modal.jsx';
+import ConfirmModal from './ConfirmModal.jsx';
 
 /* ikona kusu = nahraný obrázek (src/assets/items/<base>.png), jinak emoji */
 function ItemIcon({ item }) {
@@ -408,6 +409,8 @@ export default function InventoryModal({ onClose }) {
 /* mřížka inventáře = drop zóna pro sundání (přetažení nasazeného kusu sem) */
 function InventoryGrid({ inv, dust, engine }) {
   const { setNodeRef, isOver } = useDroppable({ id: 'inv-zone' });
+  const [confirmDismantle, setConfirmDismantle] = useState(false);
+  const dismantleValue = engine.dismantleAllValue();
   return (
     <div ref={setNodeRef} className={'inv-grid-wrap' + (isOver ? ' over' : '')}>
       <div className="inv-grid-head">
@@ -417,17 +420,22 @@ function InventoryGrid({ inv, dust, engine }) {
           {inv.length > 0 && (
             <button
               className="inv-dismantle-all"
-              onClick={() => {
-                const dust = engine.dismantleAllValue();
-                if (window.confirm(`Rozložit všech ${inv.length} kusů v inventáři na 💠 ${fmt(dust)} úlomků?\n\nNasazené kusy zůstanou. Tohle nelze vrátit.`)) {
-                  engine.dismantleAll();
-                }
-              }}
+              onClick={() => setConfirmDismantle(true)}
               title="Rozloží celý inventář na úlomky (nasazené kusy zůstanou)"
-            >Rozložit vše 💠 {fmt(engine.dismantleAllValue())}</button>
+            >Rozložit vše 💠 {fmt(dismantleValue)}</button>
           )}
         </div>
       </div>
+      {confirmDismantle && (
+        <ConfirmModal
+          title="Rozložit celý inventář?"
+          message={`Rozloží všech ${inv.length} kusů v inventáři na 💠 ${fmt(dismantleValue)} úlomků. Nasazené kusy zůstanou. Tohle nelze vrátit.`}
+          confirmLabel={`Rozložit (💠 ${fmt(dismantleValue)})`}
+          danger
+          onConfirm={() => engine.dismantleAll()}
+          onClose={() => setConfirmDismantle(false)}
+        />
+      )}
       {inv.length === 0 ? (
         <p className="inv-empty">Zatím žádná kořist — poraz nepřátele (hlavně bosse) a kusy začnou padat.</p>
       ) : (

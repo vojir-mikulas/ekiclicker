@@ -154,6 +154,16 @@ export default function ToastHost() {
             title: 'Lup z trezoru je v bezpečí!',
             sub: parts.join(' • ') || '—',
           });
+        } else if (type === 'arenaRaided') {
+          const parts = [];
+          if (payload.gold) parts.push(`−${fmt(payload.gold)} 💰`);
+          if (payload.doves) parts.push(`−${payload.doves} 🕊`);
+          if (payload.dust) parts.push(`−${fmt(payload.dust)} 💠`);
+          push({
+            ico: '🥷',
+            title: payload.count > 1 ? `Přepadli tě ${payload.count}×!` : 'Někdo tě přepadl!',
+            sub: (parts.length ? parts.join(' • ') + ' — ' : '') + 'pomsti se v aréně ⚔️',
+          });
         }
       },
       [push]

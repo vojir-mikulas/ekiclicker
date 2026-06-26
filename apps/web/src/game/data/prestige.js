@@ -1,7 +1,7 @@
 /* REBIRTH / prestige — kupuje se za Odpuštění 🕊, zůstává napořád.
    Cena = baseCost × growth^level. Žádné levely se po rebirthu neztrácí. */
 export const PRESTIGE = {
-  rage:      { name: 'Věčný hněv',     emoji: '🩸', baseCost: 1, growth: 1.55, desc: '×1,16 poškození (vše) — násobí se!' },
+  rage:      { name: 'Věčný hněv',     emoji: '🩸', baseCost: 1, growth: 1.48, desc: '×1,16 poškození (vše) — násobí se!' },
   greed:     { name: 'Štědrost',       emoji: '🪙', baseCost: 1, growth: 1.5,  desc: '+25 % zlata' },
   fist:      { name: 'Trénovaná pěst', emoji: '👊', baseCost: 2, growth: 1.6,  desc: '+50 % síla úderu' },
   factory:   { name: 'Sériová výroba', emoji: '⚙️', baseCost: 2, growth: 1.6,  desc: 'zbraně +4 % rychlost' },

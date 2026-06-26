@@ -253,7 +253,8 @@ export class Engine {
     if (!s.inventoryUnlocked) return;
     let tier, chance;
     if (v.archon) { tier = 'archon'; chance = 1; }
-    else if (v.ultra || v.mega) { tier = 'golden'; chance = 1; }
+    else if (v.ultra) { tier = 'golden'; chance = ITEMS.ultraDropChance; }
+    else if (v.mega) { tier = 'golden'; chance = ITEMS.megaDropChance; }
     else if (v.boss) { tier = 'golden'; chance = ITEMS.bossDropChance; }
     else { tier = 'wooden'; chance = ITEMS.dropChance + dropChanceBonus(s); }
     if (Math.random() >= chance) return;
@@ -1124,6 +1125,18 @@ export class Engine {
       this.notify();
       this.emit('raidLoot', { gold, doves, dust });
     }
+  }
+
+  /* Zaznamenej VÝHRU přepadu (aréna) pro úspěchy/statistiky. Lup míří do trezoru
+     na serveru (do lokálního save až přes grantRaidLoot při výběru) — tady jen
+     lokální počítadla + kontrola úspěchů (⚔️ Lupič). */
+  recordRaidWin({ gold = 0 } = {}) {
+    const s = this.state;
+    s.stats.raidWins = (s.stats.raidWins || 0) + 1;
+    s.stats.raidPlunder = (s.stats.raidPlunder || 0) + Math.max(0, Math.floor(gold));
+    this.checkAchievements();
+    save(s);
+    this.notify();
   }
 
   /* Nahraj stav ze save blobu (obnova účtu na novém zařízení / po smazání dat).

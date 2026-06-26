@@ -116,12 +116,12 @@ export default function PetsModal({ onClose }) {
       <EggPanel engine={engine} eggs={s.eggs || 0} allMaxed={allPetsMaxed(s.pets)} />
 
       {equippedDef ? (
-        <div className="pet-active">
+        <div className="pet-equipped">
           <span className="inv-summary-label">Nasazený mazlíček</span>
-          <div className="pet-active-row">
-            <span className="pet-active-emoji">{equippedDef.emoji}</span>
-            <span className="pet-active-name">{equippedDef.name} <b>L{s.pets[equippedDef.id].level}</b></span>
-            <span className="pet-active-bonus">{petBonusLabel(equippedDef.id, s.pets[equippedDef.id].level)}</span>
+          <div className="pet-equipped-row">
+            <span className="pet-equipped-emoji">{equippedDef.emoji}</span>
+            <span className="pet-equipped-name">{equippedDef.name} <b>L{s.pets[equippedDef.id].level}</b></span>
+            <span className="pet-equipped-bonus">{petBonusLabel(equippedDef.id, s.pets[equippedDef.id].level)}</span>
           </div>
         </div>
       ) : (

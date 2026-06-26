@@ -21,13 +21,13 @@ export const ITEMS = {
   rarityLiftPer: 1200, // s ilvl se váhy posouvají k vyšším vzácnostem (čím nižší, tím rychleji)
 
   // šance na drop podle typu nepřítele — laděno na VZÁCNOST (kořist má být „wow",
-  // ne běžná). Hlavní zdroj objemu je obyčejný boss (každá 5. úroveň), proto je
-  // nízko; milníkoví bossové (mega/ultra/archón po 25/100/500) drží zaručený drop
-  // jako rytmus vzrušení. Klenotník (⚒️) přidává jen na bednu z běžného nepřítele.
-  dropChance: 0.005,      // běžný nepřítel → dřevěná bedna (vzácný příjemný překvap)
-  bossDropChance: 0.15,   // obyčejný boss (Golden Eki) → zlatá bedna (cca 1 ze 7)
-  megaDropChance: 1,
-  ultraDropChance: 1,
+  // ne běžná). Hlavní zdroj objemu je obyčejný boss (každá 5. úroveň) + mega (po 25),
+  // proto jsou nízko; jen ultra/archón (po 100/500 — opravdu vzácné milníky) drží
+  // zaručený drop jako rytmus vzrušení. Klenotník (⚒️) přidává jen na běžnou bednu.
+  dropChance: 0.002,      // běžný nepřítel → dřevěná bedna (vzácný příjemný překvap)
+  bossDropChance: 0.06,   // obyčejný boss (Golden Eki) → zlatá bedna (cca 1 ze 17)
+  megaDropChance: 0.4,    // mega boss (Eki Král, po 25) → zlatá bedna (ne zaručeně)
+  ultraDropChance: 1,     // ultra boss (Eki Titán, po 100) → zlatá bedna zaručeně (milník)
 };
 
 /* ----------------------------- kovárna (úlomky 💠) -----------------------------

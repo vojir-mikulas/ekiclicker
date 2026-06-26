@@ -49,6 +49,8 @@ const select = (s) => ({
   frenzies: s.stats.frenzies,
   peakDps: Math.floor(s.stats.peakDps),
   playTimeSec: Math.floor(s.stats.playTimeMs / 1000),
+  raidWins: s.stats.raidWins || 0,
+  raidPlunder: Math.floor(s.stats.raidPlunder || 0),
 });
 
 function Section({ title, rows }) {
@@ -114,6 +116,11 @@ export default function StatsModal({ onClose }) {
         ['Nalezené bedny', fmt(v.chestsFound)],
         ['Vyloupené kusy', fmt(v.itemsFound)],
         ['Úlomky 💠', fmt(v.dust)],
+      ]} />
+
+      <Section title="⚔️ Aréna" rows={[
+        ['Vyhrané přepady', fmt(v.raidWins)],
+        ['Nakradené zlato 💰', fmt(v.raidPlunder)],
       ]} />
 
       <Section title="🌟 Souhrn" rows={[

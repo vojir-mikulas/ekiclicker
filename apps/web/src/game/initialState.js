@@ -60,6 +60,8 @@ export function createStats() {
     chestsFound: 0,
     eggsFound: 0,
     runesFound: 0,
+    raidWins: 0,    // vyhrané přepady v aréně (pro úspěchy/statistiky; sezónně jako zbytek statů)
+    raidPlunder: 0, // celkem nakradeno zlata z přepadů (do trezoru)
   };
 }
 

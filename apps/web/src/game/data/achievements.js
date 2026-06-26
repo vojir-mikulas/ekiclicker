@@ -88,6 +88,13 @@ export const ACHIEVEMENTS = [
     [1, 10, 50, 200],
     (i) => ({ dmg: 1.04 + i * 0.02, gold: 1.04 + i * 0.02 })),
 
+  // --- přepady (aréna PvP) ---
+  ...tier('raid', 'Lupič', '⚔️',
+    (t) => `Vyhraj ${t} přepadů v aréně`,
+    (c) => c.stats.raidWins || 0,
+    [1, 10, 25, 100],
+    (i) => ({ gold: 1.04 + i * 0.02, forgiveness: 1 + i * 2 })),
+
   // --- speciální jednorázové ---
   {
     id: 'titan_slayer',
