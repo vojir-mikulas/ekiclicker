@@ -908,7 +908,7 @@ body::after{
 .modal-page .popup-content.inventory-modal.as-page:has(.inv-layout){ max-width:1240px; }
 .inventory-modal.as-page h2{ text-align:left; }
 
-.inv-layout{ display:grid; grid-template-columns:minmax(0,360px) minmax(0,1fr); gap:16px; align-items:start; }
+.inv-layout{ display:grid; grid-template-columns:minmax(0,380px) minmax(0,1fr); gap:16px; align-items:start; }
 .inv-side{ display:flex; flex-direction:column; gap:12px; min-width:0; }
 .inv-main{ min-width:0; }
 /* v sidebaru řídí mezery gap rodiče, ne margin panelů */
@@ -926,7 +926,7 @@ body::after{
   .inventory-modal.as-page .page-back, .inventory-modal.as-page h2{ flex:0 0 auto; }
   /* flex (ne grid) → sloupce se spolehlivě svážou s výškou (align stretch) */
   .inventory-modal.as-page .inv-layout{ display:flex; gap:16px; flex:1 1 auto; min-height:0; align-items:stretch; }
-  .inventory-modal.as-page .inv-side{ flex:0 0 360px; min-height:0; overflow-y:auto; overscroll-behavior:contain; padding-right:5px; }
+  .inventory-modal.as-page .inv-side{ flex:0 0 380px; min-height:0; overflow-y:auto; overscroll-behavior:contain; padding-right:5px; }
   .inventory-modal.as-page .inv-main{ flex:1 1 auto; min-width:0; min-height:0; display:flex; flex-direction:column; }
   .inventory-modal.as-page .inv-grid-wrap{ flex:1 1 auto; min-height:0; display:flex; flex-direction:column; }
   .inventory-modal.as-page .inv-grid-head{ flex:0 0 auto; }
@@ -977,27 +977,39 @@ body::after{
 .inv-unlock-bar{ height:10px; border-radius:6px; background:rgba(0,0,0,.35); overflow:hidden; margin:10px 0 4px; border:1px solid var(--line); }
 .inv-unlock-bar span{ display:block; height:100%; background:linear-gradient(90deg,var(--orange),var(--gold)); border-radius:6px; transition:width .3s ease; }
 
-/* nasazená výbava (loadout) */
-.inv-loadout{ background:var(--panel-2); border:1px solid var(--line); border-radius:14px; padding:10px 12px 12px; margin-bottom:14px; }
-.inv-loadout-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:9px; }
+/* nasazená výbava = paper-doll (styl Metin2): AURA / ZBRAŇ–POSTAVA–TALISMAN /
+   RUKAVICE. Klik na nasazený kus otevře vyskakovací kartu (ItemPopover). */
+.inv-paperdoll{ background:var(--panel-2); border:1px solid var(--line); border-radius:14px; padding:12px 14px 16px; }
+.inv-loadout-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
 .inv-gearpower{ font-size:12px; font-weight:800; color:var(--gold); }
-/* nasazené kusy = jeden sloupec vodorovných karet (ikona vlevo, staty vpravo,
-   kovárna přes celou šířku dole). Bez 2-sloupcové mřížky → žádné prázdné „díry"
-   pod nižší kartou a každý kus má celou šířku sidebaru na afixy. */
-.equip-slots{ display:flex; flex-direction:column; gap:8px; }
-.equip-slot{ position:relative; overflow:hidden; border:1px solid var(--line-dim); border-radius:var(--r-card);
-  background:var(--panel-grad-2); padding:9px 11px; min-height:60px; transition:border-color .15s, background .15s, box-shadow .15s; }
-.equip-slot > *{ position:relative; }
-.equip-slot.over{ border-color:var(--line-hi); background:#16263c; box-shadow:0 0 0 1px var(--line-hi) inset, 0 0 16px rgba(92,158,214,.25); }
-.equip-slot.filled{ border-color:var(--rc); box-shadow:0 0 18px -9px var(--rc); }
-.equip-slot.filled::before{ content:""; position:absolute; inset:0; background:var(--rc); opacity:.08; pointer-events:none; }
-.equip-slot-head{ font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin-bottom:6px; }
-.equip-empty{ font-size:12px; color:var(--muted); opacity:.5; padding:6px 0; text-align:center; }
-.equip-item{ cursor:grab; display:flex; flex-direction:row; align-items:flex-start; gap:11px; }
-.equip-item.dragging{ opacity:.4; }
-.equip-item .inv-img, .equip-item .inv-emoji{ flex:0 0 auto; }
-.equip-item-info{ flex:1 1 auto; min-width:0; display:flex; flex-direction:column; }
-.equip-item-info .inv-name{ margin-top:0; }
+.doll-grid{ display:grid; grid-template-columns:repeat(3,76px); justify-content:center; gap:14px 22px; }
+.doll-cell{ display:flex; flex-direction:column; align-items:center; justify-content:flex-start; gap:6px; }
+.doll-blank{ width:76px; height:76px; }
+.doll-slot{ background:none; border:0; padding:0; cursor:pointer; transition:filter .12s; }
+.doll-slot:hover{ filter:brightness(1.18); }
+.doll-tile{ position:relative; width:76px; height:76px; display:flex; align-items:center; justify-content:center; overflow:hidden;
+  background:var(--panel-grad-2); border:1px solid var(--line-dim); box-shadow:inset 0 0 8px rgba(0,0,0,.6); }
+.doll-tile > *{ position:relative; }
+.doll-tile.filled{ border-color:var(--rc); box-shadow:0 0 16px -6px var(--rc), inset 0 0 8px rgba(0,0,0,.5); }
+.doll-tile.filled::before{ content:""; position:absolute; inset:0; background:radial-gradient(circle at 50% 30%, var(--rc), transparent 70%); opacity:.16; pointer-events:none; }
+.doll-slot-emoji{ font-size:30px; line-height:1; opacity:.32; filter:grayscale(.5); }
+.doll-slot-lbl{ font-size:9px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); }
+.doll-setbadge{ position:absolute; bottom:-2px; right:-2px; min-width:18px; height:18px; padding:0 4px; display:flex; align-items:center;
+  justify-content:center; font-size:11px; line-height:1; background:var(--panel); border:1px solid var(--line-2); border-radius:9px; z-index:2; }
+.doll-center{ justify-content:center; }
+.doll-char{ width:76px; height:76px; display:flex; align-items:center; justify-content:center; font-family:var(--font-display);
+  font-weight:800; font-size:20px; color:#06101c; background:radial-gradient(circle at 50% 30%, #9fd4f5, #3a78b3);
+  border:1px solid #cfe6fa; box-shadow:0 0 18px rgba(92,158,214,.4); }
+
+/* sdílené ikony kusu (paper-doll / dlaždice / vyskakovací karta) */
+.inv-ico-emoji{ line-height:1; filter:drop-shadow(0 2px 5px rgba(0,0,0,.45)); }
+.inv-ico-img{ object-fit:contain; display:block; pointer-events:none; filter:drop-shadow(0 2px 6px rgba(0,0,0,.45)); }
+.doll-ico.inv-ico-emoji{ font-size:34px; }
+.doll-ico.inv-ico-img{ width:58px; height:58px; }
+.inv-slot-ico.inv-ico-emoji{ font-size:24px; }
+.inv-slot-ico.inv-ico-img{ width:42px; height:42px; }
+.inv-pop-ico.inv-ico-emoji{ font-size:30px; }
+.inv-pop-ico.inv-ico-img{ width:48px; height:48px; }
 
 /* souhrn bonusů */
 .inv-summary{ background:var(--panel-grad-2); border:1px solid var(--line); border-radius:var(--r-panel); padding:12px 14px; margin-bottom:14px; }
@@ -1024,53 +1036,57 @@ body::after{
 .inv-empty p{ margin:0; max-width:320px; line-height:1.5; }
 .inv-empty-sub{ font-size:12px; opacity:.7; }
 .inv-empty-ico{ font-size:46px; line-height:1; opacity:.45; margin-bottom:2px; filter:drop-shadow(0 4px 10px rgba(0,0,0,.4)); }
-/* grid-auto-rows:max-content drží řádky na výšce OBSAHU. Bez něj v „appkovém"
-   režimu (.inv-grid je flex dítě s pevnou výškou + overflow:auto) řádky zkolabují
-   na stejně vysoké zlomky výšky kontejneru — karty mají overflow:hidden, takže
-   jejich auto-min-výška je 0 → mřížka řádky stlačí, místo aby obsah scrolloval,
-   a afixy/kovárna se na kartě uříznou. */
-.inv-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(158px,1fr)); grid-auto-rows:max-content; gap:10px; }
+/* kompaktní mřížka dlaždic (ikona + ilvl v rohu). grid-auto-rows:max-content drží
+   řádky na výšce dlaždic v „appkovém" scroll-režimu (.inv-grid je flex dítě). */
+.inv-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(56px,1fr)); grid-auto-rows:max-content; gap:8px; }
+.inv-slot{ position:relative; aspect-ratio:1; display:flex; align-items:center; justify-content:center; overflow:hidden; padding:0;
+  background:var(--panel-grad-2); border:1px solid var(--line-dim); box-shadow:inset 0 0 8px rgba(0,0,0,.5);
+  cursor:pointer; transition:filter .12s, box-shadow .15s, border-color .15s; }
+.inv-slot > *{ position:relative; }
+.inv-slot.empty{ background:linear-gradient(180deg,#0a111c,#070c14); border-color:#16273e; cursor:default; }
+.inv-slot.filled{ border-color:var(--rc); box-shadow:0 0 14px -7px var(--rc), inset 0 0 8px rgba(0,0,0,.45); }
+.inv-slot.filled::before{ content:""; position:absolute; inset:0; background:radial-gradient(circle at 50% 32%, var(--rc), transparent 70%); opacity:.15; pointer-events:none; }
+.inv-slot.filled:hover{ filter:brightness(1.16); box-shadow:0 0 18px -5px var(--rc), inset 0 0 0 1px var(--rc); }
+.inv-slot-ilvl{ position:absolute; bottom:2px; right:4px; font-family:var(--font-num); font-weight:700; font-size:9px; line-height:1; text-shadow:0 1px 2px rgba(0,0,0,.95); }
+.inv-slot-set{ position:absolute; top:2px; left:3px; font-size:11px; line-height:1; filter:drop-shadow(0 0 3px rgba(0,0,0,.85)); }
+.inv-slot-up{ position:absolute; top:1px; right:3px; font-size:9px; font-weight:800; color:var(--good); text-shadow:0 0 4px rgba(0,0,0,.9); }
 
-.inv-card{ position:relative; overflow:hidden; border:1px solid var(--rc, var(--line)); border-radius:var(--r-card);
-  background:linear-gradient(180deg, rgba(0,0,0,.12), #0b1119); padding:10px 10px 8px; cursor:grab; text-align:left; touch-action:none;
-  box-shadow:inset 0 0 0 1px rgba(255,255,255,.02); transition:transform .12s, box-shadow .15s, border-color .15s; }
-.inv-card > *{ position:relative; }
-.inv-card::before{ content:""; position:absolute; inset:0; background:radial-gradient(circle at 50% 28%, var(--rc), transparent 70%); opacity:.16; pointer-events:none; }
-.inv-card:hover{ transform:translateY(-2px); box-shadow:0 8px 20px -10px var(--rc), 0 0 0 1px var(--rc) inset, 0 0 16px -4px var(--rc); }
-.inv-card.dragging{ opacity:.4; }
-.inv-card.drag-ghost{ cursor:grabbing; box-shadow:0 10px 28px rgba(0,0,0,.55); }
-.inv-emoji{ font-size:30px; line-height:1; filter:drop-shadow(0 2px 5px rgba(0,0,0,.45)); }
-.inv-img{ width:56px; height:56px; object-fit:contain; border-radius:8px; display:block; pointer-events:none;
-  filter:drop-shadow(0 2px 6px rgba(0,0,0,.45)); }
-.inv-name{ font-weight:800; font-size:13px; margin-top:5px; color:var(--rc); }
-.inv-ilvl{ font-size:10px; color:var(--muted); margin-top:1px; }
-.inv-upgrade{ align-self:flex-start; margin-top:5px; font-size:10px; font-weight:800; letter-spacing:.2px;
-  color:var(--good); background:rgba(46,204,113,.14); border:1px solid rgba(46,204,113,.42);
-  border-radius:6px; padding:1px 6px; line-height:1.55; }
-.inv-affixes{ list-style:none; margin:7px 0 0; padding:0; display:flex; flex-wrap:wrap; gap:4px; }
-.inv-affixes li{ font-size:10.5px; font-weight:700; color:var(--text); opacity:.92; background:rgba(0,0,0,.28);
-  border:1px solid var(--line); border-radius:6px; padding:1px 6px; line-height:1.55; }
-.inv-discard{ position:absolute; top:4px; right:5px; width:20px; height:20px; border:0; border-radius:6px; background:rgba(0,0,0,.35);
-  color:var(--muted); font-size:15px; line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center; z-index:2; }
-.inv-discard:hover{ background:var(--red-dark); color:#fff; }
-.inv-card-grab{ cursor:grab; touch-action:none; display:flex; flex-direction:column; }
+/* vyskakovací karta kusu (detail + akce) — fixní, vystředěná, pod popup-modaly (1000) */
+.inv-pop-back{ position:fixed; inset:0; z-index:950; background:rgba(6,11,20,.62); }
+.inv-pop{ position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); z-index:951; width:380px; max-width:94vw;
+  padding:18px 18px 16px; background:linear-gradient(180deg, rgba(0,0,0,.18), #0a1018); border:1px solid var(--rc, var(--line));
+  box-shadow:0 0 26px -6px var(--rc), 0 18px 40px rgba(0,0,0,.6); animation:invPopIn .14s ease-out; }
+@keyframes invPopIn{ from{ opacity:0; transform:translate(-50%,-50%) scale(.96); } to{ opacity:1; transform:translate(-50%,-50%) scale(1); } }
+.inv-pop-x{ position:absolute; top:8px; right:8px; width:26px; height:26px; display:flex; align-items:center; justify-content:center;
+  font-size:13px; color:var(--muted); background:var(--ink); border:1px solid var(--line-2); cursor:pointer; transition:color .12s, border-color .12s; }
+.inv-pop-x:hover{ color:var(--text); border-color:var(--line-hi); }
+.inv-pop-slot{ display:flex; align-items:center; gap:7px; margin-bottom:11px; font-size:10px; letter-spacing:.16em; text-transform:uppercase; color:var(--muted-2); }
+.inv-pop-head{ display:flex; align-items:center; gap:13px; }
+.inv-pop-tile{ position:relative; width:52px; height:52px; flex:none; display:flex; align-items:center; justify-content:center; overflow:hidden;
+  background:radial-gradient(circle at 50% 30%, var(--rc), #0b1119); border:1px solid var(--rc); box-shadow:inset 0 0 8px rgba(0,0,0,.7); }
+.inv-pop-meta{ display:flex; flex-direction:column; gap:2px; min-width:0; }
+.inv-pop-name{ font-family:var(--font-display); font-weight:800; font-size:19px; letter-spacing:.02em; }
+.inv-pop-sub{ font-size:12px; color:var(--muted); }
+.inv-pop-up{ color:var(--good); font-weight:800; }
+.inv-pop-stats{ display:flex; flex-wrap:wrap; gap:7px; margin-top:13px; }
+.inv-pop-chip{ font-size:12px; font-weight:600; color:var(--text); background:var(--panel-grad-2); border:1px solid var(--line); padding:6px 11px; }
+.inv-pop-chip.ench{ color:#e3c8f0; background:linear-gradient(180deg,rgba(130,80,170,.22),rgba(70,40,100,.16)); border-color:#6a4a8e; }
+.inv-pop-btns{ display:flex; flex-wrap:wrap; gap:8px; margin-top:14px; }
+.pop-btn{ display:flex; align-items:center; gap:6px; font-size:13px; font-weight:700; padding:9px 14px; cursor:pointer; white-space:nowrap;
+  color:var(--text); background:var(--panel); border:1px solid var(--line-2); transition:filter .12s, border-color .12s, background .12s; }
+.pop-btn:hover:not(:disabled){ border-color:var(--line-hi); }
+.pop-btn:disabled{ opacity:.4; cursor:not-allowed; }
+.pop-btn.accent{ color:#06101c; background:linear-gradient(180deg,#9fd4f5,#3a78b3); border-color:#cfe6fa; }
+.pop-btn.accent:hover:not(:disabled){ filter:brightness(1.08); }
+.pop-btn.ench{ color:#e3c8f0; background:linear-gradient(180deg,rgba(130,80,170,.26),rgba(60,35,90,.2)); border-color:#7a5a9e; }
+.pop-btn.danger{ color:var(--muted); }
+.pop-btn.danger:hover:not(:disabled){ color:#fff; background:var(--red-dark); border-color:var(--red); }
 
 /* úlomky 💠 (kovárna) */
 :root{ --dust:#46d6e0; }
 .inv-dust{ font-size:13px; font-weight:800; color:var(--dust); margin-left:6px; vertical-align:middle; }
 .currency.dust{ border-color:rgba(70,214,224,.35); }
 .currency.dust .value{ color:var(--dust); }
-
-/* odznak sady na kusu */
-.inv-setbadge{ position:absolute; top:4px; left:5px; font-size:14px; line-height:1; filter:drop-shadow(0 0 4px rgba(70,214,224,.6)); z-index:2; }
-
-/* lišta kovárny pod kusem */
-.inv-forge{ display:flex; flex-wrap:wrap; gap:5px; margin-top:9px; }
-.forge-btn{ flex:1 1 auto; min-width:56px; border:1px solid var(--line); border-radius:9px; background:var(--ink); color:var(--text);
-  font-size:11px; font-weight:700; padding:7px 5px; cursor:pointer; white-space:nowrap; transition:background .12s, border-color .12s; }
-.forge-btn:hover:not(:disabled){ border-color:var(--dust); background:#11151f; }
-.forge-btn.upgrade{ font-weight:800; }
-.forge-btn:disabled{ opacity:.4; cursor:not-allowed; }
 
 /* směnárna úlomků (💠 → 🕊) */
 .inv-exchange{ background:var(--panel-grad-2); border:1px solid var(--line); border-radius:var(--r-panel); padding:12px 14px; margin-bottom:14px; }
@@ -1480,12 +1496,6 @@ body::after{
 
 /* ----------------------------- zaklínací stůl (✨ enchanting) -----------------------------
    Tajemné runy (Starší futhark) + „interesting font" MedievalSharp + zlatý sink. */
-.forge-btn.enchant{ color:#c9b3ff; font-family:'MedievalSharp',serif; letter-spacing:.02em; }
-.forge-btn.enchant:hover:not(:disabled){ border-color:#9a7bff; background:#15101f; }
-
-.inv-enchants{ list-style:none; margin:6px 0 0; padding:0; display:flex; flex-wrap:wrap; gap:4px; }
-.inv-enchants li{ font-size:10.5px; font-weight:800; color:#d9c8ff; background:rgba(120,90,255,.16);
-  border:1px solid rgba(150,120,255,.35); border-radius:6px; padding:1px 6px; }
 
 .popup-content.enchant-modal{ max-width:560px; max-height:88vh; overflow-y:auto; text-align:center;
   background:radial-gradient(120% 100% at 50% 0%, #1a1430, var(--panel) 70%); }

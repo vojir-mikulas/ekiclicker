@@ -1,17 +1,13 @@
-/* Inventář + vybavení + KOVÁRNA (pozdní hra). Drag&drop přes @dnd-kit:
-   - táhni kus z inventáře na slot → nasadí se (předchozí se vrátí),
-   - táhni nasazený kus do inventáře → sundá se,
-   - TAP funguje jako záloha (mobil): klepnutí na kus = nasadit, na slot = sundat.
-   Kovárna (úlomky 💠): každý kus jde přerolovat (nové afixy) nebo povýšit vzácnost.
+/* Inventář + vybavení + KOVÁRNA (pozdní hra). Klik-na-kus → vyskakovací karta:
+   - kus v inventáři: Nasadit / Rozložit + kovárna (přeroll, povýšit, zaklít),
+   - nasazený kus (paper-doll): Sundat + kovárna.
+   Paper-doll (styl Metin2): AURA nahoře, ZBRAŇ vlevo, POSTAVA uprostřed, TALISMAN
+   vpravo, RUKAVICE dole. Inventář = kompaktní mřížka ikon (ikona + ilvl v rohu).
    Re-render řízený kompaktním podpisem (engine mutuje pole na místě). */
 import { useState } from 'react';
-import {
-  DndContext, DragOverlay, PointerSensor, useSensor, useSensors,
-  useDraggable, useDroppable,
-} from '@dnd-kit/core';
 import { useEngine, useEngineSelector, shallowEqual } from '../../hooks/useEngine.js';
 import {
-  SLOTS, SLOT_IDS, ITEMS, SETS, RARITIES, CHESTS, CHEST_ORDER, chestCost,
+  SLOTS, SLOT_IDS, SLOT_BY_ID, ITEMS, SETS, RARITIES, CHESTS, CHEST_ORDER, chestCost,
   aggregateEquip, activeSets,
   itemEmoji, itemName, rarityName, rarityColor, affixLabel, itemScore, itemSet,
   upgradeDelta, rerollCost, upgradeRarityCost, nextRarity,
@@ -25,10 +21,10 @@ import Modal from './Modal.jsx';
 import ConfirmModal from './ConfirmModal.jsx';
 
 /* ikona kusu = nahraný obrázek (src/assets/items/<base>.png), jinak emoji */
-function ItemIcon({ item }) {
+function iconNode(item, cls = '') {
   const url = itemImageUrl(item.base);
-  if (url) return <img className="inv-img" src={url} alt="" draggable={false} />;
-  return <div className="inv-emoji">{itemEmoji(item)}</div>;
+  if (url) return <img className={`inv-ico-img ${cls}`} src={url} alt="" draggable={false} />;
+  return <span className={`inv-ico-emoji ${cls}`}>{itemEmoji(item)}</span>;
 }
 
 /* kompaktní podpis stavu inventáře → re-render jen při skutečné změně
@@ -37,177 +33,161 @@ const selectSig = (s) => ({
   unlocked: s.inventoryUnlocked,
   ench: s.enchantingUnlocked,
   highest: s.highestLevel,
+  level: s.level,
   dust: Math.floor(s.dust || 0),
   chests: CHEST_ORDER.map((t) => s.chests?.[t] || 0).join(','),
   inv: s.inventory.map((i) => i.id + i.rarity + i.affixes.length + (i.enchant?.lvl || 0)).join(','),
   eq: SLOT_IDS.map((id) => { const it = s.equipment[id]; return it ? it.id + it.rarity + (it.enchant?.lvl || 0) : '-'; }).join(','),
 });
 
-function Affixes({ item }) {
-  return (
-    <ul className="inv-affixes">
-      {item.affixes.map((a, i) => <li key={i}>{affixLabel(a)}</li>)}
-    </ul>
-  );
+/* z výběru ({loc,slot|id}) vytáhne aktuální kus ze stavu — vrací null, když kus
+   zmizel (nasazen/sundán/rozložen) → vyskakovací karta se sama zavře. */
+function resolveSel(sel, s) {
+  if (!sel) return null;
+  if (sel.loc === 'equip') {
+    const item = s.equipment[sel.slot];
+    return item ? { loc: 'equip', item } : null;
+  }
+  const item = s.inventory.find((i) => i.id === sel.id);
+  return item ? { loc: 'inv', item } : null;
 }
 
-/* Bonusy ze zaklínadel (zlatý sink) — vizuálně odlišené ✨ od rolovaných afixů. */
-function EnchantLines({ item }) {
-  const stats = enchantStats(item);
-  if (!stats) return null;
-  return (
-    <ul className="inv-enchants" title="Zaklínadla (zaklínací stůl)">
-      {Object.entries(stats).map(([stat, value]) => (
-        <li key={stat}>✨ {affixLabel({ stat, value })}</li>
-      ))}
-    </ul>
-  );
-}
-
-/* štítek vzácnosti + ilvl (vzácnost zvlášť kvůli českým koncovkám) */
-function RarityLine({ item }) {
-  return (
-    <div className="inv-ilvl"><b style={{ color: rarityColor(item) }}>{rarityName(item)}</b> · ilvl {item.ilvl}</div>
-  );
-}
-
-/* zelený odznak „lepší než nasazený kus" — jen na kusech, které jsou silnější
-   (itemScore) než to, co je teď ve stejném slotu. Prázdný slot = rovnou vylepšení. */
-function UpgradeBadge({ item, equipped }) {
-  const d = upgradeDelta(item, equipped);
-  if (!d) return null;
-  return (
-    <span
-      className="inv-upgrade"
-      title={equipped ? 'Silnější než nasazený kus' : 'Prázdný slot — rovnou vylepšení'}
-    >
-      {d.pct != null ? `▲ +${Math.round(d.pct * 100)} %` : '▲ vylepšení'}
-    </span>
-  );
-}
-
-/* odznak sady na kusu (pokud do nějaké patří) */
-function SetBadge({ item }) {
+/* jeden slot paper-dollu (nasazený kus / prázdné políčko se symbolem slotu) */
+function DollSlot({ slot, item, onClick }) {
+  if (!item) {
+    return (
+      <div className="doll-cell doll-empty" title={slot.name}>
+        <div className="doll-tile">
+          <span className="doll-slot-emoji">{slot.emoji}</span>
+        </div>
+        <span className="doll-slot-lbl">{slot.name}</span>
+      </div>
+    );
+  }
   const setId = itemSet(item);
-  if (!setId) return null;
-  return <span className="inv-setbadge" title={`Sada: ${SETS[setId].name}`}>{SETS[setId].emoji}</span>;
+  return (
+    <button className="doll-cell doll-slot" style={{ '--rc': rarityColor(item) }} onClick={onClick} title={itemName(item)}>
+      <div className="doll-tile filled">
+        {iconNode(item, 'doll-ico')}
+        {setId && <span className="doll-setbadge" title={`Sada: ${SETS[setId].name}`}>{SETS[setId].emoji}</span>}
+      </div>
+      <span className="doll-slot-lbl">{slot.name}</span>
+    </button>
+  );
 }
 
-/* Lišta kovárny pod kusem: přerolovat afixy / povýšit vzácnost (úlomky) + zaklít
-   (zlatý sink, odemyká se na 3000). */
-function ForgeBar({ item, dust, onReroll, onUpgrade, enchantUnlocked, onEnchant }) {
-  const rr = rerollCost(item);
+/* Paper-doll vybavení (3×3): AURA / ZBRAŇ–POSTAVA–TALISMAN / RUKAVICE.
+   Klik na nasazený kus otevře vyskakovací kartu. Uprostřed úroveň postavy. */
+function PaperDoll({ equipment, level, gearMult, onSelect }) {
+  const cell = (id) => <DollSlot key={id} slot={SLOT_BY_ID[id]} item={equipment[id]} onClick={() => onSelect({ loc: 'equip', slot: id })} />;
+  const blank = (k) => <div key={k} className="doll-cell doll-blank" />;
+  return (
+    <div className="inv-paperdoll">
+      <div className="inv-loadout-head">
+        <span className="inv-summary-label">Nasazeno</span>
+        <span className="inv-gearpower" title="Násobič poškození z nasazené výbavy (1 + Σ poškození %)">⚔️ ×{gearMult.toFixed(2)}</span>
+      </div>
+      <div className="doll-grid">
+        {blank('t0')}{cell('aura')}{blank('t2')}
+        {cell('weapon')}
+        <div className="doll-cell doll-center">
+          <div className="doll-char">{fmt(level)}</div>
+          <span className="doll-slot-lbl">Postava</span>
+        </div>
+        {cell('charm')}
+        {blank('b0')}{cell('gloves')}{blank('b2')}
+      </div>
+    </div>
+  );
+}
+
+/* Vyskakovací karta kusu — detail + akce. Sdílená pro inventář i nasazené kusy.
+   Kovárna (přeroll/povýšit) drží kartu otevřenou; nasadit/sundat/rozložit/zaklít
+   ji zavře (kus se přesune nebo se otevře zaklínací stůl). */
+function ItemPopover({ loc, item, dust, engine, onClose }) {
+  const slot = SLOT_BY_ID[item.slot];
   const next = nextRarity(item.rarity);
+  const rr = rerollCost(item);
   const up = upgradeRarityCost(item);
   const lvl = enchantTotalLvl(item);
-  const stop = (e) => e.stopPropagation();
+  const ench = enchantStats(item);
+  const enchUnlocked = engine.state.enchantingUnlocked;
+  const equipped = loc === 'inv' ? engine.state.equipment[item.slot] : null;
+  const delta = loc === 'inv' ? upgradeDelta(item, equipped) : null;
+  const setId = itemSet(item);
   return (
-    <div className="inv-forge" onPointerDown={stop} onClick={stop}>
-      <button
-        className="forge-btn reroll"
-        disabled={dust < rr}
-        onClick={(e) => { stop(e); onReroll(); }}
-        title="Nové afixy (drží vzácnost i ilvl)"
-      >🎲 {fmt(rr)} 💠</button>
-      <button
-        className="forge-btn upgrade"
-        disabled={!next || dust < up}
-        onClick={(e) => { stop(e); onUpgrade(); }}
-        title={next ? `Povýšit na ${RARITIES[next].name}` : 'Nejvyšší vzácnost'}
-        style={next ? { color: RARITIES[next].color } : undefined}
-      >{next ? `⬆️ ${fmt(up)} 💠` : '⬆️ MAX'}</button>
-      {enchantUnlocked && (
-        <button
-          className="forge-btn enchant"
-          disabled={!canEnchant(item)}
-          onClick={(e) => { stop(e); onEnchant(); }}
-          title={canEnchant(item) ? 'Zaklínací stůl (za zlato 💰)' : 'Kus je plně zaklet'}
-        >{lvl > 0 ? `✨ ${lvl}/${ENCHANTS_CFG.maxLevel}` : '✨ Zaklít'}</button>
-      )}
-    </div>
-  );
-}
+    <>
+      <div className="inv-pop-back" onClick={onClose} />
+      <div className="inv-pop" style={{ '--rc': rarityColor(item) }} role="dialog">
+        <button className="inv-pop-x" onClick={onClose} aria-label="Zavřít">✕</button>
 
-/* kus v inventáři — draggable + tap na nasazení, ✕ na rozložení, kovárna dole */
-function InvCard({ item, equipped, dust, onEquip, onDiscard, onReroll, onUpgrade, enchantUnlocked, onEnchant }) {
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
-    id: item.id, data: { type: 'inv', item },
-  });
-  return (
-    <div
-      ref={setNodeRef}
-      className={'inv-card' + (isDragging ? ' dragging' : '')}
-      style={{ '--rc': rarityColor(item) }}
-    >
-      <button
-        className="inv-discard"
-        onPointerDown={(e) => e.stopPropagation()}
-        onClick={(e) => { e.stopPropagation(); onDiscard(); }}
-        title="Rozložit na úlomky 💠"
-        aria-label="Rozložit na úlomky"
-      >×</button>
-      <div
-        {...listeners}
-        {...attributes}
-        role="button"
-        tabIndex={0}
-        className="inv-card-grab"
-        onClick={onEquip}
-        onKeyDown={(e) => { if (e.key === 'Enter') onEquip(); }}
-        title="Klepni / přetáhni pro nasazení"
-      >
-        <SetBadge item={item} />
-        <ItemIcon item={item} />
-        <div className="inv-name">{itemName(item)}</div>
-        <RarityLine item={item} />
-        <UpgradeBadge item={item} equipped={equipped} />
-        <Affixes item={item} />
-        <EnchantLines item={item} />
-      </div>
-      <ForgeBar item={item} dust={dust} onReroll={onReroll} onUpgrade={onUpgrade} enchantUnlocked={enchantUnlocked} onEnchant={onEnchant} />
-    </div>
-  );
-}
+        <div className="inv-pop-slot">
+          <span>{slot.emoji}</span><span>{slot.name}</span>
+        </div>
 
-/* slot vybavení — droppable; nasazený kus je sám draggable (sundání) + kovárna */
-function EquipSlot({ slot, item, dust, onUnequip, onReroll, onUpgrade, enchantUnlocked, onEnchant }) {
-  const { setNodeRef, isOver } = useDroppable({ id: 'slot-' + slot.id, data: { slot: slot.id } });
-  const drag = useDraggable({ id: 'eq-' + slot.id, data: { type: 'equip', slot: slot.id }, disabled: !item });
-  return (
-    <div
-      ref={setNodeRef}
-      className={'equip-slot' + (isOver ? ' over' : '') + (item ? ' filled' : '')}
-      style={item ? { '--rc': rarityColor(item) } : undefined}
-    >
-      <div className="equip-slot-head">{slot.emoji} {slot.name}</div>
-      {item ? (
-        <>
-          <div
-            ref={drag.setNodeRef}
-            {...drag.listeners}
-            {...drag.attributes}
-            role="button"
-            tabIndex={0}
-            className={'equip-item' + (drag.isDragging ? ' dragging' : '')}
-            onClick={onUnequip}
-            onKeyDown={(e) => { if (e.key === 'Enter') onUnequip(); }}
-            title="Klepni / přetáhni do inventáře pro sundání"
-          >
-            <SetBadge item={item} />
-            <ItemIcon item={item} />
-            <div className="equip-item-info">
-              <div className="inv-name">{itemName(item)}</div>
-              <RarityLine item={item} />
-              <Affixes item={item} />
-              <EnchantLines item={item} />
-            </div>
+        <div className="inv-pop-head">
+          <div className="inv-pop-tile">{iconNode(item, 'inv-pop-ico')}</div>
+          <div className="inv-pop-meta">
+            <span className="inv-pop-name" style={{ color: rarityColor(item) }}>
+              {setId && <span className="inv-pop-setbadge" title={`Sada: ${SETS[setId].name}`}>{SETS[setId].emoji} </span>}
+              {itemName(item)}
+            </span>
+            <span className="inv-pop-sub">
+              {rarityName(item)} · ilvl {item.ilvl}
+              {delta && <b className="inv-pop-up"> ▲ +{Math.round((delta.pct || 0) * 100)} %</b>}
+            </span>
           </div>
-          <ForgeBar item={item} dust={dust} onReroll={onReroll} onUpgrade={onUpgrade} enchantUnlocked={enchantUnlocked} onEnchant={onEnchant} />
-        </>
-      ) : (
-        <div className="equip-empty">prázdné</div>
-      )}
-    </div>
+        </div>
+
+        <div className="inv-pop-stats">
+          {item.affixes.map((a, i) => <span key={i} className="inv-pop-chip">{affixLabel(a)}</span>)}
+          {ench && Object.entries(ench).map(([stat, value]) => (
+            <span key={stat} className="inv-pop-chip ench">✨ {affixLabel({ stat, value })}</span>
+          ))}
+        </div>
+
+        <div className="inv-pop-btns">
+          {loc === 'inv' ? (
+            <button className="pop-btn accent" onClick={() => { engine.equipItem(item.id); onClose(); }}>⬆️ Nasadit</button>
+          ) : (
+            <button className="pop-btn" onClick={() => { engine.unequipSlot(item.slot); onClose(); }}>⬇️ Sundat</button>
+          )}
+          <button className="pop-btn" disabled={dust < rr} onClick={() => engine.forgeReroll(item.id)} title="Nové afixy (drží vzácnost i ilvl)">🎲 {fmt(rr)} 💠</button>
+          <button
+            className="pop-btn"
+            disabled={!next || dust < up}
+            onClick={() => engine.forgeUpgrade(item.id)}
+            title={next ? `Povýšit na ${RARITIES[next].name}` : 'Nejvyšší vzácnost'}
+            style={next ? { color: RARITIES[next].color } : undefined}
+          >{next ? `⬆️ ${fmt(up)} 💠` : '⬆️ MAX'}</button>
+          {enchUnlocked && (
+            <button
+              className="pop-btn ench"
+              disabled={!canEnchant(item)}
+              onClick={() => { engine.openEnchant(item.id); onClose(); }}
+              title={canEnchant(item) ? 'Zaklínací stůl (za zlato 💰)' : 'Kus je plně zaklet'}
+            >{lvl > 0 ? `✨ ${lvl}/${ENCHANTS_CFG.maxLevel}` : '✨ Zaklít'}</button>
+          )}
+          {loc === 'inv' && (
+            <button className="pop-btn danger" onClick={() => { engine.discardItem(item.id); onClose(); }} title="Rozložit na úlomky 💠">🗑 Rozložit</button>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
+/* kompaktní dlaždice kusu v inventáři (ikona + ilvl v rohu, ▲ = vylepšení) */
+function InvTile({ item, equipped, onClick }) {
+  const setId = itemSet(item);
+  const up = upgradeDelta(item, equipped);
+  return (
+    <button className="inv-slot filled" style={{ '--rc': rarityColor(item) }} onClick={onClick} title={itemName(item)}>
+      {iconNode(item, 'inv-slot-ico')}
+      <span className="inv-slot-ilvl" style={{ color: rarityColor(item) }}>{fmt(item.ilvl)}</span>
+      {setId && <span className="inv-slot-set">{SETS[setId].emoji}</span>}
+      {up && <span className="inv-slot-up" title="Silnější než nasazený kus">▲</span>}
+    </button>
   );
 }
 
@@ -311,10 +291,9 @@ export default function InventoryModal({ onClose }) {
   useEngineSelector(selectSig, shallowEqual); // trigger re-renderu
   const s = engine.state;
   const dust = Math.floor(s.dust || 0);
-  const [dragItem, setDragItem] = useState(null);
-
-  // distance constraint → krátké klepnutí projde jako klik (tap-to-equip na mobilu)
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
+  const [sel, setSel] = useState(null); // { loc:'equip', slot } | { loc:'inv', id }
+  const [confirmDismantle, setConfirmDismantle] = useState(false);
+  const [confirmWorse, setConfirmWorse] = useState(false);
 
   if (!s.inventoryUnlocked) {
     return (
@@ -334,116 +313,101 @@ export default function InventoryModal({ onClose }) {
   const inv = [...s.inventory].sort((a, b) => itemScore(b) - itemScore(a));
   const agg = aggregateEquip(s.equipment);
   const summary = Object.entries(agg).filter(([, v]) => v > 0).map(([stat, value]) => affixLabel({ stat, value }));
+  const gearMult = 1 + (agg.dmgPct || 0);
 
-  function onDragEnd({ active, over }) {
-    setDragItem(null);
-    if (!over) return;
-    const a = active.data.current;
-    const overId = over.id;
-    if (typeof overId === 'string' && overId.startsWith('slot-')) {
-      const slot = overId.slice(5);
-      if (a?.type === 'inv' && a.item.slot === slot) engine.equipItem(a.item.id);
-    } else if (overId === 'inv-zone' && a?.type === 'equip') {
-      engine.unequipSlot(a.slot);
-    }
-  }
+  const selected = resolveSel(sel, s);
+  const dismantleValue = engine.dismantleAllValue();
+  const worse = engine.dismantleWorseValue();
+  // počet dlaždic = kapacita inventáře (vyplní mřížku „sloty" jako v designu)
+  const cells = Math.max(ITEMS.invCap, inv.length);
 
   return (
     <Modal onClose={onClose} className="inventory-modal">
       <h2>🎒 Výbava <span className="inv-dust" title="Úlomky z rozkladu kořisti — kovárna">💠 {fmt(dust)}</span></h2>
 
-      <DndContext
-        sensors={sensors}
-        onDragStart={({ active }) => setDragItem(active.data.current?.item || s.equipment[active.data.current?.slot] || null)}
-        onDragEnd={onDragEnd}
-        onDragCancel={() => setDragItem(null)}
-      >
-        <div className="inv-layout">
-          {/* levý sloupec: postava (nasazeno + sady + bonusy) a ekonomika (bedny + směnárna) */}
-          <aside className="inv-side">
-            <div className="inv-loadout">
-              <div className="inv-loadout-head">
-                <span className="inv-summary-label">Nasazeno</span>
-                <span className="inv-gearpower" title="Násobič poškození z nasazené výbavy (1 + Σ poškození %)">⚔️ ×{(1 + (agg.dmgPct || 0)).toFixed(2)}</span>
-              </div>
-              <div className="equip-slots">
-                {SLOTS.map((slot) => (
-                  <EquipSlot
-                    key={slot.id}
-                    slot={slot}
-                    item={s.equipment[slot.id]}
-                    dust={dust}
-                    onUnequip={() => engine.unequipSlot(slot.id)}
-                    onReroll={() => engine.forgeReroll(s.equipment[slot.id]?.id)}
-                    onUpgrade={() => engine.forgeUpgrade(s.equipment[slot.id]?.id)}
-                    enchantUnlocked={s.enchantingUnlocked}
-                    onEnchant={() => engine.openEnchant(s.equipment[slot.id]?.id)}
-                  />
-                ))}
+      <div className="inv-layout">
+        {/* levý sloupec: postava (paper-doll + sady + bonusy) a ekonomika (bedny + směnárna) */}
+        <aside className="inv-side">
+          <PaperDoll
+            equipment={s.equipment}
+            level={s.level}
+            gearMult={gearMult}
+            onSelect={setSel}
+          />
+
+          <SetPanel equipment={s.equipment} />
+
+          {summary.length > 0 && (
+            <div className="inv-summary">
+              <span className="inv-summary-label">Bonusy z výbavy</span>
+              <div className="inv-summary-list">{summary.map((t, i) => <span key={i}>{t}</span>)}</div>
+            </div>
+          )}
+
+          <ChestPanel engine={engine} dust={dust} />
+          <DustExchange engine={engine} dust={dust} />
+        </aside>
+
+        {/* pravý sloupec: kořist (scrolluje uvnitř) */}
+        <section className="inv-main">
+          <div className="inv-grid-wrap">
+            <div className="inv-grid-head">
+              <span>Inventář</span>
+              <div className="inv-grid-head-right">
+                <span className="inv-count">{inv.length} / {ITEMS.invCap}</span>
+                {worse.count > 0 && (
+                  <button
+                    className="inv-dismantle-worse"
+                    onClick={() => setConfirmWorse(true)}
+                    title="Rozloží kusy slabší (nebo stejné) než právě nasazené ve stejném slotu. Vylepšení i zakleté/runové kusy zůstanou."
+                  >Rozložit horší ({worse.count}) 💠 {fmt(worse.dust)}</button>
+                )}
+                {inv.length > 0 && (
+                  <button
+                    className="inv-dismantle-all"
+                    onClick={() => setConfirmDismantle(true)}
+                    title="Rozloží celý inventář na úlomky (nasazené kusy zůstanou)"
+                  >Rozložit vše 💠 {fmt(dismantleValue)}</button>
+                )}
               </div>
             </div>
 
-            <SetPanel equipment={s.equipment} />
-
-            {summary.length > 0 && (
-              <div className="inv-summary">
-                <span className="inv-summary-label">Bonusy z výbavy</span>
-                <div className="inv-summary-list">{summary.map((t, i) => <span key={i}>{t}</span>)}</div>
+            {inv.length === 0 ? (
+              <div className="inv-empty">
+                <div className="inv-empty-ico">🎁</div>
+                <p>Zatím žádná kořist — poraz nepřátele (hlavně bosse) a kusy začnou padat.</p>
+                <p className="inv-empty-sub">Otevři bedny vlevo nebo vykovej kus z úlomků 💠.</p>
+              </div>
+            ) : (
+              <div className="inv-grid">
+                {Array.from({ length: cells }, (_, i) => {
+                  const item = inv[i];
+                  if (!item) return <div key={`e${i}`} className="inv-slot empty" />;
+                  return (
+                    <InvTile
+                      key={item.id}
+                      item={item}
+                      equipped={s.equipment[item.slot]}
+                      onClick={() => setSel({ loc: 'inv', id: item.id })}
+                    />
+                  );
+                })}
               </div>
             )}
-
-            <ChestPanel engine={engine} dust={dust} />
-            <DustExchange engine={engine} dust={dust} />
-          </aside>
-
-          {/* pravý sloupec: kořist (scrolluje uvnitř) */}
-          <section className="inv-main">
-            <InventoryGrid inv={inv} dust={dust} engine={engine} />
-          </section>
-        </div>
-
-        <DragOverlay>
-          {dragItem ? (
-            <div className="inv-card drag-ghost" style={{ '--rc': rarityColor(dragItem) }}>
-              <ItemIcon item={dragItem} />
-              <div className="inv-name">{itemName(dragItem)}</div>
-            </div>
-          ) : null}
-        </DragOverlay>
-      </DndContext>
-    </Modal>
-  );
-}
-
-/* mřížka inventáře = drop zóna pro sundání (přetažení nasazeného kusu sem) */
-function InventoryGrid({ inv, dust, engine }) {
-  const { setNodeRef, isOver } = useDroppable({ id: 'inv-zone' });
-  const [confirmDismantle, setConfirmDismantle] = useState(false);
-  const [confirmWorse, setConfirmWorse] = useState(false);
-  const dismantleValue = engine.dismantleAllValue();
-  const worse = engine.dismantleWorseValue();
-  return (
-    <div ref={setNodeRef} className={'inv-grid-wrap' + (isOver ? ' over' : '')}>
-      <div className="inv-grid-head">
-        <span>Inventář</span>
-        <div className="inv-grid-head-right">
-          <span className="inv-count">{inv.length} / {ITEMS.invCap}</span>
-          {worse.count > 0 && (
-            <button
-              className="inv-dismantle-worse"
-              onClick={() => setConfirmWorse(true)}
-              title="Rozloží kusy slabší (nebo stejné) než právě nasazené ve stejném slotu. Vylepšení i zakleté/runové kusy zůstanou."
-            >Rozložit horší ({worse.count}) 💠 {fmt(worse.dust)}</button>
-          )}
-          {inv.length > 0 && (
-            <button
-              className="inv-dismantle-all"
-              onClick={() => setConfirmDismantle(true)}
-              title="Rozloží celý inventář na úlomky (nasazené kusy zůstanou)"
-            >Rozložit vše 💠 {fmt(dismantleValue)}</button>
-          )}
-        </div>
+          </div>
+        </section>
       </div>
+
+      {selected && (
+        <ItemPopover
+          loc={selected.loc}
+          item={selected.item}
+          dust={dust}
+          engine={engine}
+          onClose={() => setSel(null)}
+        />
+      )}
+
       {confirmWorse && (
         <ConfirmModal
           title="Rozložit slabší kusy?"
@@ -464,30 +428,6 @@ function InventoryGrid({ inv, dust, engine }) {
           onClose={() => setConfirmDismantle(false)}
         />
       )}
-      {inv.length === 0 ? (
-        <div className="inv-empty">
-          <div className="inv-empty-ico">🎁</div>
-          <p>Zatím žádná kořist — poraz nepřátele (hlavně bosse) a kusy začnou padat.</p>
-          <p className="inv-empty-sub">Otevři bedny vlevo nebo vykovej kus z úlomků 💠.</p>
-        </div>
-      ) : (
-        <div className="inv-grid">
-          {inv.map((item) => (
-            <InvCard
-              key={item.id}
-              item={item}
-              equipped={engine.state.equipment[item.slot]}
-              dust={dust}
-              onEquip={() => engine.equipItem(item.id)}
-              onDiscard={() => engine.discardItem(item.id)}
-              onReroll={() => engine.forgeReroll(item.id)}
-              onUpgrade={() => engine.forgeUpgrade(item.id)}
-              enchantUnlocked={engine.state.enchantingUnlocked}
-              onEnchant={() => engine.openEnchant(item.id)}
-            />
-          ))}
-        </div>
-      )}
-    </div>
+    </Modal>
   );
 }
