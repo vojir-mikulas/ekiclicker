@@ -27,6 +27,7 @@ const PetsModal = lazy(() => import('./modals/PetsModal.jsx'));
 const RunesModal = lazy(() => import('./modals/RunesModal.jsx'));
 const EnchantModal = lazy(() => import('./modals/EnchantModal.jsx'));
 const MasteryModal = lazy(() => import('./modals/MasteryModal.jsx'));
+const VzestupModal = lazy(() => import('./modals/VzestupModal.jsx'));
 const AbilitiesModal = lazy(() => import('./modals/AbilitiesModal.jsx'));
 const AlbumModal = lazy(() => import('./modals/AlbumModal.jsx'));
 const PetRevealModal = lazy(() => import('./modals/PetRevealModal.jsx'));
@@ -46,7 +47,7 @@ const UnlockModal = lazy(() => import('./modals/UnlockModal.jsx'));
 
 // Obrazovky, které se otevírají jako vsazená stránka v obsahu (ne overlay).
 // Vše ostatní (nastavení, účet, potvrzení, ruleta…) zůstává klasický modal.
-const PAGE_IDS = ['daily', 'inventory', 'pets', 'runes', 'abilities', 'mastery', 'album', 'stats', 'mailbox'];
+const PAGE_IDS = ['daily', 'inventory', 'pets', 'runes', 'abilities', 'mastery', 'ascension', 'album', 'stats', 'mailbox'];
 // Hlavní záložky (přepínají se přes setView, ne přes page/modal) — sem míří např. CTA uvítacího modalu cechu.
 const VIEW_IDS = ['game', 'boss', 'raid', 'guild', 'board'];
 
@@ -124,6 +125,7 @@ export default function Game() {
           onOpenRunes={() => openScreen('runes')}
           onOpenAbilities={() => openScreen('abilities')}
           onOpenMastery={() => openScreen('mastery')}
+          onOpenAscension={() => openScreen('ascension')}
           onOpenAlbum={() => openScreen('album')}
           onOpenMailbox={() => openScreen('mailbox')}
         />
@@ -139,6 +141,7 @@ export default function Game() {
                   {page === 'runes' && <RunesModal onClose={closePage} />}
                   {page === 'abilities' && <AbilitiesModal onClose={closePage} />}
                   {page === 'mastery' && <MasteryModal onClose={closePage} />}
+                  {page === 'ascension' && <VzestupModal onClose={closePage} />}
                   {page === 'album' && <AlbumModal onClose={closePage} />}
                   {page === 'stats' && <StatsModal onClose={closePage} />}
                   {page === 'mailbox' && <MailboxModal onClose={closePage} />}
@@ -156,7 +159,7 @@ export default function Game() {
                     <span className="mat-entry-go">Vstoupit →</span>
                   </button>
                 )}
-                <Arena onOpenRebirth={() => setModal('rebirth')} />
+                <Arena onOpenRebirth={() => setModal('rebirth')} onOpenAscension={() => openScreen('ascension')} />
                 <Shop />
               </div>
             ) : view === 'boss' ? (

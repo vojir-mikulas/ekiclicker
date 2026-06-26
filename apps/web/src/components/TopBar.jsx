@@ -30,11 +30,13 @@ const select = (s) => ({
   abilitiesUnlocked: s.abilitiesUnlocked,
   masteryUnlocked: s.masteryUnlocked,
   masteryPoints: s.mastery?.points || 0,
+  ascensionUnlocked: s.ascensionUnlocked,
+  stardust: Math.floor(s.stardust || 0),
   albumNew: s.album?.new || 0,
 });
 
-export default function TopBar({ view, page, onView, onOpenSettings, onOpenJoin, onOpenAccount, onOpenStats, onOpenDaily, onOpenInventory, onOpenPets, onOpenRunes, onOpenAbilities, onOpenMastery, onOpenAlbum, onOpenMailbox }) {
-  const { gold, forgiveness, dust, level, click, daily, invUnlocked, chestCount, petsUnlocked, eggCount, equippedPet, petLevel, petEvo, runesUnlocked, runeCount, abilitiesUnlocked, masteryUnlocked, masteryPoints, albumNew } = useEngineSelector(select, shallowEqual);
+export default function TopBar({ view, page, onView, onOpenSettings, onOpenJoin, onOpenAccount, onOpenStats, onOpenDaily, onOpenInventory, onOpenPets, onOpenRunes, onOpenAbilities, onOpenMastery, onOpenAscension, onOpenAlbum, onOpenMailbox }) {
+  const { gold, forgiveness, dust, level, click, daily, invUnlocked, chestCount, petsUnlocked, eggCount, equippedPet, petLevel, petEvo, runesUnlocked, runeCount, abilitiesUnlocked, masteryUnlocked, masteryPoints, ascensionUnlocked, stardust, albumNew } = useEngineSelector(select, shallowEqual);
   const account = useAccount();
   const wb = useWorldBoss();
   const rd = useRaid();
@@ -127,6 +129,11 @@ export default function TopBar({ view, page, onView, onOpenSettings, onOpenJoin,
               🔱{masteryPoints >= 1 && <span className="topbar-badge">{masteryPoints > 99 ? '99+' : Math.floor(masteryPoints)}</span>}
             </button>
           )}
+          {ascensionUnlocked && (
+            <button className={'topbar-btn vz-btn badged' + (page === 'ascension' ? ' active' : '')} onClick={onOpenAscension} title="Absoluce 😇" aria-label="Absoluce">
+              😇{stardust >= 1 && <span className="topbar-badge">{stardust > 99 ? '99+' : stardust}</span>}
+            </button>
+          )}
           <button className={'topbar-btn badged' + (page === 'album' ? ' active' : '')} onClick={onOpenAlbum} title="Sběratelský deník" aria-label="Sběratelský deník">
             📖{albumNew > 0 && <span className="topbar-badge">{albumNew}</span>}
           </button>
@@ -170,6 +177,15 @@ export default function TopBar({ view, page, onView, onOpenSettings, onOpenJoin,
             <span className="txt">
               <span className="label">Mistrovství</span>
               <span className="value">{fmt(masteryPoints)}</span>
+            </span>
+          </button>
+        )}
+        {ascensionUnlocked && (
+          <button className="currency stardust" onClick={onOpenAscension} title="✨ Svatozář — utrať ji v Absoluci 😇">
+            <span className="icon">😇</span>
+            <span className="txt">
+              <span className="label">Svatozář</span>
+              <span className="value">{fmt(stardust)}</span>
             </span>
           </button>
         )}

@@ -129,4 +129,18 @@ export const FEATURE_UNLOCKS = {
     cta: 'Otevřít mřížku 🔱',
     open: 'mastery',
   },
+  ascension: {
+    emoji: '😇',
+    name: 'Absoluce',
+    level: 30000,
+    tagline: 'Nejvyšší odpuštění — nová měna',
+    desc: 'Dosáhl jsi nebes: úrovně 30000. Rebirth Tomášovi „jen" odpouští — ABSOLUCE ho zprostí úplně všeho. Dáš Ekimu absoluci, smeteš celou věž prestiže výměnou za ✨ Svatozář 😇 a za ni kupuješ TRVALÉ nebeské bonusy, které přežijí i další absoluci. Každý cyklus vyletíš výš a rychleji — donekonečna.',
+    perks: [
+      '😇 ✨ Svatozář podle dosažené hloubky',
+      '💫 Trvalé nebeské bonusy (přežijí absoluci)',
+      '♾️ Nekonečná smyčka „new game+"',
+    ],
+    cta: 'Otevřít Absoluci 😇',
+    open: 'ascension',
+  },
 };

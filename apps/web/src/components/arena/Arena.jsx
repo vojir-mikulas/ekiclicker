@@ -3,7 +3,7 @@ import { CONFIG } from '../../game/config.js';
 import { useEngine, useEngineSelector, shallowEqual } from '../../hooks/useEngine.js';
 import { fxRefs } from '../../effects/fxRefs.js';
 import { fmt } from '../../game/format.js';
-import { forgivenessGain, difficultyScale, prestigePower } from '../../game/formulas.js';
+import { forgivenessGain, difficultyScale, prestigePower, stardustGain } from '../../game/formulas.js';
 import EnemyView from './EnemyView.jsx';
 import HpBar from './HpBar.jsx';
 import BossTimer from './BossTimer.jsx';
@@ -13,14 +13,17 @@ import LuckyEki from './LuckyEki.jsx';
 import AbilityBar from './AbilityBar.jsx';
 
 const selectGain = (s) => forgivenessGain(s.highestLevel);
+// Vzestup 🌌 — odemčení + ✦ prach za vzestup (jen když odemčeno, viz lvl 30000)
+const selectAsc = (s) => ({ unlocked: s.ascensionUnlocked, gain: stardustGain(s.highestLevel) });
 // Obtížnost (HP Ekiů) i prestige síla jsou v rámci běhu konstantní — mění se až
 // po rebirthu — ale čteme je selektorem, ať se chip překreslí po návratu z rebirthu.
 const selectDiff = (s) => ({ diff: difficultyScale(s), power: prestigePower(s) });
 
-export default function Arena({ onOpenRebirth }) {
+export default function Arena({ onOpenRebirth, onOpenAscension }) {
   const engine = useEngine();
   const gain = useEngineSelector(selectGain);
   const { diff, power } = useEngineSelector(selectDiff, shallowEqual);
+  const asc = useEngineSelector(selectAsc, shallowEqual);
   const lastPunchAt = useRef(0);
   // Tři obrany proti podvádění, všechny na vstupu (engine zůstává čistý kvůli
   // simulátoru/testům, které volají punch() ve smyčce):
@@ -81,6 +84,12 @@ export default function Arena({ onOpenRebirth }) {
       {gain >= 1 && (
         <button className="forgive-btn" onClick={onOpenRebirth}>
           🕊 Odpustit Tomášovi → +{fmt(gain)} 🕊
+        </button>
+      )}
+
+      {asc.unlocked && (
+        <button className="ascend-btn" onClick={onOpenAscension}>
+          😇 Absoluce{asc.gain >= 1 ? ` → +${fmt(asc.gain)} 😇` : ' — nebeské bonusy'}
         </button>
       )}
     </div>

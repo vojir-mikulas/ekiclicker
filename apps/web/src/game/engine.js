@@ -13,7 +13,7 @@ import { UPGRADES } from './data/upgrades.js';
 import { VARIANTS, variantPool } from './data/variants.js';
 import { ACHIEVEMENTS } from './data/achievements.js';
 import { CAPSTONES } from './data/prestige.js';
-import { createState, resetRun } from './initialState.js';
+import { createState, resetRun, createPrestige } from './initialState.js';
 import { save, clearSave, hydrateState } from './persistence.js';
 import {
   rollDaily, dayStr, prevDayStr, questDef, questDone,
@@ -25,7 +25,9 @@ import {
   upgradeCostAt, weaponCostAt, buyBatch, forgivenessGain,
   comboCap, forgivenessMult, bossTimeMult, bossGoldMult, dustMult, dropChanceBonus,
   hellFloorHp, clearStatCache,
+  stardustGain, ascensionCost, ascensionHeadstart,
 } from './formulas.js';
+import { ASCENSION, ASCENSION_UPGRADES } from './data/ascension.js';
 import {
   HELLEVATOR, HELL_SHOP, hellPerkCost, siraForRun, isHellBossFloor,
   HELL_FORGE, hellForgeCost, HELL_CURSES, hellRunMods,
@@ -227,7 +229,18 @@ export class Engine {
     this.checkEnchantingUnlock();
     this.checkAbilitiesUnlock();
     this.checkMasteryUnlock();
+    this.checkAscensionUnlock();
     this.checkGuildUnlock();
+  }
+
+  /* Vzestup 🌌 se odemkne po dosažení ASCENSION.unlockLevel (nejvyšší úroveň).
+     Trvalý příznak — stejně jako ostatní pozdní funkce (přežívá rebirth i vzestup). */
+  checkAscensionUnlock() {
+    const s = this.state;
+    if (!s.ascensionUnlocked && s.highestLevel >= ASCENSION.unlockLevel) {
+      s.ascensionUnlocked = true;
+      this.emit('unlock', { feature: 'ascension' });
+    }
   }
 
   /* Cech 🛡️ se odemkne po DOSAŽENÍ GUILDS.foundLevel (nejvyšší úroveň). Příznak je
@@ -1186,6 +1199,17 @@ export class Engine {
     s.prestige[key] = (s.prestige[key] || 0) + 1;
     this.afterBuy();
   }
+  /* Kup 1 level kosmického bonusu vzestupu 🌌 za ✦ Hvězdný prach (nekonečný sink). */
+  buyAscension(key) {
+    const s = this.state;
+    if (!s.ascensionUnlocked || !ASCENSION_UPGRADES[key]) return;
+    const lvl = (s.ascension.levels[key] || 0);
+    const cost = ascensionCost(key, lvl);
+    if (!isFinite(cost) || (s.stardust || 0) < cost) return; // chybí prach
+    s.stardust -= cost;
+    s.ascension.levels[key] = lvl + 1;
+    this.afterBuy();
+  }
   /* Kup 1 rank uzlu mistrovské mřížky 🔱. Hradla: odemčená fíčura, řada
      odemčená počtem bodů ve větvi, nepřekročený strop, dost bodů. */
   buyMasteryNode(nodeId) {
@@ -1788,13 +1812,40 @@ export class Engine {
   forgivenessGain() {
     return Math.floor(forgivenessGain(this.state.highestLevel) * forgivenessMult(this.state)); // 🕯️ Věčné odpuštění
   }
+  /* Startovní úroveň čerstvého běhu = 1 + Náskok (prestige) + 🚀 Věčný náskok (vzestup). */
+  startLevel() {
+    const s = this.state;
+    return 1 + s.prestige.headstart * 3 + ascensionHeadstart(s);
+  }
   rebirth() {
     const s = this.state;
     const gain = this.forgivenessGain();
     if (gain < 1) return false;
     s.prestige.forgiveness += gain;
     s.prestige.rebirths++;
-    resetRun(s, 1 + s.prestige.headstart * 3);
+    resetRun(s, this.startLevel());
+    this.spawnEnemy();
+    this.checkAchievements();
+    save(s);
+    this.notify();
+    return true;
+  }
+
+  /* ---------- vzestup 🌌 (meta-prestige) ---------- */
+  ascensionGain() {
+    return stardustGain(this.state.highestLevel);
+  }
+  /* VZESTUP: smete celou věž prestiže (rage/pěst/… i Odpuštění) výměnou za ✦ Hvězdný
+     prach ∝ dosažené hloubce. Kosmické bonusy (state.ascension) PŘEŽIJÍ. Pak čerstvý
+     běh (startLevel už počítá 🚀 Věčný náskok, prestige.headstart je po resetu 0). */
+  ascend() {
+    const s = this.state;
+    const gain = this.ascensionGain();
+    if (gain < 1) return false; // ještě jsi nedošel dost vysoko (< ASCENSION.unlockLevel)
+    s.stardust = (s.stardust || 0) + gain;
+    s.ascension.ascends = (s.ascension.ascends || 0) + 1;
+    s.prestige = createPrestige(); // smaž věž prestiže (rage/fist/…/forgiveness/rebirths)
+    resetRun(s, this.startLevel());
     this.spawnEnemy();
     this.checkAchievements();
     save(s);

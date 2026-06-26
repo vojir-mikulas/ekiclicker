@@ -1,7 +1,7 @@
 /* Ukládání / načítání + offline výdělek. */
 import { GUILDS } from '@ekiclicker/shared';
 import { CONFIG } from './config.js';
-import { createState, createAlbum, createMastery } from './initialState.js';
+import { createState, createAlbum, createMastery, createAscension } from './initialState.js';
 import { totalDps, goldMult, enemyReward, forgivenessGain } from './formulas.js';
 import { gearPower } from './data/items.js';
 import { petPower } from './data/pets.js';
@@ -45,6 +45,11 @@ export function buildSnapshot(state) {
     upgrades: state.upgrades,
     weapons: state.weapons,
     prestige: state.prestige,
+    // VZESTUP 🌌 (meta-prestige): odemčení + ✦ Hvězdný prach + koupené bonusy
+    // (aditivní — starý save bez nich se načte prázdný/zamčený)
+    ascensionUnlocked: state.ascensionUnlocked,
+    stardust: state.stardust,
+    ascension: state.ascension,
     achievements: state.achievements,
     album: state.album, // sběratelský deník — Bestiář + Arzenál (přežívá rebirth i obnovu účtu)
     stats: state.stats,
@@ -120,6 +125,12 @@ export function hydrateState(d) {
   Object.assign(state.upgrades, d.upgrades);
   Object.assign(state.weapons, d.weapons);
   Object.assign(state.prestige, d.prestige);
+  // VZESTUP 🌌 (starý save → zamčené/prázdné). Přežívá rebirth i vzestup.
+  state.ascensionUnlocked = !!d.ascensionUnlocked;
+  state.stardust = d.stardust || 0;
+  state.ascension = (d.ascension && typeof d.ascension === 'object' && d.ascension.levels)
+    ? { levels: { ...d.ascension.levels }, ascends: d.ascension.ascends || 0 }
+    : createAscension();
   Object.assign(state.stats, d.stats);
   state.achievements = d.achievements || {};
   state.daily = d.daily || null; // engine.refreshDaily() narolí, když chybí / je z jiného dne

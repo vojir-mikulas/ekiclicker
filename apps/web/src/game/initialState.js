@@ -23,6 +23,13 @@ export function createPrestige() {
   return p;
 }
 
+/* VZESTUP 🌌 — meta-prestige (odemyká se na lvl 30000). `levels` = id bonusu -> level,
+   `ascends` = počet vzestupů (lifetime; rebirths se vzestupem nuluje). PŘEŽÍVÁ rebirth
+   I vzestup (trvalé kosmické bonusy); mizí jen sezónou/hard resetem jako prestige. */
+export function createAscension() {
+  return { levels: {}, ascends: 0 };
+}
+
 /* Prázdné sloty vybavení (slot -> nasazený kus nebo null). */
 export function createEquipment() {
   const e = {};
@@ -75,6 +82,11 @@ export function createState() {
     upgrades: createUpgrades(),
     weapons: createWeapons(),
     prestige: createPrestige(),
+    // --- VZESTUP 🌌 (meta-prestige; odemyká se na úrovni 30000) ---
+    // ✦ Hvězdný prach + koupené kosmické bonusy. Přežívá rebirth I vzestup (trvalé).
+    ascensionUnlocked: false, // jednou true → zůstává (přežívá rebirth)
+    stardust: 0,              // ✦ Hvězdný prach 🌌 — měna vzestupu
+    ascension: createAscension(), // { levels, ascends } — koupené bonusy (přežívají vzestup)
     achievements: {}, // id -> true
     album: createAlbum(), // sběratelský deník — Bestiář + Arzenál (přežívá rebirth)
     stats: createStats(),

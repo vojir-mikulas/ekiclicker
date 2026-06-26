@@ -6,6 +6,7 @@ import { CONFIG, MULT, CAPS, hpCurve, goldCurve, hardenScale } from './config.js
 import { WEAPONS } from './data/weapons.js';
 import { UPGRADES } from './data/upgrades.js';
 import { PRESTIGE_ALL } from './data/prestige.js';
+import { ASCENSION, ASCENSION_UPGRADES } from './data/ascension.js';
 import { ACHIEVEMENTS } from './data/achievements.js';
 import { aggregateEquip } from './data/items.js';
 import { equippedPetStats } from './data/pets.js';
@@ -105,6 +106,7 @@ export function globalMult(s) {
   return (
     Math.pow(MULT.power, s.upgrades.power) *
     Math.pow(MULT.rage, s.prestige.rage) *
+    ascensionMult(s) * // 🌌 Kosmický hněv (vstupuje i do obtížnosti → dosah, ne blitz)
     ach *
     frenzy *
     gear *
@@ -117,7 +119,7 @@ export function goldMult(s) {
   const ach = achievementMult(s.achievements).gold;
   const fortune = 1 + (s.upgrades.fortune || 0) * MULT.fortuneGoldPerLevel;
   const gear = 1 + combatStats(s).goldPct;
-  return (1 + s.prestige.greed * MULT.greedPerLevel) * fortune * ach * gear * elixirMods(s).gold * abilityMods(s).gold; // 🍺 elixír + 🌀 Hojnost
+  return (1 + s.prestige.greed * MULT.greedPerLevel) * fortune * ach * gear * elixirMods(s).gold * abilityMods(s).gold * ascensionGoldMult(s); // 🍺 elixír + 🌀 Hojnost + 💫 Hvězdná štědrost
 }
 
 export function critChance(s) {
@@ -138,7 +140,7 @@ export function frenzyDuration(s) {
 
 /* Násobič šance na Lucky Eki — prestige "Štěstí" + vybavení (afix luck). */
 export function luckSpawnMult(s) {
-  return (1 + s.prestige.luck * MULT.luckPerLevel) * (1 + combatStats(s).luck);
+  return (1 + s.prestige.luck * MULT.luckPerLevel) * (1 + combatStats(s).luck) * ascensionLuckMult(s); // × 🍀 Kosmické štěstí (vzestup)
 }
 
 /* Combo bonus za jeden zásah — základ + gold upgrade "Rytmus". */
@@ -151,7 +153,7 @@ export function comboPerHit(s) {
 const capLevel = (s, key) => (s.prestige && s.prestige[key]) || 0;
 
 /* 🕯️ Věčné odpuštění — násobič 🕊 z rebirthu. */
-export const forgivenessMult = (s) => 1 + capLevel(s, 'eternalForgiveness') * CAPS.forgivenessPerLevel;
+export const forgivenessMult = (s) => (1 + capLevel(s, 'eternalForgiveness') * CAPS.forgivenessPerLevel) * ascensionDoveMult(s); // + 🕊 Holubičí roj (vzestup)
 /* Capstone-helpery navíc sčítají bounded bonusy z 🔱 mistrovské mřížky (speciální
    klíče comboCap/bossTime/bossGold/dustPct/dropChance — afixové klíče jedou přes combatStats). */
 /* 🔗 Mistr comba — strop comba (základ + capstone + mřížka 🥁 Rytmus). */
@@ -160,7 +162,7 @@ export const comboCap = (s) => CONFIG.comboMax + capLevel(s, 'comboMaster') * CA
 export const bossTimeMult = (s) => 1 + capLevel(s, 'bossHunter') * CAPS.bossTimePerLevel + (masteryStats(s).bossTime || 0) + (seasonThemeStats(s.seasonTheme).bossTime || 0);
 export const bossGoldMult = (s) => 1 + capLevel(s, 'bossHunter') * CAPS.bossGoldPerLevel + (masteryStats(s).bossGold || 0) + (seasonThemeStats(s.seasonTheme).bossGold || 0) + (hellShopStats(s).bossGold || 0); // 👑 Ďáblův desátek
 /* ⚒️ Klenotník — víc úlomků a vyšší šance na drop (+ mřížka ⚒️ Kovář / 🌟 / 🎯 / 👑). */
-export const dustMult = (s) => 1 + capLevel(s, 'jeweler') * CAPS.dustPerLevel + (masteryStats(s).dustPct || 0) + ((s.guildPerks && s.guildPerks.dustFind) || 0) + hellShopStats(s).dustFind + (seasonThemeStats(s.seasonTheme).dustPct || 0);
+export const dustMult = (s) => 1 + capLevel(s, 'jeweler') * CAPS.dustPerLevel + (masteryStats(s).dustPct || 0) + ((s.guildPerks && s.guildPerks.dustFind) || 0) + hellShopStats(s).dustFind + (seasonThemeStats(s.seasonTheme).dustPct || 0) + ascensionDustBonus(s); // + 💠 Prachová bouře (vzestup)
 export const dropChanceBonus = (s) => capLevel(s, 'jeweler') * CAPS.dropChancePerLevel + (masteryStats(s).dropChance || 0) + (seasonThemeStats(s.seasonTheme).dropChance || 0) + (hellShopStats(s).dropChance || 0); // 🎁 Pekelná truhla
 
 export function speedMult(s) {
@@ -284,12 +286,37 @@ export function buyBatch(costAt, gold, buyAmount, cap = Infinity) {
   return { count: want, cost: total };
 }
 
+/* ----------------------------- VZESTUP 🌌 (meta-prestige) -----------------------------
+   Trvalé kosmické bonusy kupované za ✦ Hvězdný prach (přežijí i další vzestup).
+   Vše BOUNDED/aditivní KROMĚ Kosmického hněvu (jediný DMG násobič) — ten záměrně
+   SKLÁDÁ do obtížnosti (prestigePower) jako Věčný hněv → dává DOSAH, ne blitz. */
+const ascLevel = (s, key) => (s.ascension && s.ascension.levels && s.ascension.levels[key]) || 0;
+/* 🌌 Kosmický hněv — globální DMG násobič (×1,40/level). Vstupuje do globalMult
+   I do prestigePower (obtížnost) → jako Věčný hněv: anti-blitz beze změny. */
+export const ascensionMult = (s) => Math.pow(ASCENSION_UPGRADES.cosmicWrath.mult, ascLevel(s, 'cosmicWrath'));
+export const ascensionGoldMult = (s) => 1 + ascLevel(s, 'stardustGreed') * ASCENSION_UPGRADES.stardustGreed.per;
+export const ascensionDoveMult = (s) => 1 + ascLevel(s, 'doveStorm') * ASCENSION_UPGRADES.doveStorm.per;
+export const ascensionDustBonus = (s) => ascLevel(s, 'dustNova') * ASCENSION_UPGRADES.dustNova.per; // aditivní do dustMult
+export const ascensionLuckMult = (s) => 1 + ascLevel(s, 'cosmicLuck') * ASCENSION_UPGRADES.cosmicLuck.per;
+export const ascensionHeadstart = (s) => ascLevel(s, 'eternalHeadstart') * ASCENSION_UPGRADES.eternalHeadstart.per;
+/* Cena dalšího levelu (nekonečný sink — bez stropu, jako základní prestige). */
+export const ascensionCost = (key, level) => {
+  const u = ASCENSION_UPGRADES[key];
+  if (!u) return Infinity;
+  return Math.ceil(u.baseCost * Math.pow(u.growth, level));
+};
+/* ✦ Hvězdný prach za vzestup — ∝ tomu, JAK VYSOKO jsi došel (snowball: hlubší
+   vzestup = víc prachu). Pod prahem 0 (vzestoupit nelze). */
+export const stardustGain = (level) =>
+  level < ASCENSION.unlockLevel ? 0 : Math.floor(Math.pow(level / ASCENSION.unlockLevel, 1.6) * 4);
+
 /* ----------------------------- obtížnost ----------------------------- */
 /* Trvalá prestige síla, kterou si hráč nese do ČERSTVÉHO běhu (kept přes rebirth).
-   Hlavní motor blitzu: Věčný hněv (×1,16/level NÁSOBNĚ) + Trénovaná pěst.
+   Hlavní motor blitzu: Věčný hněv (×1,16/level NÁSOBNĚ) + Trénovaná pěst + 🌌 Kosmický
+   hněv (po vzestupu hlavní dosahová páka, když je rage smetené).
    Záměrně NEzahrnuje achievementy/greed (mění se během běhu → byla by zpětná vazba). */
 export function prestigePower(s) {
-  return Math.pow(MULT.rage, s.prestige.rage) * (1 + s.prestige.fist * MULT.fistPerLevel);
+  return Math.pow(MULT.rage, s.prestige.rage) * (1 + s.prestige.fist * MULT.fistPerLevel) * ascensionMult(s);
 }
 /* Násobič HP nepřátel — drží obtížnost úměrnou tvé prestige síle (anti-blitz).
    V rámci jednoho běhu konstantní. Vedle prestige přimíchá i SNAPSHOT síly
