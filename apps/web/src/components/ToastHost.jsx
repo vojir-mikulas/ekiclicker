@@ -18,9 +18,10 @@ export default function ToastHost() {
   const [toasts, setToasts] = useState([]);
   const idRef = useRef(0);
 
+  const MAX_TOASTS = 4;
   const push = useCallback((toast) => {
     const id = ++idRef.current;
-    setToasts((t) => [...t, { id, ...toast }]);
+    setToasts((t) => [...t, { id, ...toast }].slice(-MAX_TOASTS));
     setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 4000);
   }, []);
 

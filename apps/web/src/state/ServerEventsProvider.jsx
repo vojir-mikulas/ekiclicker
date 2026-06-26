@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { ServerEventsContext } from './serverEventsContext.js';
+import { getToken } from '../net/api.js';
 
 /* Jeden sdílený SSE kanál (/api/events) pro celou appku. Nahrazuje klientský
    polling dvou věcí:
@@ -15,6 +16,7 @@ export function ServerEventsProvider({ children }) {
   const [version, setVersion] = useState(null);
   const [seasonNumber, setSeasonNumber] = useState(null);
   const [seasonEpoch, setSeasonEpoch] = useState(0); // ++ jen při 'season' události, ne při 'hello'
+  const [mailEpoch, setMailEpoch] = useState(0);     // ++ při každém 'mail' push → signál pro MailboxProvider
   const [connected, setConnected] = useState(false);
 
   useEffect(() => {
@@ -37,12 +39,17 @@ export function ServerEventsProvider({ children }) {
         }
       } catch { /* ignoruj */ }
     };
+    // nová zpráva do schránky — jen „nudge", pravdu si dotáhne MailboxProvider fetchem
+    const onMail = () => setMailEpoch((x) => x + 1);
 
     const connect = () => {
       if (closed) return;
-      es = new EventSource('/api/events');
+      // token v query (EventSource neumí hlavičky) → server přiřadí spojení hráči pro cílené push
+      const t = getToken();
+      es = new EventSource('/api/events' + (t ? `?token=${encodeURIComponent(t)}` : ''));
       es.addEventListener('hello', onHello);
       es.addEventListener('season', onSeason);
+      es.addEventListener('mail', onMail);
       es.onopen = () => setConnected(true);
       es.onerror = () => setConnected(false); // EventSource se zkusí připojit sám
     };
@@ -54,21 +61,25 @@ export function ServerEventsProvider({ children }) {
       if (closed) return;
       if (!es || es.readyState === 2 /* CLOSED */) { es?.close(); connect(); }
     };
+    // přihlášení/odhlášení (setToken) → tvrdý reconnect s novou identitou
+    const reconnect = () => { if (closed) return; es?.close(); connect(); };
     const onVisible = () => { if (document.visibilityState === 'visible') nudge(); };
     document.addEventListener('visibilitychange', onVisible);
     window.addEventListener('online', nudge);
+    window.addEventListener('eki-token-changed', reconnect);
 
     return () => {
       closed = true;
       es?.close();
       document.removeEventListener('visibilitychange', onVisible);
       window.removeEventListener('online', nudge);
+      window.removeEventListener('eki-token-changed', reconnect);
     };
   }, []);
 
   const value = useMemo(
-    () => ({ connected, version, seasonNumber, seasonEpoch }),
-    [connected, version, seasonNumber, seasonEpoch],
+    () => ({ connected, version, seasonNumber, seasonEpoch, mailEpoch }),
+    [connected, version, seasonNumber, seasonEpoch, mailEpoch],
   );
   return <ServerEventsContext.Provider value={value}>{children}</ServerEventsContext.Provider>;
 }

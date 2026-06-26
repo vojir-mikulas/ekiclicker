@@ -5,7 +5,7 @@
      - forgiveness: jednorázové Odpuštění 🕊
    ctx = { level, highestLevel, stats, weapons, prestige, pets }
    Odměny jsou malé jednotlivě, ale "každý kousek se počítá" a motivují prozkoumat hru. */
-import { PET_IDS, petLevelCap } from './pets.js';
+import { PET_IDS, petLevelCap, PETS_CFG } from './pets.js';
 
 const tier = (idBase, name, emoji, descFn, valueFn, thresholds, rewardFn) =>
   thresholds.map((t, i) => ({
@@ -159,6 +159,14 @@ export const ACHIEVEMENTS = [
     desc: 'Vytáhni mazlíčka na maximální úroveň',
     check: (c) => c.pets && PET_IDS.some((id) => c.pets[id] && c.pets[id].level >= petLevelCap(id)),
     reward: { dmg: 1.25 },
+  },
+  {
+    id: 'pet_evolved',
+    name: 'Evoluce',
+    emoji: '🌟',
+    desc: 'Vyevolvuj mazlíčka na nejvyšší ⭐ stupeň (úroveň 2222+)',
+    check: (c) => c.pets && PET_IDS.some((id) => c.pets[id] && (c.pets[id].evo || 0) >= PETS_CFG.evoMaxTier),
+    reward: { dmg: 1.35, gold: 1.2 },
   },
 ];
 

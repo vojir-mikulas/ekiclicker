@@ -135,10 +135,10 @@ export const forgivenessMult = (s) => 1 + capLevel(s, 'eternalForgiveness') * CA
 export const comboCap = (s) => CONFIG.comboMax + capLevel(s, 'comboMaster') * CAPS.comboCapPerLevel + (masteryStats(s).comboCap || 0) + (seasonThemeStats(s.seasonTheme).comboCap || 0);
 /* 🏹 Lovec bossů — víc času na bosse a víc jejich zlata (+ mřížka ⏳/👑/💰). */
 export const bossTimeMult = (s) => 1 + capLevel(s, 'bossHunter') * CAPS.bossTimePerLevel + (masteryStats(s).bossTime || 0) + (seasonThemeStats(s.seasonTheme).bossTime || 0);
-export const bossGoldMult = (s) => 1 + capLevel(s, 'bossHunter') * CAPS.bossGoldPerLevel + (masteryStats(s).bossGold || 0) + (seasonThemeStats(s.seasonTheme).bossGold || 0);
+export const bossGoldMult = (s) => 1 + capLevel(s, 'bossHunter') * CAPS.bossGoldPerLevel + (masteryStats(s).bossGold || 0) + (seasonThemeStats(s.seasonTheme).bossGold || 0) + (hellShopStats(s).bossGold || 0); // 👑 Ďáblův desátek
 /* ⚒️ Klenotník — víc úlomků a vyšší šance na drop (+ mřížka ⚒️ Kovář / 🌟 / 🎯 / 👑). */
 export const dustMult = (s) => 1 + capLevel(s, 'jeweler') * CAPS.dustPerLevel + (masteryStats(s).dustPct || 0) + ((s.guildPerks && s.guildPerks.dustFind) || 0) + hellShopStats(s).dustFind + (seasonThemeStats(s.seasonTheme).dustPct || 0);
-export const dropChanceBonus = (s) => capLevel(s, 'jeweler') * CAPS.dropChancePerLevel + (masteryStats(s).dropChance || 0) + (seasonThemeStats(s.seasonTheme).dropChance || 0);
+export const dropChanceBonus = (s) => capLevel(s, 'jeweler') * CAPS.dropChancePerLevel + (masteryStats(s).dropChance || 0) + (seasonThemeStats(s.seasonTheme).dropChance || 0) + (hellShopStats(s).dropChance || 0); // 🎁 Pekelná truhla
 
 export function speedMult(s) {
   const raw =
@@ -154,10 +154,25 @@ export function weaponInterval(s, w) {
 export const milestoneMult = (count) =>
   Math.pow(2, Math.floor(count / MULT.weaponMilestone));
 
+/* 🔗 Arzenálová synergie — počet započítaných milníků napříč CELÝM arzenálem.
+   Každá zbraň přispěje min(cap, ⌊počet/milník⌋) tiery (strop na zbraň → nutí
+   kupovat napříč, ne mega-stackovat jednu; drží to bounded). Knoby viz MULT. */
+export function arsenalSynergyTiers(s) {
+  let tiers = 0;
+  for (const w of WEAPONS) {
+    const c = s.weapons[w.id] || 0;
+    if (c >= MULT.weaponMilestone) tiers += Math.min(MULT.arsenalSynergyTierCap, Math.floor(c / MULT.weaponMilestone));
+  }
+  return tiers;
+}
+/* Globální násobič poškození VŠECH zbraní ze synergie (1 + Σ tierů × perTier).
+   BOUNDED, mimo difficultyScale (jako weaponPct/milník) → anti-blitz beze změny. */
+export const arsenalSynergyMult = (s) => 1 + arsenalSynergyTiers(s) * MULT.arsenalSynergyPerTier;
+
 export function weaponShotDamage(s, w) {
   const count = s.weapons[w.id] || 0;
   if (count <= 0) return 0;
-  return w.baseDmg * count * milestoneMult(count) * globalMult(s) * (1 + combatStats(s).weaponPct) * elixirMods(s).weapon * abilityMods(s).weapon; // 🧃 elixír + 🌀 Přetížení (jen auto-zbraně)
+  return w.baseDmg * count * milestoneMult(count) * globalMult(s) * (1 + combatStats(s).weaponPct) * arsenalSynergyMult(s) * elixirMods(s).weapon * abilityMods(s).weapon; // 🧃 elixír + 🌀 Přetížení (jen auto-zbraně)
 }
 
 export function weaponDps(s, w) {

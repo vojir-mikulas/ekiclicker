@@ -10,6 +10,8 @@ export function getToken() {
 }
 export function setToken(t) {
   try { if (t) localStorage.setItem(TOKEN_KEY, t); else localStorage.removeItem(TOKEN_KEY); } catch { /* ignoruj */ }
+  // signál pro SSE kanál (ServerEventsProvider) → reconnect s novou identitou (cílené push)
+  try { window.dispatchEvent(new Event('eki-token-changed')); } catch { /* ignoruj */ }
 }
 export function getCachedNick() {
   try { return localStorage.getItem(NICK_KEY) || null; } catch { return null; }
@@ -94,6 +96,8 @@ export const api = {
   guildRole: (id, playerId, role) => req(`/guilds/${encodeURIComponent(id)}/role`, { method: 'POST', body: { playerId, role }, auth: true }),
   guildTransfer: (id, playerId) => req(`/guilds/${encodeURIComponent(id)}/transfer`, { method: 'POST', body: { playerId }, auth: true }),
   guildMotd: (id, motd) => req(`/guilds/${encodeURIComponent(id)}/motd`, { method: 'POST', body: { motd }, auth: true }),
+  guildDonate: (id, amount) => req(`/guilds/${encodeURIComponent(id)}/donate`, { method: 'POST', body: { amount }, auth: true }),
+  guildUpgrade: (id, key) => req(`/guilds/${encodeURIComponent(id)}/upgrade`, { method: 'POST', body: { key }, auth: true }),
   guildDisband: (id) => req(`/guilds/${encodeURIComponent(id)}`, { method: 'DELETE', auth: true }),
   // schránka (mailbox — perzistentní zprávy mezi hráči + doručené pozvánky do cechu)
   mailbox: () => req('/mailbox', { auth: true }),

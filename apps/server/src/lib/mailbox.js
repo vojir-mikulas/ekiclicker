@@ -13,6 +13,7 @@
    ========================================================================= */
 import { MAIL, validateMailBody, validateMailSubject } from '@ekiclicker/shared';
 import { query } from '../db.js';
+import { broadcastToPlayer } from './sse.js';
 import { findPlayerByNickname, respondInvite } from './guilds.js';
 
 /* Řádek mail → veřejný tvar (camelCase, bez interních sloupců). */
@@ -125,6 +126,7 @@ export async function send(sender, opts = {}, nowMs = Date.now()) {
     [recipient.id, sender.id, vs.value, vb.value],
   );
   await pruneInbox(recipient.id);
+  broadcastToPlayer(recipient.id, 'mail', { kind: 'text' }); // okamžitý nudge → klient refetchne schránku
   return { ok: true, to: recipient.nickname };
 }
 

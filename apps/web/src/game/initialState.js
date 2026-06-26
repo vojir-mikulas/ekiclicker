@@ -105,6 +105,7 @@ export function createState() {
     runGearPower: 1,              // snapshot síly vybavení + mazlíčka na startu běhu → obtížnost
     // --- pozdní endgame: mazlíčci (odemyká se na PETS_CFG.unlockLevel = 2000) ---
     petsUnlocked: false,          // jednou true → zůstává (přežívá rebirth)
+    petEvolveUnlocked: false,     // Evoluce mazlíčků (lvl 2222) — jednou true → zůstává (přežívá rebirth)
     pets: {},                     // petId -> { level } — vlastnění mazlíčci (přežívá rebirth)
     equippedPet: null,            // petId nasazeného mazlíčka | null (jeden naráz; přežívá rebirth)
     eggs: 0,                      // nevylíhnutá vejce 🥚 (přežívá rebirth)
@@ -126,6 +127,8 @@ export function createState() {
     hell: { bestFloor: 0, passes: 0, passAt: 0, freeDay: '', lastRunDay: '' }, // rekord + žetony + denní 🔥 bonus (přežívá rebirth, mře sezónou)
     sira: 0,                      // 🔥 Síra — měna z výtahu (přežívá rebirth, mře sezónou)
     hellShop: {},                 // koupené bounded perky (id -> tier; přežívá rebirth)
+    hellForge: { tier: 0 },       // 🌋 Sírová pec — nekonečný 🔥 sink, bounded dustFind (přežívá rebirth, mře sezónou)
+    hellCurses: {},               // 💀 zapnuté kletby běhu (id -> bool; víc 🔥 za těžší běh)
     hellExch: { day: '', dust: 0 }, // denní strop směny 🔥→💠
     hellRun: null,                // PŘECHODNÝ stav běhu (neukládá se — jako pendingOpen)
     // --- téma sezóny (server-derived z čísla sezóny; NEUKLÁDÁ se do save ani skóre) ---

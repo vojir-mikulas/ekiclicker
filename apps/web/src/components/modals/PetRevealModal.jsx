@@ -4,7 +4,7 @@
    (mazlíček už je tvůj, vejce spotřebované, pendingEgg se neukládá). */
 import { useState, useEffect } from 'react';
 import { useEngine } from '../../hooks/useEngine.js';
-import { PETS, petEmoji, petName, petBonusLabel, petLevelCap } from '../../game/data/pets.js';
+import { PETS, petEmoji, petName, petBonusLabel, petLevelCap, petRarityName, petRarityColor } from '../../game/data/pets.js';
 import { fmt } from '../../game/format.js';
 import Modal from './Modal.jsx';
 
@@ -43,6 +43,7 @@ export default function PetRevealModal() {
           <div className="pet-reveal">
             <div className="pet-reveal-emoji">{petEmoji(res.petId)}</div>
             <div className="pet-reveal-name">{petName(res.petId)}</div>
+            <div className="pet-reveal-rarity" style={{ color: petRarityColor(res.petId) }}>{petRarityName(res.petId)}</div>
             {res.isNew ? (
               <div className="pet-reveal-tag new">✨ NOVÝ MAZLÍČEK!</div>
             ) : res.maxed ? (

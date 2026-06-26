@@ -31,6 +31,8 @@ export const RUNES_CFG = {
   craftCost: 420,       // vykování JEDNÉ náhodné runy
   fuseCount: 3,         // kolik stejných run (kind+tier) se slije na +1 tier
   fuseCost: 160,        // 💠 navíc za slití
+  dismantleRefund: 60,  // 💠 za rozložení runy na tieru 1 (× tier mult, zaokrouhleno) — vždy < craftCost
+                        // i na nejhlubších levelech (vážený průměr tieru max ~3×) → craft→rozklad NIKDY nevydělá
   // barevná sada
   setThreshold: 3,      // kolik run stejné barvy v soketech → bonus barvy
   setMult: 2.5,         // bonus barvy = base statu × tohle (bounded malý zisk)
@@ -191,6 +193,13 @@ export function canFuse(stash, kind, tier) {
   if (tier >= MAX_TIER) return false;
   const g = groupRunes(stash).find((x) => x.kind === kind && x.tier === tier);
   return !!g && g.count >= RUNES_CFG.fuseCount;
+}
+
+/* Úlomky 💠 za rozložení runy daného tieru = dismantleRefund × tier mult (plochá,
+   BEZ dustMult — jako útěcha při přetečení skladu). Vždy < craftCost → vykovat runu
+   a hned ji rozložit NIKDY nevydělá úlomky (žádný exploit). */
+export function runeDustValue(tier) {
+  return Math.round(RUNES_CFG.dismantleRefund * tierDef(tier).mult);
 }
 
 /* ----------------------------- prezentace ----------------------------- */

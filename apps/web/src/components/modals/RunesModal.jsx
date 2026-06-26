@@ -10,9 +10,11 @@ import { SLOTS, SLOT_IDS, itemEmoji, itemName, rarityColor, rarityName } from '.
 import {
   RUNES_CFG, RUNE_LIST, socketCount, activeRuneSets, groupRunes, canFuse,
   runeEmoji, runeName, runeColor, runeTierName, runeTierColor, runeStatLabel,
+  runeDustValue, tierDef,
 } from '../../game/data/runes.js';
 import { fmt } from '../../game/format.js';
 import Modal from './Modal.jsx';
+import ConfirmModal from './ConfirmModal.jsx';
 
 /* podpis: odemčení + úlomky + sklad (id+kind+tier) + sokety nasazených kusů */
 const selectSig = (s) => ({
@@ -90,6 +92,7 @@ export default function RunesModal({ onClose }) {
   const s = engine.state;
   const dust = Math.floor(s.dust || 0);
   const [sel, setSel] = useState(null); // id vybrané runy ze skladu
+  const [confirmTier, setConfirmTier] = useState(null); // tier hromadného rozkladu (number) nebo 'all'
 
   if (!s.runesUnlocked) {
     return (
@@ -122,6 +125,11 @@ export default function RunesModal({ onClose }) {
   const stash = [...s.runes].sort((a, b) => (b.tier - a.tier) || a.kind.localeCompare(b.kind));
   const cap = RUNES_CFG.stashCap;
   const craftCost = RUNES_CFG.craftCost;
+  const canFuseAll = fusable.length > 0 && dust >= RUNES_CFG.fuseCost;
+  const tiersPresent = [...new Set(s.runes.map((r) => r.tier))].sort((a, b) => a - b);
+  // náhled hromadného rozkladu pro potvrzovací dialog (number = jeden tier, 'all' = vše)
+  const dismantlePreview = confirmTier == null ? null
+    : engine.dismantleRunesValue(confirmTier === 'all' ? null : confirmTier);
 
   function onSocketClick(item, idx) {
     const occupied = item.runes && item.runes[idx];
@@ -173,6 +181,12 @@ export default function RunesModal({ onClose }) {
             onClick={() => engine.craftRune()}
             title={stash.length >= cap ? 'Sklad run je plný' : 'Vykuj náhodný tácek za úlomky'}
           >Vykovat tácek 💠 {fmt(craftCost)}</button>
+          <button
+            className="rune-fuse-all"
+            disabled={!canFuseAll}
+            onClick={() => engine.fuseAll()}
+            title={`Slij najednou všechny slévatelné skupiny (kaskáduje až k nejvyššímu tieru). Spotřebuje 💠 ${fmt(RUNES_CFG.fuseCost)} za každé slití, dokud je z čeho a na co.`}
+          >⬆ Slij vše</button>
           {fusable.length === 0 ? (
             <span className="rune-forge-hint">Slévání: měj {RUNES_CFG.fuseCount}× stejný tácek (kind+tier) → vyšší tier.</span>
           ) : (
@@ -205,25 +219,77 @@ export default function RunesModal({ onClose }) {
         {stash.length === 0 ? (
           <p className="inv-empty">Zatím žádné runy — padají z Archónů a mega bossů, nebo je vykuj z úlomků 💠.</p>
         ) : (
-          <div className="rune-grid">
-            {stash.map((rune) => (
-              <button
-                key={rune.id}
-                type="button"
-                className={'rune-card' + (sel === rune.id ? ' selected' : '')}
-                style={{ '--rune': runeColor(rune), '--tier': runeTierColor(rune) }}
-                onClick={() => setSel(sel === rune.id ? null : rune.id)}
-                title="Klepni pro výběr, pak klepni soket nahoře"
-              >
-                <RuneChip rune={rune} size="lg" />
-                <span className="rune-card-name">{runeName(rune)}</span>
-                <span className="rune-card-tier" style={{ color: runeTierColor(rune) }}>{runeTierName(rune)}</span>
-                <span className="rune-card-stat">{runeStatLabel(rune)}</span>
-              </button>
-            ))}
-          </div>
+          <>
+            <div className="rune-stash-tools">
+              <span className="rune-tools-label">Rozložit na 💠:</span>
+              {tiersPresent.map((t) => {
+                const v = engine.dismantleRunesValue(t);
+                return (
+                  <button
+                    key={t}
+                    className="rune-dismantle-tier"
+                    style={{ '--rune': tierDef(t).color }}
+                    onClick={() => setConfirmTier(t)}
+                    title={`Rozlož všechny tácky tieru ${tierDef(t).name} (${v.count}×) na úlomky 💠`}
+                  >{tierDef(t).name} ({v.count}) 💠 {fmt(v.dust)}</button>
+                );
+              })}
+              {tiersPresent.length > 1 && (
+                <button
+                  className="rune-dismantle-all"
+                  onClick={() => setConfirmTier('all')}
+                  title="Rozlož celý sklad tácků na úlomky 💠 (vsazené runy zůstanou)"
+                >Vše 💠 {fmt(engine.dismantleRunesValue().dust)}</button>
+              )}
+            </div>
+            <div className="rune-grid">
+              {stash.map((rune) => (
+                <div
+                  key={rune.id}
+                  className={'rune-card' + (sel === rune.id ? ' selected' : '')}
+                  style={{ '--rune': runeColor(rune), '--tier': runeTierColor(rune) }}
+                >
+                  <button
+                    type="button"
+                    className="rune-dismantle"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (sel === rune.id) setSel(null);
+                      engine.dismantleRune(rune.id);
+                    }}
+                    title={`Rozložit na úlomky 💠 ${fmt(runeDustValue(rune.tier))}`}
+                    aria-label="Rozložit tácek na úlomky"
+                  >×</button>
+                  <button
+                    type="button"
+                    className="rune-card-pick"
+                    onClick={() => setSel(sel === rune.id ? null : rune.id)}
+                    title="Klepni pro výběr, pak klepni soket nahoře"
+                  >
+                    <RuneChip rune={rune} size="lg" />
+                    <span className="rune-card-name">{runeName(rune)}</span>
+                    <span className="rune-card-tier" style={{ color: runeTierColor(rune) }}>{runeTierName(rune)}</span>
+                    <span className="rune-card-stat">{runeStatLabel(rune)}</span>
+                  </button>
+                </div>
+              ))}
+            </div>
+          </>
         )}
       </div>
+
+      {confirmTier != null && dismantlePreview && (
+        <ConfirmModal
+          title={confirmTier === 'all' ? 'Rozložit celý sklad?' : `Rozložit tácky ${tierDef(confirmTier).name}?`}
+          message={confirmTier === 'all'
+            ? `Rozloží všech ${dismantlePreview.count}× tácek ve skladu na 💠 ${fmt(dismantlePreview.dust)} úlomků. Vsazené runy zůstanou. Tohle nelze vrátit.`
+            : `Rozloží ${dismantlePreview.count}× tácek tieru „${tierDef(confirmTier).name}" na 💠 ${fmt(dismantlePreview.dust)} úlomků. Tohle nelze vrátit.`}
+          confirmLabel={`Rozložit (💠 ${fmt(dismantlePreview.dust)})`}
+          danger
+          onConfirm={() => engine.dismantleTier(confirmTier === 'all' ? null : confirmTier)}
+          onClose={() => setConfirmTier(null)}
+        />
+      )}
 
       <p className="pet-foot">Tap-to-socket: vyber tácek ve skladu, pak klepni prázdný soket. Klepnutí na vsazený tácek ho vrátí do skladu. Runy přežívají rebirth, mizí jen s koncem sezóny.</p>
         </section>

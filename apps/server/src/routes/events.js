@@ -41,8 +41,12 @@ function hello() {
   return { version: servedVersion, season: seasonNumber };
 }
 
-/* GET /api/events — SSE kanál. Bez DB i bez auth. */
-router.get('/events', (req, res) => addClient(req, res, hello));
+/* GET /api/events — SSE kanál. Bez DB i bez auth. Volitelný ?token= přiřadí
+   spojení k hráči pro cílené push (EventSource neumí Authorization hlavičku). */
+router.get('/events', (req, res) => {
+  const token = typeof req.query.token === 'string' ? req.query.token : null;
+  addClient(req, res, hello, token);
+});
 
 /* Inicializace: přečti servírovanou verzi a spusť hlídání rotace sezóny.
    Sezónu hlídá JEDEN serverový poll (ne N klientů). Rotace se navíc děje

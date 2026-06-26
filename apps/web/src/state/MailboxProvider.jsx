@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { MailboxContext } from './mailboxContext.js';
 import { useEngine } from '../hooks/useEngine.js';
 import { useAccount } from '../hooks/useAccount.js';
+import { useServerEvents } from '../hooks/useServerEvents.js';
 import { api } from '../net/api.js';
 
 const IDLE_POLL_MS = 60_000; // klidové polování (jen pro odznak schránky v topbaru)
@@ -29,6 +30,7 @@ function notifyNewMail({ count, from, invite, guild }) {
 export function MailboxProvider({ children }) {
   const engine = useEngine();
   const account = useAccount();
+  const { mailEpoch } = useServerEvents();
   const joined = account.status === 'joined';
 
   const [data, setData] = useState(null); // { messages, unread }
@@ -80,14 +82,30 @@ export function MailboxProvider({ children }) {
   const respond = useCallback((id, accept) => act(() => api.mailRespond(id, accept)), [act]);
   const remove = useCallback((id) => act(() => api.mailDelete(id)), [act]);
 
-  /* ack: označ vše přečtené (server) + optimisticky shoď odznak BEZ refetch —
-     otevřená schránka si tak udrží zvýraznění nepřečtených během prohlížení. */
-  const ackAll = useCallback(async () => {
+  /* Otevření zprávy = přečteno. Optimisticky (bez refetch → plynulé), server best-effort.
+     Odznak sniž jen u stále akčních (status 'open') — zrcadlí serverový výpočet unread. */
+  const markRead = useCallback((id) => {
     if (!joined) return;
-    try { await api.mailAck(); setData((d) => (d ? { ...d, unread: 0 } : d)); } catch { /* best-effort */ }
+    setData((d) => {
+      if (!d) return d;
+      const msg = d.messages.find((m) => m.id === id);
+      if (!msg || msg.read) return d;
+      return {
+        messages: d.messages.map((m) => (m.id === id ? { ...m, read: true } : m)),
+        unread: Math.max(0, d.unread - (msg.status === 'open' ? 1 : 0)),
+      };
+    });
+    api.mailRead(id).catch(() => { /* best-effort */ });
   }, [joined]);
 
-  // klidové polování pro odznak, jen když připojen
+  /* Označit vše přečtené (tlačítko) — optimisticky shodí odznak i zvýraznění v seznamu. */
+  const ackAll = useCallback(async () => {
+    if (!joined) return;
+    setData((d) => (d ? { messages: d.messages.map((m) => ({ ...m, read: true })), unread: 0 } : d));
+    try { await api.mailAck(); } catch { /* best-effort */ }
+  }, [joined]);
+
+  // klidové polování pro odznak (záloha, když SSE neprojde), jen když připojen
   useEffect(() => {
     if (!joined) {
       setData(null);
@@ -100,6 +118,14 @@ export function MailboxProvider({ children }) {
     return () => clearInterval(id);
   }, [joined, refresh]);
 
+  // SSE push 'mail' (mailEpoch++) → okamžitý refetch schránky (latence ~ihned místo ≤60 s).
+  // Přes ref, ať efekt běží JEN při novém pushi, ne při změně identity refresh().
+  const refreshRef = useRef(refresh);
+  refreshRef.current = refresh;
+  useEffect(() => {
+    if (mailEpoch > 0) void refreshRef.current();
+  }, [mailEpoch]);
+
   const value = useMemo(() => ({
     messages: data?.messages || [],
     unread: data?.unread || 0,
@@ -110,8 +136,9 @@ export function MailboxProvider({ children }) {
     send,
     respond,
     remove,
+    markRead,
     ackAll,
-  }), [data, busy, refresh, send, respond, remove, ackAll]);
+  }), [data, busy, refresh, send, respond, remove, markRead, ackAll]);
 
   return <MailboxContext.Provider value={value}>{children}</MailboxContext.Provider>;
 }

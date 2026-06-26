@@ -40,6 +40,31 @@ export const WEAPONS = [
   { id: 'infinity',    emoji: '♾️', name: 'Nekonečná smyčka',   baseCost: 1.3e33,    baseDmg: 1.4e23,   interval: 4500, flight: 790, unlock: 4200 },
   { id: 'hypernova',   emoji: '🌟', name: 'Hypernova',          baseCost: 2.0e34,    baseDmg: 9.9e23,   interval: 4500, flight: 795, unlock: 4700 },
   { id: 'genesis',     emoji: '🔆', name: 'Genesis',            baseCost: 3.1e35,    baseDmg: 6.9e24,   interval: 4500, flight: 800, unlock: 5300 },
+  // --- za hranicí stvoření: arzenál pokrývá HLUBOKÉ pásmo 5300→28500, kam dojde
+  //     vytrvalá grind-prestiž (svět je hratelný až do ~200k úrovní, viz CURVE_MAX).
+  //     Bez dalších tierů se zbraně po „Genesis" ZASEKLY: jediný možný nákup byl
+  //     restack jedné zbraně, jehož ROI po 1,15^počet kolabuje (~16× za 25 kusů) a
+  //     navíc poměr zlato/HP v hloubce padá (L5300→15000: HP ×1e14, zlato ×1e8) →
+  //     v 15k+ zbraně „nic nedělaly". Stejná geometrie ×7 dmg / ×15,5 cena drží nové
+  //     tiery PŘESNĚ na ROI křivce (žádný nový exponenciál; zbraně NEvstupují do
+  //     difficultyScale → anti-blitz/anti-runaway beze změny). Mezery v odemčení se
+  //     rozšiřují (700→2200), protože hluboká zóna se leze pomalu. ---
+  { id: 'multiverse',  emoji: '🌐', name: 'Multivesmír',        baseCost: 4.8e36,    baseDmg: 4.8e25,   interval: 4500, flight: 805, unlock: 6000 },
+  { id: 'foam',        emoji: '🫧', name: 'Pěna reality',       baseCost: 7.4e37,    baseDmg: 3.4e26,   interval: 4500, flight: 808, unlock: 6800 },
+  { id: 'fate',        emoji: '🪬', name: 'Ruka osudu',         baseCost: 1.1e39,    baseDmg: 2.4e27,   interval: 4500, flight: 811, unlock: 7700 },
+  { id: 'principle',   emoji: '☯️', name: 'Prvotní princip',    baseCost: 1.7e40,    baseDmg: 1.7e28,   interval: 4500, flight: 814, unlock: 8700 },
+  { id: 'forge',       emoji: '✴️', name: 'Stvořitel hvězd',    baseCost: 2.6e41,    baseDmg: 1.2e29,   interval: 4500, flight: 817, unlock: 9800 },
+  { id: 'discoball',   emoji: '🪩', name: 'Diskokoule bohů',    baseCost: 4.0e42,    baseDmg: 8.4e29,   interval: 4500, flight: 820, unlock: 11000 },
+  { id: 'lens',        emoji: '🧿', name: 'Vševidoucí čočka',   baseCost: 6.2e43,    baseDmg: 5.9e30,   interval: 4500, flight: 823, unlock: 12300 },
+  { id: 'wildcard',    emoji: '🃏', name: 'Žolík reality',      baseCost: 9.6e44,    baseDmg: 4.1e31,   interval: 4500, flight: 826, unlock: 13700 },
+  { id: 'dice',        emoji: '🎲', name: 'Boží kostka',        baseCost: 1.5e46,    baseDmg: 2.9e32,   interval: 4500, flight: 829, unlock: 15200 },
+  { id: 'sourcecode',  emoji: '🧬', name: 'Zdrojový kód světa', baseCost: 2.3e47,    baseDmg: 2.0e33,   interval: 4500, flight: 832, unlock: 16800 },
+  { id: 'simbug',      emoji: '🐛', name: 'Chyba v simulaci',   baseCost: 3.6e48,    baseDmg: 1.4e34,   interval: 4500, flight: 835, unlock: 18500 },
+  { id: 'devconsole',  emoji: '⌨️', name: 'Vývojářská konzole', baseCost: 5.6e49,    baseDmg: 9.8e34,   interval: 4500, flight: 838, unlock: 20300 },
+  { id: 'hardreset',   emoji: '♻️', name: 'Tvrdý reset',        baseCost: 8.7e50,    baseDmg: 6.9e35,   interval: 4500, flight: 841, unlock: 22200 },
+  { id: 'godmode',     emoji: '🕹️', name: 'Cheatnutá nesmrtelnost', baseCost: 1.3e52, baseDmg: 4.8e36, interval: 4500, flight: 844, unlock: 24200 },
+  { id: 'nophysics',   emoji: '🚫', name: 'Zákaz fyziky',       baseCost: 2.0e53,    baseDmg: 3.4e37,   interval: 4500, flight: 847, unlock: 26300 },
+  { id: 'eof',         emoji: '🔚', name: 'Konec souboru',      baseCost: 3.1e54,    baseDmg: 2.4e38,   interval: 4500, flight: 850, unlock: 28500 },
 ];
 
 export const WEAPON_BY_ID = Object.fromEntries(WEAPONS.map((w) => [w.id, w]));

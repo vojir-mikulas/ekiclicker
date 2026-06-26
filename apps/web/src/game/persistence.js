@@ -1,4 +1,5 @@
 /* Ukládání / načítání + offline výdělek. */
+import { GUILDS } from '@ekiclicker/shared';
 import { CONFIG } from './config.js';
 import { createState, createAlbum, createMastery } from './initialState.js';
 import { totalDps, goldMult, enemyReward, forgivenessGain } from './formulas.js';
@@ -57,6 +58,7 @@ export function buildSnapshot(state) {
     itemsThisRun: state.itemsThisRun, // strop beden za běh — ukládá se, ať reload nezresetuje strop
     // pozdní endgame: mazlíčci (aditivní — starý save bez nich se načte prázdný)
     petsUnlocked: state.petsUnlocked,
+    petEvolveUnlocked: state.petEvolveUnlocked, // Evoluce mazlíčků (evo stupně jedou uvnitř pets[id].evo)
     pets: state.pets,
     equippedPet: state.equippedPet,
     eggs: state.eggs, // nevylíhnutá vejce (pendingEgg se ZÁMĚRNĚ neukládá — viz hydrate)
@@ -76,6 +78,8 @@ export function buildSnapshot(state) {
     hell: state.hell,
     sira: state.sira,
     hellShop: state.hellShop,
+    hellForge: state.hellForge,
+    hellCurses: state.hellCurses,
     hellExch: state.hellExch,
     runGearPower: state.runGearPower,
     // elixíry: aktivní buff (until = epoch ms) + sklad (aditivní — starý save bez nich = prázdný)
@@ -86,6 +90,8 @@ export function buildSnapshot(state) {
     // (epoch ms → po reloadu se vypršelé buffy zahodí, viz hydrate). Aditivní.
     abilities: state.abilities,
     abilitiesUnlocked: state.abilitiesUnlocked,
+    // cech 🛡️: klientská brána založení + jednorázový uvítací popup (přežívá rebirth)
+    guildUnlocked: state.guildUnlocked,
     buyAmount: state.buyAmount,
     t: Date.now(),
   };
@@ -135,6 +141,7 @@ export function hydrateState(d) {
   state.pendingOpen = null;
   // pozdní endgame: mazlíčci (starý save → prázdné)
   state.petsUnlocked = !!d.petsUnlocked;
+  state.petEvolveUnlocked = !!d.petEvolveUnlocked; // starý save → false (evo nedostupné, dokud znovu nevystoupáš)
   state.pets = (d.pets && typeof d.pets === 'object') ? d.pets : {};
   state.equippedPet = d.equippedPet || null;
   state.eggs = d.eggs || 0;
@@ -158,6 +165,8 @@ export function hydrateState(d) {
     : { bestFloor: 0, passes: 0, passAt: 0, freeDay: '', lastRunDay: '' };
   state.sira = d.sira || 0;
   state.hellShop = (d.hellShop && typeof d.hellShop === 'object') ? { ...d.hellShop } : {};
+  state.hellForge = (d.hellForge && typeof d.hellForge === 'object') ? { tier: d.hellForge.tier || 0 } : { tier: 0 };
+  state.hellCurses = (d.hellCurses && typeof d.hellCurses === 'object') ? { ...d.hellCurses } : {};
   state.hellExch = (d.hellExch && typeof d.hellExch === 'object') ? { day: d.hellExch.day || '', dust: d.hellExch.dust || 0 } : { day: '', dust: 0 };
   state.hellRun = null;
   state.runGearPower = d.runGearPower || gearPower(state.equipment) * petPower(state);
@@ -170,6 +179,12 @@ export function hydrateState(d) {
   // bojové rituály 🌀 (starý save → prázdné). Levely přežívají; běžící buffy jen
   // pokud nevypršely (epoch ms), cooldowny zachovat (anti reload-reset cooldownu).
   state.abilitiesUnlocked = !!d.abilitiesUnlocked;
+  // cech 🛡️ — trvalý příznak (jednou true → zůstává). Starý save tento příznak nemá
+  // (přidán dodatečně) → odvodíme z dosažené nejvyšší úrovně, ať se uvítací popup
+  // neobjeví znovu už odemčeným hráčům.
+  state.guildUnlocked = d.guildUnlocked === undefined
+    ? state.highestLevel >= GUILDS.foundLevel
+    : !!d.guildUnlocked;
   if (d.abilities && typeof d.abilities === 'object') {
     state.abilities.levels = (d.abilities.levels && typeof d.abilities.levels === 'object') ? { ...d.abilities.levels } : {};
     state.abilities.cooldowns = (d.abilities.cooldowns && typeof d.abilities.cooldowns === 'object') ? { ...d.abilities.cooldowns } : {};

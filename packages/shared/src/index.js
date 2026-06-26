@@ -440,6 +440,86 @@ export function guildSeasonReward(rank) {
   return { doves: 0, dust: 0 };
 }
 
+/* =========================================================================
+   CECHOVNÍ POKLADNICE (treasury) + Mistrova VYLEPŠENÍ — „Shakes & Fidget" model:
+   členové přilévají do společné kasy, Mistr za ni kupuje bounded perky. Sezónně
+   resetované (žije na guild_season). Filosofie shodná se zbytkem cechů:
+     • PŘÍSPĚVEK do kasy je serverem CAPNUTÝ denním stropem dle ATESTOVANÉ úrovně
+       (donationDailyCap) → klient utratí zlato lokálně (sink jako zakládací poplatek),
+       server připíše jen bounded množství. Cheater nepřekročí strop své úrovně.
+     • VYLEPŠENÍ = bounded gold/dust/luck/sloty, ŽÁDNÝ dmgPct → mimo difficultyScale,
+       stejně jako perky úrovně. Stackují se na perky úrovně (oba bounded).
+   ========================================================================= */
+export const GUILD_TREASURY = {
+  dailyCapBase: 20,        // základ denního stropu příspěvku člena (body kasy)
+  dailyCapMax: 120,        // tvrdý strop denního příspěvku (i pro nejvyšší úroveň)
+  dailyCapPerDecade: 18,   // přírůstek stropu na řád atestované úrovně (log10)
+};
+
+/* Denní strop příspěvku člena do kasy — bounded log-křivkou dle ATESTOVANÉ úrovně
+   (jako guildLevelWeight). lvl 100 → ~56 · 1000 → ~74 · 5000 → ~85 · strop 120. */
+export function donationDailyCap(highestLevel) {
+  const l = Math.max(1, Number(highestLevel) || 1);
+  const cap = GUILD_TREASURY.dailyCapBase + GUILD_TREASURY.dailyCapPerDecade * Math.log10(l + 1);
+  return Math.min(GUILD_TREASURY.dailyCapMax, Math.round(cap));
+}
+
+/* Klientský zlatý sink: kolik ZLATA stojí 1 bod kasy (škáluje s úrovní hráče, ať to
+   pozdní hra pořád pocítí jako „přilití peněz"). Bounded denním stropem výš → server
+   zlato nikdy nevidí (utrácí se lokálně jako celá ekonomika). Čistě laditelné. */
+export function guildDonationGoldPerPoint(level) {
+  const l = Math.max(1, Number(level) || 1);
+  return Math.max(1, Math.round(50 * (l ** 1.6)));
+}
+
+/* Mistrova vylepšení kasy — per-track bounded efekt/úroveň + nákladová křivka (body
+   kasy). max úrovně drží celkový perk bounded (viz guildUpgradePerks). */
+export const GUILD_UPGRADES = {
+  goldFind: { label: 'Zlato',  icon: '🪙', perLevel: 0.02,  max: 5, baseCost: 40, costGrowth: 1.6 },
+  dustFind: { label: 'Úlomky', icon: '💠', perLevel: 0.02,  max: 5, baseCost: 50, costGrowth: 1.6 },
+  luck:     { label: 'Štěstí', icon: '🍀', perLevel: 0.015, max: 4, baseCost: 60, costGrowth: 1.7 },
+  slots:    { label: 'Sloty',  icon: '👥', perLevel: 1,     max: 5, baseCost: 80, costGrowth: 1.8 },
+};
+export const GUILD_UPGRADE_KEYS = Object.keys(GUILD_UPGRADES);
+export function isGuildUpgradeKey(k) { return Object.prototype.hasOwnProperty.call(GUILD_UPGRADES, k); }
+
+/* Cena další úrovně vylepšení (z aktuální úrovně). null = neznámý klíč. */
+export function guildUpgradeCost(key, currentLevel) {
+  const u = GUILD_UPGRADES[key];
+  if (!u) return null;
+  return Math.round(u.baseCost * (u.costGrowth ** Math.max(0, Number(currentLevel) || 0)));
+}
+
+/* Bounded perky z koupených vylepšení (clamp na max úrovně). Tvar jako guildPerks. */
+export function guildUpgradePerks(upgrades) {
+  const u = upgrades || {};
+  const lvl = (k) => Math.min(GUILD_UPGRADES[k].max, Math.max(0, Number(u[k]) || 0));
+  return {
+    goldFind: lvl('goldFind') * GUILD_UPGRADES.goldFind.perLevel,
+    dustFind: lvl('dustFind') * GUILD_UPGRADES.dustFind.perLevel,
+    luck:     lvl('luck')     * GUILD_UPGRADES.luck.perLevel,
+    memberSlots: lvl('slots') * GUILD_UPGRADES.slots.perLevel,
+  };
+}
+
+/* Efektivní perky cechu = perky ÚROVNĚ (atestovaný příspěvek) + perky VYLEPŠENÍ (kasa).
+   Oba bounded, žádný dmgPct → engine je promítne přes combatStats/dustMult jako dosud. */
+export function combinedGuildPerks(level, upgrades) {
+  const base = guildPerks(level);
+  const up = guildUpgradePerks(upgrades);
+  return {
+    goldFind: base.goldFind + up.goldFind,
+    dustFind: base.dustFind + up.dustFind,
+    luck: base.luck + up.luck,
+    memberSlots: base.memberSlots + up.memberSlots,
+  };
+}
+
+/* Strop členů včetně slotů z vylepšení (bounded jako každý cap). */
+export function guildMemberCapWith(level, upgrades) {
+  return GUILDS.baseMemberCap + combinedGuildPerks(level, upgrades).memberSlots;
+}
+
 /* ---------- jméno / tag cechu (zrcadlí validateNickname) ---------- */
 export function validateGuildName(raw) {
   if (typeof raw !== 'string') return { ok: false, error: 'Jméno cechu chybí.' };

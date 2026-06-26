@@ -316,6 +316,12 @@ body::before{
 .shop-scroll::-webkit-scrollbar-thumb{ background:var(--line); border-radius:8px; }
 .shop-scroll::-webkit-scrollbar-thumb:hover{ background:#3a445c; }
 
+/* 🔗 arzenálová synergie — info pruh nad seznamem zbraní */
+.synergy-banner{ background:var(--panel-2); border:1px solid var(--line); border-radius:11px;
+  padding:8px 11px; margin-bottom:8px; font-size:12px; line-height:1.35; color:var(--text); }
+.synergy-banner b{ color:var(--gold); }
+.synergy-hint{ color:var(--muted); font-size:11px; }
+
 /* ----------------------------- elixíry ----------------------------- */
 .elixir-row{ display:flex; align-items:center; gap:12px; background:var(--panel-2); border:1px solid var(--line);
   border-radius:12px; padding:10px 12px; margin-bottom:8px; }
@@ -466,7 +472,7 @@ body::before{
 .arena-diff b{ color:var(--dove); font-family:'Anton',sans-serif; font-weight:400; letter-spacing:.02em; }
 
 /* ---------- Toasts ---------- */
-.toast-host{ position:fixed; top:14px; left:50%; transform:translateX(-50%); z-index:2000; display:flex; flex-direction:column; gap:8px; align-items:center; pointer-events:none; }
+.toast-host{ position:fixed; top:14px; left:50%; transform:translateX(-50%); z-index:2000; display:flex; flex-direction:column; gap:8px; align-items:center; pointer-events:none; max-height:calc(100vh - 28px); overflow:hidden; }
 .toast{ display:flex; align-items:center; gap:10px; background:linear-gradient(180deg,#22283a,#171b28);
   border:1px solid var(--good); border-radius:12px; padding:10px 16px; box-shadow:0 10px 30px rgba(0,0,0,.5);
   animation:toastIn .35s ease-out; max-width:90vw; }
@@ -830,6 +836,7 @@ body::before{
   .modal-page .popup-content.stats-modal.as-page{ max-width:900px; }
   .modal-page .popup-content.album-modal.as-page{ max-width:980px; }
   .modal-page .popup-content.mastery-modal.as-page{ max-width:1080px; }
+  .modal-page .popup-content.abilities-modal.as-page{ max-width:940px; }
   .modal-page .popup-content.runes-modal.as-page:has(.rune-layout){ max-width:1040px; }
   .modal-page .popup-content.pets-modal.as-page:has(.pets-layout){ max-width:940px; }
 
@@ -901,7 +908,12 @@ body::before{
 .inv-empty p{ margin:0; max-width:320px; line-height:1.5; }
 .inv-empty-sub{ font-size:12px; opacity:.7; }
 .inv-empty-ico{ font-size:46px; line-height:1; opacity:.45; margin-bottom:2px; filter:drop-shadow(0 4px 10px rgba(0,0,0,.4)); }
-.inv-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(158px,1fr)); gap:10px; }
+/* grid-auto-rows:max-content drží řádky na výšce OBSAHU. Bez něj v „appkovém"
+   režimu (.inv-grid je flex dítě s pevnou výškou + overflow:auto) řádky zkolabují
+   na stejně vysoké zlomky výšky kontejneru — karty mají overflow:hidden, takže
+   jejich auto-min-výška je 0 → mřížka řádky stlačí, místo aby obsah scrolloval,
+   a afixy/kovárna se na kartě uříznou. */
+.inv-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(158px,1fr)); grid-auto-rows:max-content; gap:10px; }
 
 .inv-card{ position:relative; overflow:hidden; border:2px solid var(--rc, var(--line)); border-radius:12px;
   background:var(--panel-2); padding:10px 10px 8px; cursor:grab; text-align:left; touch-action:none;
@@ -1048,10 +1060,13 @@ body::before{
 /* mřížka mazlíčků */
 .pet-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:8px; margin-bottom:12px; }
 .pet-grid.locked-preview{ margin-top:14px; opacity:.7; }
-.pet-card{ position:relative; border:2px solid var(--line); border-radius:12px; background:var(--panel-2);
+.pet-card{ position:relative; border:2px solid var(--pet-rarity, var(--line)); border-radius:12px; background:var(--panel-2);
   padding:12px 10px 10px; text-align:center; display:flex; flex-direction:column; align-items:center; gap:2px; }
 .pet-card.equipped{ border-color:var(--gold); box-shadow:0 0 0 1px var(--gold) inset; }
 .pet-card.locked{ opacity:.55; }
+/* štítek vzácnosti v rohu karty — barva nastavena inline na barvu tieru */
+.pet-rarity{ position:absolute; top:5px; right:6px; font-size:9px; font-weight:800;
+  letter-spacing:.03em; text-transform:uppercase; padding:1px 5px; border-radius:6px; background:rgba(0,0,0,.28); }
 .pet-emoji{ font-size:38px; line-height:1; }
 .pet-card.locked .pet-emoji{ filter:grayscale(1) brightness(.8); }
 .pet-name{ font-weight:800; font-size:14px; margin-top:4px; }
@@ -1060,11 +1075,23 @@ body::before{
 .pet-level b{ color:var(--text); }
 .pet-max{ color:var(--gold); font-weight:800; }
 .pet-bonus{ font-size:12px; font-weight:800; color:var(--good); margin-top:3px; }
+.pet-bonus.evo{ color:var(--dust); margin-top:1px; } /* druhý (evoluční) stat — barva úlomků 💠 */
 .pet-desc{ font-size:11px; color:var(--muted); margin-top:5px; line-height:1.4; }
+/* evoluce ⭐ — řádek hvězd na kartě (rozsvícené = dosažené stupně) */
+.pet-stars{ display:flex; gap:2px; margin-top:4px; font-size:12px; line-height:1; }
+.pet-star{ filter:grayscale(1) brightness(.6); opacity:.6; }
+.pet-star.on{ filter:none; opacity:1; }
+.pet-card.evolved{ box-shadow:0 0 0 1px var(--pet-rarity, var(--gold)) inset, 0 0 12px -4px var(--pet-rarity, var(--gold)); }
 .pet-btn{ margin-top:9px; border:1px solid var(--line); border-radius:9px; background:var(--ink); color:var(--text);
   font-size:12px; font-weight:800; padding:7px 14px; cursor:pointer; transition:background .12s, border-color .12s; }
 .pet-btn.equip:hover{ border-color:var(--gold); background:#11151f; }
 .pet-btn.unequip{ color:var(--muted); }
+.pet-btn.evolve{ margin-top:7px; border-color:var(--dust); color:var(--dust); }
+.pet-btn.evolve:hover:not(:disabled){ background:rgba(70,214,224,.12); }
+.pet-btn.evolve:disabled{ opacity:.45; cursor:not-allowed; }
+.pet-evo-max{ margin-top:7px; font-size:11px; font-weight:800; color:var(--gold); }
+.pet-evo-hint{ margin-top:7px; font-size:10px; color:var(--muted); }
+.pet-equipped-stars,.pet-active-stars{ font-size:10px; letter-spacing:-1px; }
 .pet-foot{ font-size:11px; color:var(--muted); text-align:center; margin:4px 0 0; }
 
 /* reveal líhnutí */
@@ -1076,6 +1103,7 @@ body::before{
 .pet-reveal{ animation:roulPop .4s cubic-bezier(.2,1.2,.3,1) both; }
 .pet-reveal-emoji{ font-size:84px; line-height:1; filter:drop-shadow(0 0 16px var(--gold)); }
 .pet-reveal-name{ font-weight:900; font-size:20px; margin-top:6px; }
+.pet-reveal-rarity{ font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:.06em; margin-top:2px; }
 .pet-reveal-tag{ display:inline-block; font-size:12px; font-weight:800; margin-top:8px; padding:3px 12px; border-radius:999px; }
 .pet-reveal-tag.new{ background:rgba(255,210,63,.16); color:var(--gold); }
 .pet-reveal-tag.up{ background:rgba(70,214,224,.16); color:var(--dust); }
@@ -1191,15 +1219,32 @@ body::before{
   font-size:11px; font-weight:800; padding:6px 9px; cursor:pointer; transition:background .12s, opacity .12s; }
 .rune-fuse-btn:hover:not(:disabled){ background:#11151f; }
 .rune-fuse-btn:disabled{ opacity:.5; cursor:default; }
+.rune-fuse-all{ border:1px solid var(--gold); border-radius:8px; background:var(--ink); color:var(--gold);
+  font-size:11px; font-weight:800; padding:6px 9px; cursor:pointer; transition:background .12s, color .12s, opacity .12s; }
+.rune-fuse-all:hover:not(:disabled){ background:var(--gold); color:#1a1206; }
+.rune-fuse-all:disabled{ opacity:.45; cursor:default; }
 
 /* sklad tácků */
 .rune-stash-head{ display:flex; justify-content:space-between; align-items:baseline; margin-bottom:6px; }
+.rune-stash-tools{ display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin-bottom:8px; }
+.rune-tools-label{ font-size:11px; color:var(--muted); font-weight:700; }
+.rune-dismantle-tier{ border:1px solid var(--rune,var(--line)); border-radius:8px; background:var(--ink); color:var(--text);
+  font-size:11px; font-weight:800; padding:5px 9px; cursor:pointer; transition:background .12s, color .12s, border-color .12s; }
+.rune-dismantle-tier:hover{ border-color:var(--red); color:#fff; background:var(--red-dark); }
+.rune-dismantle-all{ border:1px solid var(--red); border-radius:8px; background:var(--ink); color:var(--red);
+  font-size:11px; font-weight:800; padding:5px 9px; cursor:pointer; transition:background .12s, color .12s; }
+.rune-dismantle-all:hover{ background:var(--red-dark); color:#fff; }
 .rune-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(120px,1fr)); gap:8px; }
 .rune-card{ position:relative; border:2px solid var(--line); border-radius:12px; background:var(--panel-2);
-  padding:10px 8px; text-align:center; display:flex; flex-direction:column; align-items:center; gap:2px;
-  cursor:pointer; transition:border-color .12s, transform .1s; }
+  transition:border-color .12s, transform .1s; }
 .rune-card:hover{ transform:translateY(-1px); border-color:var(--rune); }
 .rune-card.selected{ border-color:var(--gold); box-shadow:0 0 0 1px var(--gold) inset; }
+.rune-card-pick{ width:100%; border:0; background:transparent; color:inherit; cursor:pointer;
+  padding:10px 8px; text-align:center; display:flex; flex-direction:column; align-items:center; gap:2px; }
+.rune-dismantle{ position:absolute; top:4px; right:5px; width:20px; height:20px; border:0; border-radius:6px;
+  background:rgba(0,0,0,.35); color:var(--muted); font-size:14px; line-height:1; cursor:pointer; z-index:2;
+  display:flex; align-items:center; justify-content:center; transition:background .12s, color .12s; }
+.rune-dismantle:hover{ background:var(--red-dark); color:#fff; }
 .rune-card-name{ font-size:12px; font-weight:800; margin-top:4px; }
 .rune-card-tier{ font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.04em; }
 .rune-card-stat{ font-size:12px; font-weight:800; color:var(--good); margin-top:2px; }
@@ -1596,7 +1641,7 @@ body::before{
 .guild-hero .primary-btn{ width:auto; margin:0; padding:10px 16px; white-space:nowrap; }
 .guild-hero .primary-btn .dim{ font-weight:400; }
 
-.guild-invites, .guild-browse, .guild-motd, .guild-roster, .guild-perks, .guild-officer, .guild-standing, .guild-feed{
+.guild-invites, .guild-browse, .guild-motd, .guild-roster, .guild-perks, .guild-officer, .guild-standing, .guild-feed, .guild-treasury{
   background:var(--panel); border:1px solid var(--line); border-radius:12px; overflow:hidden; margin-bottom:16px; }
 .guild-feed-row{ display:flex; align-items:center; justify-content:space-between; gap:10px;
   padding:8px 14px; border-bottom:1px solid rgba(42,49,66,.5); font-size:12.5px; }
@@ -1666,6 +1711,27 @@ body::before{
 .guild-perk-list{ list-style:none; margin:0; padding:10px 14px; }
 .guild-perk-list li{ display:flex; align-items:center; justify-content:space-between; padding:5px 0; font-size:13px; color:var(--muted); }
 .guild-perk-list li b{ color:var(--good); font-family:'Anton',sans-serif; font-size:15px; }
+
+/* ---------- Pokladnice cechu (treasury + vylepšení) ---------- */
+.guild-treasury .guild-section-head.sub{ font-size:12px; opacity:.85; border-top:1px solid rgba(42,49,66,.5); }
+.guild-treasury-bal{ display:flex; align-items:baseline; gap:8px; padding:12px 14px 8px; }
+.guild-treasury-bal b{ font-family:'Anton',sans-serif; font-size:26px; color:#ffd24a; letter-spacing:.02em; }
+.guild-treasury-bal span{ font-size:12px; color:var(--muted); }
+.guild-donate{ display:flex; align-items:center; flex-wrap:wrap; gap:8px; padding:2px 14px 12px; }
+.guild-donate-meta{ flex:1 1 100%; font-size:12px; color:var(--muted); }
+.guild-donate-meta b{ color:var(--text); }
+.guild-donate .primary-btn.sm{ width:auto; margin:0; padding:7px 14px; white-space:nowrap; }
+.guild-donate-cost{ font-size:12px; color:var(--muted); }
+.guild-donate-cost.dim{ opacity:.7; }
+.guild-upgrade-list{ list-style:none; margin:0; padding:8px 14px 4px; }
+.guild-upgrade-row{ display:flex; align-items:center; gap:10px; padding:6px 0; font-size:13px; border-bottom:1px solid rgba(42,49,66,.4); }
+.guild-upgrade-row:last-child{ border-bottom:0; }
+.guild-upgrade-name{ flex:1 1 auto; color:var(--text); font-weight:700; white-space:nowrap; }
+.guild-upgrade-lvl{ font-size:11.5px; color:var(--muted); flex:none; white-space:nowrap; }
+.guild-upgrade-lvl b{ color:var(--good); }
+.guild-upgrade-row .ghost-btn.sm{ width:auto; margin:0; padding:5px 9px; flex:none; white-space:nowrap; }
+.guild-upgrade-max{ font-size:11px; font-weight:800; color:var(--good); flex:none; }
+.guild-upgrade-cost{ font-size:12px; flex:none; white-space:nowrap; }
 
 .guild-invite-form{ display:flex; gap:8px; padding:12px 14px; }
 .guild-invite-form .text-input{ flex:1 1 auto; margin:0; padding:8px 10px; font-size:13px; }
@@ -1828,9 +1894,32 @@ body::before{
   display:flex; align-items:center; justify-content:center; font-family:'Anton',sans-serif;
   font-size:16px; color:var(--text); text-shadow:0 1px 3px #000; }
 
+/* Tooltip na najetí — slot je obal (overflow:visible), tlačítko má overflow:hidden,
+   tak bublina visí jako sourozenec a nezařízne se o cooldown výplň. */
+.ability-slot{ position:relative; display:inline-flex; }
+.ability-tip{
+  position:absolute; left:50%; bottom:calc(100% + 9px); transform:translateX(-50%) translateY(4px);
+  z-index:60; width:max-content; max-width:230px;
+  display:flex; flex-direction:column; gap:3px; padding:9px 11px;
+  background:#11141f; border:1px solid var(--line-hi,#3a445c); border-radius:11px;
+  box-shadow:0 10px 26px rgba(0,0,0,.45); text-align:left;
+  opacity:0; pointer-events:none; transition:opacity .12s, transform .12s; }
+.ability-slot:hover .ability-tip,
+.ability-btn:focus-visible + .ability-tip{ opacity:1; transform:translateX(-50%) translateY(0); }
+.ability-tip::after{ content:''; position:absolute; top:100%; left:50%; transform:translateX(-50%);
+  border:6px solid transparent; border-top-color:#11141f; }
+.ability-tip .tip-name{ font-family:'Anton',sans-serif; font-size:14px; color:var(--text); }
+.ability-tip .tip-desc{ font-size:12px; font-weight:700; color:var(--good); }
+.ability-tip .tip-meta{ font-size:11px; color:var(--muted); }
+.ability-tip .tip-status{ font-size:11px; color:var(--dove); }
+
 /* Panel rituálů (vsazená stránka) — leveling + probouzení. */
+.abilities-head{ display:flex; flex-wrap:wrap; align-items:flex-start; justify-content:space-between;
+  gap:10px 18px; margin:0 0 16px; }
+.abilities-intro{ flex:1 1 340px; min-width:0; }
+.abilities-head .buy-amount{ flex:0 0 auto; width:min(100%,264px); margin:2px 0 0; }
 .abilities-title{ font-family:'Anton',sans-serif; font-size:24px; margin:0 0 4px; }
-.abilities-sub{ color:var(--muted); font-size:12px; line-height:1.5; margin:0 0 14px; }
+.abilities-sub{ color:var(--muted); font-size:12px; line-height:1.5; margin:0; }
 .abilities-sub b{ color:var(--good); }
 .abilities-list{ display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:12px; }
 .ability-card{ background:var(--panel-2,#1b2030); border:1px solid var(--line); border-radius:14px; padding:12px;
@@ -1857,38 +1946,94 @@ body::before{
 .ability-card .ab-buy:active:not(:disabled){ transform:translateY(1px); }
 .ability-card .ab-buy:disabled{ color:var(--muted); opacity:.55; cursor:default; }
 
-/* ====================== 📬 SCHRÁNKA (mailbox) ====================== */
-.popup-content.mailbox{ max-width:540px; }
-.mail-compose-bar{ display:flex; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:10px; }
-.mail-compose-bar .primary-btn{ width:auto; margin:0; padding:8px 14px; }
-.mail-hint{ font-size:12px; color:var(--muted); }
-.mail-compose{ display:flex; flex-direction:column; gap:8px; padding:12px; margin-bottom:12px;
-  background:rgba(0,0,0,.18); border:1px solid var(--line); border-radius:12px; }
-.mail-compose .text-input{ margin:0; padding:9px 12px; font-size:14px; }
-.mail-body-input{ resize:vertical; min-height:70px; line-height:1.4; }
-.mail-compose-foot{ display:flex; align-items:center; justify-content:space-between; }
-.mail-compose-foot .primary-btn{ width:auto; margin:0; padding:7px 16px; }
-.mail-count{ font-size:11px; color:var(--muted); }
-.mail-notice{ font-size:13px; color:var(--gold); margin:0 0 10px; }
+/* ====================== 📬 SCHRÁNKA (mailbox) — stránka, e-mailové rozložení ====================== */
+.mailbox-modal.as-page h2{ text-align:left; }
+.mail-app{ display:flex; flex-direction:column; gap:14px; text-align:left; }
 
-.mail-list{ display:flex; flex-direction:column; gap:8px; }
-.mail-row{ padding:10px 12px; border:1px solid var(--line); border-radius:12px; background:rgba(0,0,0,.16); }
-.mail-row.unread{ border-color:#3a445c; background:rgba(255,210,63,.05); }
-.mail-row.invite{ border-left:3px solid var(--gold); }
-.mail-row-head{ display:flex; align-items:baseline; justify-content:space-between; gap:8px; margin-bottom:5px; }
-.mail-from{ font-weight:800; font-size:13px; color:var(--text); }
-.mail-row.unread .mail-from::after{ content:'•'; color:var(--orange); margin-left:6px; }
-.mail-time{ font-size:11px; color:var(--muted); flex:none; }
-.mail-subject{ font-weight:700; font-size:13px; color:var(--text); margin-bottom:2px; }
-.mail-text{ font-size:13px; color:var(--muted); line-height:1.45; white-space:pre-wrap; word-break:break-word; }
-.mail-text b{ color:var(--text); }
-.mail-actions{ display:flex; align-items:center; gap:6px; margin-top:8px; }
-.mail-actions .primary-btn{ width:auto; margin:0; padding:6px 12px; font-size:12px; }
-.mail-status{ font-size:12px; color:var(--muted); font-weight:700; }
+.mail-app-head{ display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+.mail-app-head h2{ display:flex; align-items:center; gap:8px; margin:0; color:var(--text); }
+.mail-unread-pill{ font-size:12px; font-weight:800; color:#241a00; background:var(--gold); border-radius:10px; padding:1px 8px; }
+.mail-head-actions{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.mail-head-actions .primary-btn{ width:auto; margin:0; padding:7px 14px; }
+.mail-hint{ font-size:12px; color:var(--muted); }
+
+/* dva panely: seznam | čtení (na úzkém displeji se přepínají přes .detail) */
+.mail-shell{ display:flex; gap:14px; }
+.mail-list-pane{ display:flex; flex-direction:column; gap:6px; }
+.mail-read-pane{ flex:1; min-width:0; }
+.mail-back{ display:none; width:auto; align-self:flex-start; }
+
+/* položka seznamu */
+.mail-item{ display:flex; align-items:flex-start; gap:10px; width:100%; text-align:left; cursor:pointer;
+  padding:10px 12px; border:1px solid var(--line); border-radius:11px; background:rgba(0,0,0,.16);
+  color:var(--text); transition:border-color .15s, background .15s; }
+.mail-item:hover{ border-color:#3a445c; }
+.mail-item.active{ border-color:var(--gold); background:var(--panel-2); }
+.mail-item.unread{ background:rgba(255,210,63,.06); }
+.mail-item.invite{ border-left:3px solid var(--gold); }
+.mail-item-ico{ font-size:18px; flex:none; line-height:1.3; }
+.mail-item-main{ display:flex; flex-direction:column; gap:2px; min-width:0; flex:1; }
+.mail-item-top{ display:flex; align-items:baseline; justify-content:space-between; gap:8px; }
+.mail-item-from{ font-weight:800; font-size:13px; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.mail-item.unread .mail-item-from{ color:var(--gold); }
+.mail-item-time{ font-size:11px; color:var(--muted); flex:none; }
+.mail-item-sub{ font-size:12px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.mail-item-dot{ flex:none; align-self:center; width:8px; height:8px; border-radius:50%; background:var(--orange); }
+
+/* panel čtení */
+.mail-read{ display:flex; flex-direction:column; gap:12px; }
+.mail-read-subject{ font-size:16px; color:var(--text); margin:0; }
+.mail-read-head{ border-bottom:1px solid var(--line); padding-bottom:10px; }
+.mail-read-meta{ display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; font-size:12px; color:var(--muted); margin-top:4px; }
+.mail-read-from{ font-weight:700; color:var(--text); }
+.mail-read-body{ font-size:14px; color:var(--text); line-height:1.5; }
+.mail-read-text{ white-space:pre-wrap; word-break:break-word; margin:0; }
+.mail-read-body b{ color:var(--gold); }
+.mail-read-actions{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:4px; }
+.mail-read-actions .primary-btn{ width:auto; margin:0; padding:8px 16px; }
+.mail-status{ font-size:13px; color:var(--muted); font-weight:700; }
 .mail-del{ margin-left:auto; }
+.mail-empty-read{ display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px;
+  min-height:220px; height:100%; color:var(--muted); text-align:center; }
+.mail-empty-ico{ font-size:42px; opacity:.5; }
+
+/* psaní zprávy (sdíleno s kompaktním psaním v profilu hráče) */
+.mail-compose{ display:flex; flex-direction:column; gap:10px; }
+.mail-compose .text-input{ margin:0; }
+.mail-body-input{ resize:vertical; min-height:96px; line-height:1.45; }
+.mail-compose-foot{ display:flex; align-items:center; justify-content:space-between; }
+.mail-compose-foot .primary-btn{ width:auto; margin:0; padding:8px 16px; }
+.mail-count{ font-size:11px; color:var(--muted); }
+.mail-notice{ font-size:13px; color:var(--gold); margin:0; }
+
+/* desktop: schránka = full-height „appka" — scrollují jen panely (jako inventář) */
+@media (min-width:900px){
+  .app-shell:has(.mailbox-modal){ height:100dvh; overflow:hidden; }
+  .app-shell:has(.mailbox-modal) .app-frame{ flex:1 1 auto; min-height:0; }
+  .app-body--page .app-view:has(.mailbox-modal){ display:flex; flex-direction:column; min-height:0; }
+  .app-body--page .app-view:has(.mailbox-modal) > .modal-page{ flex:1 1 auto; min-height:0; display:flex; flex-direction:column; }
+  .modal-page .popup-content.mailbox-modal.as-page{ max-width:1100px; flex:1 1 auto; min-height:0; display:flex; flex-direction:column; }
+  .mailbox-modal.as-page .page-back{ flex:0 0 auto; }
+  .mailbox-modal.as-page .mail-app{ flex:1 1 auto; min-height:0; display:flex; flex-direction:column; }
+  .mail-app-head{ flex:0 0 auto; }
+  .mail-shell{ flex:1 1 auto; min-height:0; align-items:stretch; }
+  .mail-list-pane{ flex:0 0 300px; min-height:0; overflow-y:auto; overscroll-behavior:contain; padding-right:6px; border-right:1px solid var(--line); }
+  .mail-read-pane{ min-height:0; overflow-y:auto; overscroll-behavior:contain; padding-right:4px; }
+  .mail-list-pane::-webkit-scrollbar, .mail-read-pane::-webkit-scrollbar{ width:8px; }
+  .mail-list-pane::-webkit-scrollbar-thumb, .mail-read-pane::-webkit-scrollbar-thumb{ background:var(--line); border-radius:8px; }
+}
+
+/* mobil / úzké: jeden panel, přepínání seznam ⇄ čtení přes .detail */
+@media (max-width:899px){
+  .mail-shell{ flex-direction:column; }
+  .mail-read-pane{ display:none; }
+  .mail-shell.detail .mail-list-pane{ display:none; }
+  .mail-shell.detail .mail-read-pane{ display:block; }
+  .mail-back{ display:inline-flex; }
+}
 
 /* akce na cizím profilu hráče (napsat zprávu / pozvat do cechu) */
 .profile-actions{ margin:0 0 14px; }
 .profile-action-row{ display:flex; gap:8px; justify-content:center; flex-wrap:wrap; }
-.profile-actions .mail-compose{ margin-top:10px; margin-bottom:0; }
+.profile-actions .mail-compose{ margin-top:10px; }
 .profile-action-msg{ text-align:center; font-size:13px; color:var(--gold); margin:8px 0 0; }

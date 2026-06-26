@@ -123,9 +123,11 @@ export function siraForRun(deepestFloor) {
    srovnatelnost hloubky napříč cechem. stat = klíč; kind: 'combat' (fold přes
    hellShopStats). */
 export const HELL_SHOP = {
-  toll:    { id: 'toll',    emoji: '🪙', name: 'Pekelná mýtnice', kind: 'combat', stat: 'goldPct',  per: 0.04, max: 5, baseCost: 30, growth: 1.6, desc: '+4 % zlata za stupeň' },
-  mill:    { id: 'mill',    emoji: '💠', name: 'Struskový mlýn',  kind: 'combat', stat: 'dustFind', per: 0.04, max: 5, baseCost: 30, growth: 1.6, desc: '+4 % úlomků za stupeň' },
-  fortune: { id: 'fortune', emoji: '🍀', name: 'Ďáblovo štěstí',  kind: 'combat', stat: 'luck',     per: 0.04, max: 5, baseCost: 36, growth: 1.6, desc: '+4 % štěstí za stupeň' },
+  toll:    { id: 'toll',    emoji: '🪙', name: 'Pekelná mýtnice', kind: 'combat', stat: 'goldPct',    per: 0.04,  max: 5, baseCost: 30, growth: 1.6, desc: '+4 % zlata za stupeň' },
+  mill:    { id: 'mill',    emoji: '💠', name: 'Struskový mlýn',  kind: 'combat', stat: 'dustFind',   per: 0.04,  max: 5, baseCost: 30, growth: 1.6, desc: '+4 % úlomků za stupeň' },
+  fortune: { id: 'fortune', emoji: '🍀', name: 'Ďáblovo štěstí',  kind: 'combat', stat: 'luck',       per: 0.04,  max: 5, baseCost: 36, growth: 1.6, desc: '+4 % štěstí za stupeň' },
+  chest:   { id: 'chest',   emoji: '🎁', name: 'Pekelná truhla',  kind: 'combat', stat: 'dropChance', per: 0.002, max: 5, baseCost: 40, growth: 1.6, desc: '+0,2 p.b. šance na bednu za stupeň' },
+  tithe:   { id: 'tithe',   emoji: '👑', name: 'Ďáblův desátek',  kind: 'combat', stat: 'bossGold',   per: 0.06,  max: 5, baseCost: 36, growth: 1.6, desc: '+6 % zlata z bossů za stupeň' },
 };
 export const HELL_SHOP_KEYS = Object.keys(HELL_SHOP);
 
@@ -137,20 +139,89 @@ export function hellPerkCost(id, tier) {
   return Math.ceil(def.baseCost * Math.pow(def.growth, tier));
 }
 
-/* Bounded BOJOVÉ staty z koupených perků (fold do combatStats/dustMult ve formulas).
-   Vrací jen klíče, co formulky čtou: goldPct, luck (→ combatStats) a dustFind
-   (→ dustMult). Čistá funkce nad stavem; žádný dmgPct. */
+/* Bounded BOJOVÉ staty z koupených perků (fold do combatStats/dustMult/dropChance/
+   bossGold ve formulas). Vrací jen klíče, co formulky čtou: goldPct, luck
+   (→ combatStats), dustFind (→ dustMult), dropChance (→ dropChanceBonus) a bossGold
+   (→ bossGoldMult). K dustFind přičte i 🌋 Sírovou pec (nekonečný 🔥 sink, bounded
+   křivkou). Čistá funkce nad stavem; žádný dmgPct. */
 export function hellShopStats(s) {
-  const out = { goldPct: 0, luck: 0, dustFind: 0 };
+  const out = { goldPct: 0, luck: 0, dustFind: 0, dropChance: 0, bossGold: 0 };
   const shop = s && s.hellShop;
-  if (!shop) return out;
-  for (const id of HELL_SHOP_KEYS) {
-    const def = HELL_SHOP[id];
-    if (def.kind !== 'combat') continue;
-    const tier = shop[id] || 0;
-    if (tier > 0 && out[def.stat] != null) out[def.stat] += def.per * tier;
+  if (shop) {
+    for (const id of HELL_SHOP_KEYS) {
+      const def = HELL_SHOP[id];
+      if (def.kind !== 'combat') continue;
+      const tier = shop[id] || 0;
+      if (tier > 0 && out[def.stat] != null) out[def.stat] += def.per * tier;
+    }
   }
+  out.dustFind += hellForgeBonus((s && s.hellForge && s.hellForge.tier) || 0);
   return out;
+}
+
+/* ----------------------------- 🌋 Sírová pec (nekonečný 🔥 sink) -----------------------------
+   Pozdní endgame: jakmile jsou perky vymaxované, 🔥 jinak jen leží. Pec ji žere
+   donekonečna — cena stupně roste GEOMETRICKY (nekonečný sink), ale bonus (dustFind)
+   má MĚKKÝ STROP přes klesající křivku: každý stupeň přidá *něco* (pořád je co kupovat),
+   ale součet konverguje pod softCap → žádný runaway (jako mastery/runy: bounded, bez
+   dmgPct, mimo difficultyScale). dustFind fold řeší hellShopStats → dustMult. */
+export const HELL_FORGE = {
+  emoji: '🌋', name: 'Sírová pec', stat: 'dustFind',
+  baseCost: 60, growth: 1.35, // cena stupně = baseCost × growth^tier (geometrický sink)
+  softCap: 0.40, decay: 0.90, // bonus = softCap × (1 − decay^tier) → strop +40 % úlomků
+};
+
+/* Cena DALŠÍHO stupně pece (🔥). Roste geometricky → nikdy se „nevymaxuje". */
+export function hellForgeCost(tier) {
+  return Math.ceil(HELL_FORGE.baseCost * Math.pow(HELL_FORGE.growth, Math.max(0, tier)));
+}
+
+/* Bounded dustFind bonus na daném žárovém stupni — klesající křivka k softCap. */
+export function hellForgeBonus(tier) {
+  const t = Math.max(0, Math.floor(tier));
+  if (t <= 0) return 0;
+  return HELL_FORGE.softCap * (1 - Math.pow(HELL_FORGE.decay, t));
+}
+
+/* ----------------------------- 💀 kletby (volitelné debuffy běhu) -----------------------------
+   Pozdní endgame výzva: zaškrtni si před během kletby → běh je TĚŽŠÍ (víc HP / míň času /
+   bez zuřivosti / bez zbraní), ale 🔥 za patra se násobí. SAMOLIMITUJÍCÍ a leaderboard-safe:
+   kletby hloubku jen SNIŽUJÍ, takže nikdy nenafouknou rekord ani cechovní patra — jen tvůj
+   výdělek 🔥 (a strop běhu škáluje s multiplikátorem, takže výzva má smysl i hluboko).
+   Server pořád ověří patra z peakDps (kletby ho nezvyšují). */
+export const HELL_CURSES = {
+  granite:  { id: 'granite',  emoji: '🧱', name: 'Pekelná tuhost', mult: 0.35, hpMult: 1.6,      desc: 'Nepřátelé mají +60 % HP' },
+  fuse:     { id: 'fuse',     emoji: '⏳', name: 'Krátký knot',    mult: 0.30, timeMs: 45_000,   desc: 'Jen 45 s místo 60 s' },
+  silence:  { id: 'silence',  emoji: '🤐', name: 'Klatba ticha',   mult: 0.30, noFrenzy: true,   desc: 'Žádná zuřivost' },
+  barefist: { id: 'barefist', emoji: '🥊', name: 'Holé pěsti',     mult: 0.40, noAuto: true,     desc: 'Žádné zbraně — jen klikání' },
+};
+export const HELL_CURSE_KEYS = Object.keys(HELL_CURSES);
+
+/* Seznam aktivních kletbových id (z mapy id→bool). */
+export function hellActiveCurses(curses) {
+  if (!curses) return [];
+  return HELL_CURSE_KEYS.filter((id) => curses[id]);
+}
+
+/* Multiplikátor 🔥 za patra = 1 + součet mult aktivních kleteb (max ~2,35×). */
+export function hellCurseMult(curses) {
+  let m = 1;
+  for (const id of hellActiveCurses(curses)) m += HELL_CURSES[id].mult;
+  return m;
+}
+
+/* Odvozené parametry běhu z aktivních kleteb (čte engine v startHellRun). */
+export function hellRunMods(curses) {
+  const active = hellActiveCurses(curses);
+  let hpMult = 1, runMs = HELLEVATOR.runMs, noFrenzy = false, noAuto = false;
+  for (const id of active) {
+    const c = HELL_CURSES[id];
+    if (c.hpMult) hpMult *= c.hpMult;
+    if (c.timeMs) runMs = Math.min(runMs, c.timeMs);
+    if (c.noFrenzy) noFrenzy = true;
+    if (c.noAuto) noAuto = true;
+  }
+  return { active, hpMult, runMs, noFrenzy, noAuto, mult: hellCurseMult(curses) };
 }
 
 /* ----------------------------- prezentace ----------------------------- */

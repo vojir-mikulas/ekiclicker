@@ -14,6 +14,9 @@ import { buyBatch } from '../../game/formulas.js';
 import { fmt } from '../../game/format.js';
 import Modal from './Modal.jsx';
 
+/* Hromadný nákup levelů (sdílí globální s.buyAmount se Shopem). */
+const BUY_OPTS = [1, 10, 100, 'max'];
+
 const trigger = (s) => [
   Math.floor(s.gold), s.buyAmount, s.abilitiesUnlocked,
   ...ABILITY_KEYS.map((id) => (s.abilities?.levels?.[id] || 0)),
@@ -26,11 +29,27 @@ export default function AbilitiesModal({ onClose }) {
 
   return (
     <Modal onClose={onClose} className="abilities-modal">
-      <h2 className="abilities-title">🌀 Bojové rituály</h2>
-      <p className="abilities-sub">
-        Aktivní schopnosti — leveluj zlatem 💰, probouzej do silnějších forem.
-        Burst efekt (jako zuřivost) — <b>mimo obtížnost</b>. Sesílej je na hlavní obrazovce.
-      </p>
+      <div className="abilities-head">
+        <div className="abilities-intro">
+          <h2 className="abilities-title">🌀 Bojové rituály</h2>
+          <p className="abilities-sub">
+            Aktivní schopnosti — leveluj zlatem 💰, probouzej do silnějších forem.
+            Burst efekt (jako zuřivost) — <b>mimo obtížnost</b>. Sesílej je na hlavní obrazovce.
+          </p>
+        </div>
+        <div className="buy-amount">
+          <span className="buy-amount-label">Kupovat</span>
+          {BUY_OPTS.map((amt) => (
+            <button
+              key={amt}
+              className={'buy-opt' + (s.buyAmount === amt ? ' active' : '')}
+              onClick={() => engine.setBuyAmount(amt)}
+            >
+              {amt === 'max' ? 'Max' : amt + '×'}
+            </button>
+          ))}
+        </div>
+      </div>
       <div className="abilities-list">
         {ABILITY_KEYS.map((id) => {
           const def = ABILITIES[id];

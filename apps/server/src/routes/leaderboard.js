@@ -11,7 +11,10 @@ import {
   leaderboardTopSeason, playerSeasonRank, getPlayerSeasonRow,
 } from '../lib/players.js';
 import { arenaLeaderboardSeason, playerArenaRank } from '../lib/raids.js';
-import { guildHellLeaderboardSeason, playerGuildHellRank } from '../lib/guilds.js';
+import {
+  guildHellLeaderboardSeason, playerGuildHellRank,
+  guildIdOf, maybeRecomputeGuildSeason,
+} from '../lib/guilds.js';
 
 const router = Router();
 
@@ -54,6 +57,16 @@ router.get('/', optionalPlayer, async (req, res, next) => {
         if (me) out.me = { ...me, id: req.player.id, nickname: req.player.nickname };
       }
     } else if (scope === 'guild') {
+      // self-heal: hell_floors je CACHE (součet hell_best_floor členů), kterou plní jen
+      // throttled „compute on access" přepočet. Když členové zleniví, opportunistické
+      // triggery (submit/guild-view) cech minou a žebříček zůstane zastaralý. Otevření
+      // žebříčku tak vlastní cech prohlížejícího hráče dorovná (throttled, best-effort).
+      if (req.player && season.status === 'active') {
+        try {
+          const gid = await guildIdOf(req.player.id);
+          if (gid) await maybeRecomputeGuildSeason(season.id, gid);
+        } catch { /* best-effort */ }
+      }
       out.entries = await guildHellLeaderboardSeason(season.id, limit);
       if (req.player) {
         const me = await playerGuildHellRank(season.id, req.player.id);

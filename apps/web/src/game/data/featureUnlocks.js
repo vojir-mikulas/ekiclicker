@@ -45,6 +45,20 @@ export const FEATURE_UNLOCKS = {
     cta: 'Mrknout na mazlíčky 🐾',
     open: 'pets',
   },
+  petEvolve: {
+    emoji: '🌟',
+    name: 'Evoluce mazlíčků',
+    level: 2222,
+    tagline: 'Vyevolvuj mazlíčky na maximu',
+    desc: 'Mazlíček na MAX úrovni teď jde evolvovat přes ⭐ stupně. Každý stupeň posílí jeho hlavní bonus a odemkne druhý stat. Palivo jsou vejce 🥚 + úlomky 💠 — tvoje vejce mají smysl i po dosbírání celé zvěřince.',
+    perks: [
+      '⭐ 5 evolučních stupňů pro každého mazlíčka',
+      '➕ Druhý bonusový stat navíc',
+      '🥚 Vejce jako palivo (+ úlomky 💠)',
+    ],
+    cta: 'Otevřít mazlíčky 🐾',
+    open: 'pets',
+  },
   runes: {
     emoji: '🔣',
     name: 'Runy & sokety',

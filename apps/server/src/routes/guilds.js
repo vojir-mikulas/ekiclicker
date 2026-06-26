@@ -13,6 +13,8 @@
      POST   /api/guilds/:id/role                 — Master nastaví { playerId, role } (auth).
      POST   /api/guilds/:id/transfer             — Master → { playerId } nový Mistr (auth).
      POST   /api/guilds/:id/motd                 — Master/Officer nastaví { motd } (auth).
+     POST   /api/guilds/:id/donate               — člen přileje { amount } do kasy, server-capped (auth).
+     POST   /api/guilds/:id/upgrade              — Mistr koupí { key } vylepšení za kasu (auth).
      DELETE /api/guilds/:id                      — Master rozpustí (auth).
 
    Identita cechu PŘEŽÍVÁ sezónu (na rozdíl od přepadů/skóre) → žádný season-gate
@@ -26,6 +28,7 @@ import {
   createGuild, getGuildView, getMyGuild, guildLeaderboard, findPlayerByNickname,
   invite, respondInvite, request, respondRequest,
   kick, leave, setRole, transferMaster, disband, setMotd,
+  donate, buyUpgrade,
 } from '../lib/guilds.js';
 
 const router = Router();
@@ -154,6 +157,26 @@ router.post('/:id/transfer', requirePlayer, async (req, res, next) => {
 router.post('/:id/motd', requirePlayer, async (req, res, next) => {
   try {
     const result = await setMotd(req.params.id, req.player.id, req.body?.motd);
+    return res.status(200).json(result);
+  } catch (err) {
+    return next(err);
+  }
+});
+
+/* POST /api/guilds/:id/donate — člen přileje { amount } bodů do kasy (server-capped). */
+router.post('/:id/donate', requirePlayer, async (req, res, next) => {
+  try {
+    const result = await donate(req.params.id, req.player, req.body?.amount);
+    return res.status(200).json(result);
+  } catch (err) {
+    return next(err);
+  }
+});
+
+/* POST /api/guilds/:id/upgrade — Mistr koupí { key } vylepšení za kasu. */
+router.post('/:id/upgrade', requirePlayer, async (req, res, next) => {
+  try {
+    const result = await buyUpgrade(req.params.id, req.player.id, String(req.body?.key || ''));
     return res.status(200).json(result);
   } catch (err) {
     return next(err);

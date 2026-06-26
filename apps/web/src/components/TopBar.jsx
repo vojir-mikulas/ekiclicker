@@ -24,6 +24,7 @@ const select = (s) => ({
   eggCount: s.eggs || 0,
   equippedPet: s.equippedPet || null,
   petLevel: (s.equippedPet && s.pets?.[s.equippedPet]?.level) || 0,
+  petEvo: (s.equippedPet && s.pets?.[s.equippedPet]?.evo) || 0,
   runesUnlocked: s.runesUnlocked,
   runeCount: (s.runes || []).length,
   abilitiesUnlocked: s.abilitiesUnlocked,
@@ -33,7 +34,7 @@ const select = (s) => ({
 });
 
 export default function TopBar({ view, page, onView, onOpenSettings, onOpenJoin, onOpenAccount, onOpenStats, onOpenDaily, onOpenInventory, onOpenPets, onOpenRunes, onOpenAbilities, onOpenMastery, onOpenAlbum, onOpenMailbox }) {
-  const { gold, forgiveness, dust, level, click, daily, invUnlocked, chestCount, petsUnlocked, eggCount, equippedPet, petLevel, runesUnlocked, runeCount, abilitiesUnlocked, masteryUnlocked, masteryPoints, albumNew } = useEngineSelector(select, shallowEqual);
+  const { gold, forgiveness, dust, level, click, daily, invUnlocked, chestCount, petsUnlocked, eggCount, equippedPet, petLevel, petEvo, runesUnlocked, runeCount, abilitiesUnlocked, masteryUnlocked, masteryPoints, albumNew } = useEngineSelector(select, shallowEqual);
   const account = useAccount();
   const wb = useWorldBoss();
   const rd = useRaid();
@@ -105,7 +106,7 @@ export default function TopBar({ view, page, onView, onOpenSettings, onOpenJoin,
             <button
               className={'topbar-btn badged' + (page === 'pets' ? ' active' : '')}
               onClick={onOpenPets}
-              title={equippedPet ? `${petName(equippedPet)} — ${petBonusLabel(equippedPet, petLevel)}` : 'Mazlíčci / vejce'}
+              title={equippedPet ? `${petName(equippedPet)}${petEvo > 0 ? ' ' + '⭐'.repeat(petEvo) : ''} — ${petBonusLabel(equippedPet, petLevel, petEvo)}` : 'Mazlíčci / vejce'}
               aria-label="Mazlíčci"
             >
               {equippedPet ? petEmoji(equippedPet) : '🐾'}{eggCount > 0 && <span className="topbar-badge">{eggCount}</span>}
@@ -130,7 +131,7 @@ export default function TopBar({ view, page, onView, onOpenSettings, onOpenJoin,
             📖{albumNew > 0 && <span className="topbar-badge">{albumNew}</span>}
           </button>
           {account.status === 'joined' && (
-            <button className="topbar-btn badged" onClick={onOpenMailbox} title="Schránka" aria-label="Schránka">
+            <button className={'topbar-btn badged' + (page === 'mailbox' ? ' active' : '')} onClick={onOpenMailbox} title="Schránka" aria-label="Schránka">
               📬{mb?.badge > 0 && <span className="topbar-badge alert">{mb.badge > 9 ? '9+' : mb.badge}</span>}
             </button>
           )}
@@ -183,8 +184,8 @@ export default function TopBar({ view, page, onView, onOpenSettings, onOpenJoin,
           >
             <span className="pet-active-ico">{petEmoji(equippedPet)}</span>
             <span className="pet-active-txt">
-              <span className="pet-active-name">{petName(equippedPet)}</span>
-              <span className="pet-active-bonus">{petBonusLabel(equippedPet, petLevel)}</span>
+              <span className="pet-active-name">{petName(equippedPet)}{petEvo > 0 && <span className="pet-active-stars"> {'⭐'.repeat(petEvo)}</span>}</span>
+              <span className="pet-active-bonus">{petBonusLabel(equippedPet, petLevel, petEvo)}</span>
             </span>
           </button>
         )}

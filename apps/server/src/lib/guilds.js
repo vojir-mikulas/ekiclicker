@@ -16,34 +16,25 @@
      • Tato vrstva NEpočítá postavení (Fáze 4) — jen roster a invarianty.
    ========================================================================= */
 import {
-  GUILDS, GUILD_ROLES, isGuildRole, guildMemberCap, guildPerks,
+  GUILDS, GUILD_ROLES, isGuildRole, guildPerks,
   guildLevelWeight, guildDpsWeight, guildLevelForContribution,
   validateGuildName, validateGuildTag, validateNickname,
+  GUILD_UPGRADES, isGuildUpgradeKey, guildUpgradeCost, guildUpgradePerks,
+  combinedGuildPerks, guildMemberCapWith, donationDailyCap,
 } from '@ekiclicker/shared';
 import { query, tx } from '../db.js';
 import { getActiveSeason } from './players.js';
+import { broadcastToPlayer } from './sse.js';
 
 /* Pořadí rolí pro výpis rosteru (Mistr → Důstojník → Člen). */
 const ROLE_ORDER = `case role when 'master' then 0 when 'officer' then 1 else 2 end`;
 
-/* Aktuální úroveň cechu v AKTIVNÍ sezóně (default 1, dokud Fáze 4 nepočítá postavení).
-   Slouží jen ke stropu členů + perkům. Bez aktivní sezóny → 1. */
-async function activeGuildLevel(guildId) {
-  const active = await getActiveSeason();
-  if (!active) return 1;
-  const { rows } = await query(
-    'select level from guild_season where season_id = $1 and guild_id = $2',
-    [active.id, guildId],
-  );
-  return rows[0]?.level ?? 1;
-}
-
-/* Plné sezónní postavení cechu (úroveň/příspěvek/boss/pořadí) pro pohledy. */
+/* Plné sezónní postavení cechu (úroveň/příspěvek/boss/kasa/vylepšení/pořadí). */
 async function activeGuildStanding(guildId) {
   const active = await getActiveSeason();
-  if (!active) return { level: 1, contribution: 0, bossDamage: 0, rank: null };
+  if (!active) return { level: 1, contribution: 0, bossDamage: 0, treasury: 0, upgrades: {}, rank: null };
   const { rows } = await query(
-    'select contribution, level, boss_damage from guild_season where season_id = $1 and guild_id = $2',
+    'select contribution, level, boss_damage, treasury, upgrades from guild_season where season_id = $1 and guild_id = $2',
     [active.id, guildId],
   );
   const gs = rows[0];
@@ -59,8 +50,22 @@ async function activeGuildStanding(guildId) {
     level: gs?.level ?? 1,
     contribution: Number(gs?.contribution ?? 0),
     bossDamage: Number(gs?.boss_damage ?? 0),
+    treasury: Number(gs?.treasury ?? 0),
+    upgrades: gs?.upgrades || {},
     rank,
   };
+}
+
+/* Strop členů cechu v aktivní sezóně (= základ + sloty z perků úrovně I vylepšení). */
+async function activeGuildCap(guildId) {
+  const active = await getActiveSeason();
+  if (!active) return guildMemberCapWith(1, {});
+  const { rows } = await query(
+    'select level, upgrades from guild_season where season_id = $1 and guild_id = $2',
+    [active.id, guildId],
+  );
+  const r = rows[0];
+  return guildMemberCapWith(r?.level ?? 1, r?.upgrades || {});
 }
 
 /* Posledních N událostí feedu (přezdívky doplněny při čtení; null = smazaný účet). */
@@ -200,6 +205,7 @@ async function rosterOf(guildId) {
 async function shapeGuild(guildRow) {
   const standing = await activeGuildStanding(guildRow.id);
   const level = standing.level;
+  const upgrades = standing.upgrades || {};
   const roster = await rosterOf(guildRow.id);
   const feed = await feedOf(guildRow.id);
   return {
@@ -209,8 +215,12 @@ async function shapeGuild(guildRow) {
     masterId: guildRow.master_id,
     motd: guildRow.motd || '',
     level,
-    perks: guildPerks(level),
-    memberCap: guildMemberCap(level),
+    perks: combinedGuildPerks(level, upgrades), // efektivní (úroveň + vylepšení) → engine i výpis
+    levelPerks: guildPerks(level),              // jen z úrovně (pro rozpad v UI)
+    upgradePerks: guildUpgradePerks(upgrades),  // jen z vylepšení (pro rozpad v UI)
+    upgrades,                                   // koupené úrovně { goldFind, dustFind, luck, slots }
+    treasury: standing.treasury,                // společná kasa (body)
+    memberCap: guildMemberCapWith(level, upgrades),
     memberCount: roster.length,
     contribution: standing.contribution,
     bossDamage: standing.bossDamage,
@@ -336,6 +346,13 @@ export async function getMyGuild(playerId) {
   if (active) { try { await maybeRecomputeGuildSeason(active.id, mem.guild_id); } catch { /* best-effort */ } }
   const guild = await shapeGuild(row);
 
+  // můj denní stav přispívání do kasy (strop dle ATESTOVANÉ úrovně) — pro UI tlačítka
+  let donation = null;
+  if (active) {
+    const pr = (await query('select highest_level from players where id = $1', [playerId])).rows[0];
+    donation = await donationStatus(active.id, playerId, pr?.highest_level || 1);
+  }
+
   // čekající ŽÁDOSTI o vstup (vidí jen Master/Officer)
   let requests = [];
   if (mem.role === 'master' || mem.role === 'officer') {
@@ -351,7 +368,7 @@ export async function getMyGuild(playerId) {
     }));
   }
 
-  return { ok: true, guild, role: mem.role, roster: guild.roster, invites, requests };
+  return { ok: true, guild, role: mem.role, roster: guild.roster, invites, requests, donation };
 }
 
 /* Hráč podle přezdívky (pro pozvánku „podle nicku") — { id, nickname } | null. */
@@ -463,8 +480,8 @@ async function joinAtomic(client, guildId, playerId) {
   if (already.rows[0]) return { ok: false, reason: 'already_in_guild' };
 
   const cnt = await client.query('select count(*)::int as c from guild_members where guild_id = $1', [guildId]);
-  const level = await activeGuildLevel(guildId);
-  if ((cnt.rows[0]?.c ?? 0) >= guildMemberCap(level)) return { ok: false, reason: 'full' };
+  const cap = await activeGuildCap(guildId);
+  if ((cnt.rows[0]?.c ?? 0) >= cap) return { ok: false, reason: 'full' };
 
   try {
     await client.query(
@@ -522,6 +539,7 @@ export async function invite(guildId, byPlayerId, targetPlayerId) {
           JSON.stringify({ inviteId, guildId, guildName: g.name, guildTag: g.tag }),
         ],
       );
+      broadcastToPlayer(targetPlayerId, 'mail', { kind: 'guild_invite' }); // okamžitý nudge pozvanému
     }
   } catch { /* best-effort — pozvánka platí i bez zrcadla ve schránce */ }
   return { ok: true };
@@ -565,8 +583,8 @@ export async function request(guildId, player) {
   if (!g) return { ok: false, reason: 'gone' };
   // strop už plný? (měkká kontrola; tvrdou drží joinAtomic při schválení)
   const cnt = await query('select count(*)::int as c from guild_members where guild_id = $1', [guildId]);
-  const level = await activeGuildLevel(guildId);
-  if ((cnt.rows[0]?.c ?? 0) >= guildMemberCap(level)) return { ok: false, reason: 'full' };
+  const cap = await activeGuildCap(guildId);
+  if ((cnt.rows[0]?.c ?? 0) >= cap) return { ok: false, reason: 'full' };
 
   try {
     await query(
@@ -745,4 +763,122 @@ export async function setMotd(guildId, byPlayerId, motdRaw) {
   return { ok: true, motd };
 }
 
-export { GUILD_ROLES };
+/* =========================================================================
+   POKLADNICE (treasury) — členové přilévají, Mistr kupuje vylepšení
+   ========================================================================= */
+
+/* Stav příspěvku hráče dnes (rolling dle data) + denní strop dle ATESTOVANÉ úrovně. */
+async function donationStatus(seasonId, playerId, highestLevel) {
+  const cap = donationDailyCap(highestLevel);
+  const { rows } = await query(
+    `select case when donate_day = current_date then donated_today else 0 end as t
+       from guild_member_season where season_id = $1 and player_id = $2`,
+    [seasonId, playerId],
+  );
+  const donatedToday = Number(rows[0]?.t) || 0;
+  return { cap, donatedToday, remaining: Math.max(0, cap - donatedToday) };
+}
+
+/* Člen přileje do kasy. Server připíše jen `min(žádané, zbytek denního stropu)` —
+   strop je odvozen z ATESTOVANÉ úrovně, takže cheater s editovaným zlatem nepřekročí
+   strop legitimního hráče své úrovně (zlato se utrácí KLIENTSKY jako celá ekonomika).
+   Vrací { ok, granted, treasury, cap, remaining } | { ok:false, reason }. */
+export async function donate(guildId, player, amount) {
+  const want = Math.floor(Number(amount) || 0);
+  if (want <= 0) return { ok: false, reason: 'amount' };
+  const active = await getActiveSeason();
+  if (!active) return { ok: false, reason: 'no_season' };
+  const cap = donationDailyCap(player.highest_level);
+
+  const res = await tx(async (client) => {
+    const mem = (await client.query(
+      'select 1 from guild_members where guild_id = $1 and player_id = $2', [guildId, player.id],
+    )).rows[0];
+    if (!mem) return { ok: false, reason: 'not_member' };
+
+    // zajisti + zamkni řádek kasy (treasury)
+    await client.query(
+      `insert into guild_season (season_id, guild_id) values ($1, $2)
+       on conflict (season_id, guild_id) do nothing`,
+      [active.id, guildId],
+    );
+    const gs = (await client.query(
+      'select treasury from guild_season where season_id = $1 and guild_id = $2 for update',
+      [active.id, guildId],
+    )).rows[0];
+
+    // zajisti + zamkni per-člena řádek, denní strop přepočti dle data (current_date)
+    await client.query(
+      `insert into guild_member_season (season_id, guild_id, player_id, donate_day)
+       values ($1, $2, $3, current_date)
+       on conflict (season_id, player_id) do nothing`,
+      [active.id, guildId, player.id],
+    );
+    const ms = (await client.query(
+      `select case when donate_day = current_date then donated_today else 0 end as donated_today
+         from guild_member_season where season_id = $1 and player_id = $2 for update`,
+      [active.id, player.id],
+    )).rows[0];
+    const donatedToday = Number(ms?.donated_today) || 0;
+    const remaining = Math.max(0, cap - donatedToday);
+    const grant = Math.min(want, remaining);
+    if (grant <= 0) return { ok: false, reason: 'daily_cap', cap, remaining: 0 };
+
+    await client.query(
+      `update guild_member_season
+          set donated_today = $3, donate_day = current_date,
+              donated_total = donated_total + $4, guild_id = $5
+        where season_id = $1 and player_id = $2`,
+      [active.id, player.id, donatedToday + grant, grant, guildId],
+    );
+    const treasury = (Number(gs?.treasury) || 0) + grant;
+    await client.query(
+      'update guild_season set treasury = $3 where season_id = $1 and guild_id = $2',
+      [active.id, guildId, treasury],
+    );
+    return { ok: true, granted: grant, treasury, cap, remaining: remaining - grant };
+  });
+  return res;
+}
+
+/* Mistr koupí další úroveň vylepšení za kasu. Atomické (zamkne guilds → kasa).
+   Vrací { ok, key, level, cost, treasury, upgrades } | { ok:false, reason }. */
+export async function buyUpgrade(guildId, byMasterId, key) {
+  if (!isGuildUpgradeKey(key)) return { ok: false, reason: 'bad_key' };
+  const active = await getActiveSeason();
+  if (!active) return { ok: false, reason: 'no_season' };
+
+  return tx(async (client) => {
+    const g = (await client.query(
+      'select master_id from guilds where id = $1 and disbanded_at is null for update', [guildId],
+    )).rows[0];
+    if (!g) return { ok: false, reason: 'gone' };
+    if (g.master_id !== byMasterId) return { ok: false, reason: 'forbidden' };
+
+    await client.query(
+      `insert into guild_season (season_id, guild_id) values ($1, $2)
+       on conflict (season_id, guild_id) do nothing`,
+      [active.id, guildId],
+    );
+    const gs = (await client.query(
+      'select treasury, upgrades from guild_season where season_id = $1 and guild_id = $2 for update',
+      [active.id, guildId],
+    )).rows[0];
+    const upgrades = gs?.upgrades || {};
+    const cur = Math.max(0, Number(upgrades[key]) || 0);
+    if (cur >= GUILD_UPGRADES[key].max) return { ok: false, reason: 'maxed' };
+    const cost = guildUpgradeCost(key, cur);
+    const treasury = Number(gs?.treasury) || 0;
+    if (treasury < cost) return { ok: false, reason: 'poor', need: cost, treasury };
+
+    const nextUpgrades = { ...upgrades, [key]: cur + 1 };
+    await client.query(
+      'update guild_season set treasury = $3, upgrades = $4 where season_id = $1 and guild_id = $2',
+      [active.id, guildId, treasury - cost, JSON.stringify(nextUpgrades)],
+    );
+    await recordFeed(client, guildId, 'upgrade', byMasterId);
+    return { ok: true, key, level: cur + 1, cost, treasury: treasury - cost, upgrades: nextUpgrades };
+  });
+}
+
+export { GUILD_ROLES, donationStatus };

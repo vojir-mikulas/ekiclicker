@@ -44,7 +44,7 @@ const UnlockModal = lazy(() => import('./modals/UnlockModal.jsx'));
 
 // Obrazovky, které se otevírají jako vsazená stránka v obsahu (ne overlay).
 // Vše ostatní (nastavení, účet, potvrzení, ruleta…) zůstává klasický modal.
-const PAGE_IDS = ['daily', 'inventory', 'pets', 'runes', 'abilities', 'mastery', 'album', 'stats'];
+const PAGE_IDS = ['daily', 'inventory', 'pets', 'runes', 'abilities', 'mastery', 'album', 'stats', 'mailbox'];
 // Hlavní záložky (přepínají se přes setView, ne přes page/modal) — sem míří např. CTA uvítacího modalu cechu.
 const VIEW_IDS = ['game', 'boss', 'raid', 'guild', 'board'];
 
@@ -138,6 +138,7 @@ export default function Game() {
                   {page === 'mastery' && <MasteryModal onClose={closePage} />}
                   {page === 'album' && <AlbumModal onClose={closePage} />}
                   {page === 'stats' && <StatsModal onClose={closePage} />}
+                  {page === 'mailbox' && <MailboxModal onClose={closePage} />}
                 </Suspense>
               </ModalModeContext.Provider>
             ) : view === 'game' ? (
@@ -181,7 +182,6 @@ export default function Game() {
         {enchantOn && <EnchantModal />}
         {pendingOpenId && <RouletteModal key={pendingOpenId} />}
         {modal === 'foundGuild' && <FoundGuildModal onClose={() => setModal(null)} />}
-        {modal === 'mailbox' && <MailboxModal onClose={() => setModal(null)} />}
         {modal === 'hellevator' && <HellevatorModal onClose={() => setModal(null)} />}
         {pendingEggId && <PetRevealModal key={pendingEggId} />}
         {offline && <OfflineModal offline={offline} onClose={() => setOffline(null)} />}

@@ -3,25 +3,28 @@
    s tlačítkem nákupu. Žádné perky na čas/start — 60 s je pevných. */
 import { useEffect } from 'react';
 import { useEngine, useEngineSelector, shallowEqual } from '../../hooks/useEngine.js';
-import { HELLEVATOR, HELL_SHOP, HELL_SHOP_KEYS, hellPerkCost } from '../../game/data/hellevator.js';
+import { HELLEVATOR, HELL_SHOP, HELL_SHOP_KEYS, hellPerkCost, HELL_FORGE, hellForgeCost, hellForgeBonus } from '../../game/data/hellevator.js';
 import { fmt } from '../../game/format.js';
 
 const sel = (s) => ({
   sira: Math.floor(s.sira || 0),
   passes: s.hell?.passes || 0,
   exchDust: (s.hellExch && s.hellExch.dust) || 0,
+  forge: (s.hellForge && s.hellForge.tier) || 0,
   tiers: HELL_SHOP_KEYS.map((k) => s.hellShop?.[k] || 0).join(','),
 });
 
-/* Štítek hodnoty perku na daném stupni (bounded % — jen bojové perky). */
+/* Štítek hodnoty perku na daném stupni (bounded — jen bojové perky). dropChance je
+   maličké procentní body, ostatní jsou %. */
 function perkLabel(def, tier) {
   if (tier <= 0) return '—';
+  if (def.stat === 'dropChance') return `+${(def.per * tier * 100).toFixed(1)} p.b.`;
   return `+${Math.round(def.per * tier * 100)} %`;
 }
 
 export default function HellShop({ onBack }) {
   const engine = useEngine();
-  const { sira, passes, exchDust } = useEngineSelector(sel, shallowEqual);
+  const { sira, passes, exchDust, forge } = useEngineSelector(sel, shallowEqual);
   const s = engine.state;
 
   // dorovnej žetony při otevření krámu (wall-clock regen) + drž to živé
@@ -33,6 +36,10 @@ export default function HellShop({ onBack }) {
 
   const passFull = passes >= HELLEVATOR.passMax;
   const exchLeft = HELLEVATOR.exchangeDailyCapDust - exchDust;
+  const forgeCost = hellForgeCost(forge);
+  const forgeNow = hellForgeBonus(forge);
+  const forgeNext = hellForgeBonus(forge + 1);
+  const forgeCap = Math.round(HELL_FORGE.softCap * 100);
 
   return (
     <div className="hell-shop">
@@ -65,6 +72,24 @@ export default function HellShop({ onBack }) {
             </div>
           );
         })}
+
+        <div className="hell-shop-sep">🌋 Sírová pec</div>
+
+        <div className="hell-perk-row hell-forge-row">
+          <div className="hell-perk-ico">{HELL_FORGE.emoji}</div>
+          <div className="body">
+            <div className="name">
+              {HELL_FORGE.name}
+              <span className="lvl">žár {forge}</span>
+            </div>
+            <div className="meta">
+              +{Math.round(forgeNow * 100)} % úlomků · další stupeň +{((forgeNext - forgeNow) * 100).toFixed(1)} p.b. (strop +{forgeCap} %)
+            </div>
+          </div>
+          <button className="hell-buy" disabled={sira < forgeCost} onClick={() => engine.buyHellForge()}>
+            🔥 {fmt(forgeCost)}
+          </button>
+        </div>
 
         <div className="hell-shop-sep">Žetony &amp; směna</div>
 

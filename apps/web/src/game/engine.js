@@ -28,14 +28,15 @@ import {
 } from './formulas.js';
 import {
   HELLEVATOR, HELL_SHOP, hellPerkCost, siraForRun, isHellBossFloor,
+  HELL_FORGE, hellForgeCost, HELL_CURSES, hellRunMods,
 } from './data/hellevator.js';
 import {
   ITEMS, CHESTS, SLOT_IDS, itemScore, upgradeDelta,
   salvageValue, rerollCost, rerollItem, upgradeRarityCost, upgradeRarity, nextRarity,
   rollChestResult, buildRouletteStrip, chestMissDust, chestCost, doveExchangeCost,
 } from './data/items.js';
-import { PETS_CFG, rollPetId, petLevelCap, allPetsMaxed } from './data/pets.js';
-import { RUNES_CFG, rollRune, mintRune, socketCount, canFuse } from './data/runes.js';
+import { PETS, PETS_CFG, rollPetId, petLevelCap, allPetsMaxed, allPetsEvolved, petEvoCost } from './data/pets.js';
+import { RUNES_CFG, rollRune, mintRune, socketCount, canFuse, groupRunes, runeDustValue, MAX_TIER } from './data/runes.js';
 import { ALBUM, discoveredCount, albumKeyForItem } from './data/album.js';
 import { ELIXIRS, elixirCostAt, ELIXIRS_CFG } from './data/elixirs.js';
 import {
@@ -217,6 +218,7 @@ export class Engine {
     this.checkInventoryUnlock();
     this.checkElixirsUnlock();
     this.checkPetsUnlock();
+    this.checkPetEvolveUnlock();
     this.checkRunesUnlock();
     this.checkEnchantingUnlock();
     this.checkAbilitiesUnlock();
@@ -665,12 +667,25 @@ export class Engine {
     }
   }
 
+  /* Evoluce mazlíčků 🌟 — sub-feature pets. Trvalý příznak (highestLevel se rebirthem
+     resetuje, proto na ni nelze gateovat — stejně jako u cechu/výbavy). */
+  checkPetEvolveUnlock() {
+    const s = this.state;
+    if (!s.petEvolveUnlocked && s.highestLevel >= PETS_CFG.evolveUnlockLevel) {
+      s.petEvolveUnlocked = true;
+      this.emit('unlock', { feature: 'petEvolve' });
+    }
+  }
+
   /* Drop vejce 🥚 po zabití — šance dle nepřítele (Archón dává zaručeně).
      Mazlíček se vylíhne až otevřením vejce (líhnutí). */
   maybeDropEgg(v) {
     const s = this.state;
     if (!s.petsUnlocked) return;
-    if (allPetsMaxed(s.pets)) return; // kolekce kompletní (všech 6 na max úrovni) → vejce už nepadají
+    // Vejce přestanou padat, až z nich nic víc nezískáš:
+    //  - po odemčení evoluce jsou vejce PALIVO evoluce → padají, dokud nejsou všichni
+    //    vyevolvovaní (allPetsEvolved); jinak (před evolucí) stačí všichni na max úrovni.
+    if (s.petEvolveUnlocked ? allPetsEvolved(s.pets) : allPetsMaxed(s.pets)) return;
     if ((s.eggsThisRun || 0) >= PETS_CFG.maxEggsPerRun) return; // strop vajec za běh
     let chance;
     if (v.archon) chance = PETS_CFG.eggArchonDropChance;
@@ -767,6 +782,30 @@ export class Engine {
   unequipPet() {
     this.state.equippedPet = null;
     this.afterInventory();
+  }
+
+  /* Evolvuj mazlíčka o jeden ⭐ stupeň. Podmínky: odemčená evoluce, mazlíček VLASTNĚNÝ a
+     na MAX ÚROVNI, ještě ne na max evoluci, a dost paliva (vejce 🥚 + úlomky 💠). Spotřebuje
+     palivo a zvedne pets[id].evo. Jako equipPet NEMĚNÍ runGearPower — posílení v běhu je čistý
+     zisk, dmg% z evoluce se do obtížnosti promítne až snapshotem při příštím rebirth (resetRun).
+     Vrací true při úspěchu (UI re-render přes afterInventory → save+notify). */
+  evolvePet(petId) {
+    const s = this.state;
+    if (!s.petEvolveUnlocked) return false;
+    const owned = s.pets[petId];
+    const def = PETS[petId];
+    if (!owned || !def) return false;
+    if ((owned.level || 0) < petLevelCap(petId)) return false; // musí být na MAX úrovni
+    const evo = owned.evo || 0;
+    const cost = petEvoCost(evo);
+    if (!cost) return false; // už na max evoluci
+    if ((s.eggs || 0) < cost.eggs || (s.dust || 0) < cost.dust) return false;
+    s.eggs -= cost.eggs;
+    s.dust -= cost.dust;
+    owned.evo = evo + 1;
+    this.afterInventory(); // save + notify (přepočítá odvozené staty z combatStats)
+    this.emit('petEvolve', { petId, evo: owned.evo });
+    return true;
   }
 
   /* ---------- runy & sokety („Pivní tácky", pozdní endgame) ---------- */
@@ -875,6 +914,88 @@ export class Engine {
     s.runes.push(mintRune(kind, tier + 1));
     this.emit('fuse', { kind, tier: tier + 1 });
     this.afterInventory();
+  }
+
+  /* Hromadné slévání: opakovaně slij NEJNIŽŠÍ slévatelnou skupinu (kind+tier),
+     dokud je dost úlomků a aspoň fuseCount stejných run. Nově slitá runa o tier
+     výš může odemknout slévání ještě výš → kaskáduje až k nejvyššímu tieru.
+     „Slož všechen přebytek do mála silných run." Jeden souhrnný 'fuse' event. */
+  fuseAll() {
+    const s = this.state;
+    if (!s.runesUnlocked) return { fused: 0 };
+    let fused = 0;
+    for (;;) {
+      if ((s.dust || 0) < RUNES_CFG.fuseCost) break;
+      const g = groupRunes(s.runes)
+        .filter((x) => x.tier < MAX_TIER && x.count >= RUNES_CFG.fuseCount)
+        .sort((a, b) => a.tier - b.tier)[0];
+      if (!g) break;
+      let need = RUNES_CFG.fuseCount;
+      const keep = [];
+      for (const r of s.runes) {
+        if (need > 0 && r.kind === g.kind && r.tier === g.tier) { need--; continue; }
+        keep.push(r);
+      }
+      s.dust -= RUNES_CFG.fuseCost;
+      keep.push(mintRune(g.kind, g.tier + 1));
+      s.runes = keep; // počet vždy klesá (−3 +1) → smyčka skončí
+      fused++;
+    }
+    if (fused > 0) {
+      this.emit('fuse', { bulk: fused });
+      this.afterInventory();
+    }
+    return { fused };
+  }
+
+  /* Rozlož JEDNU runu ze skladu na úlomky 💠 (zničí ji nevratně). Analogie
+     discardItem u výbavy — runy nemají dmgPct, takže obtížnost se nehne. */
+  dismantleRune(runeId) {
+    const s = this.state;
+    const idx = (s.runes || []).findIndex((r) => r.id === runeId);
+    if (idx === -1) return 0;
+    const amt = runeDustValue(s.runes[idx].tier);
+    s.runes.splice(idx, 1);
+    if (amt > 0) {
+      s.dust = (s.dust || 0) + amt;
+      this.emit('salvage', { amount: amt, rune: true });
+    }
+    this.afterInventory();
+    return amt;
+  }
+
+  /* Náhled: počet + úlomky 💠 za rozložení run daného tieru (tier=null → všech)
+     BEZ mutace. Sčítá po kusech zaokrouhleně → souhlasí s dismantleTier 1:1. */
+  dismantleRunesValue(tier = null) {
+    let count = 0;
+    let dust = 0;
+    for (const r of this.state.runes || []) {
+      if (tier != null && r.tier !== tier) continue;
+      count++;
+      dust += runeDustValue(r.tier);
+    }
+    return { count, dust };
+  }
+
+  /* Hromadně rozlož všechny runy daného tieru (tier=null → celý sklad) na úlomky
+     💠 najednou. Vsazené runy (v soketech) zůstanou. Jeden souhrnný 'salvage'. */
+  dismantleTier(tier = null) {
+    const s = this.state;
+    const keep = [];
+    let count = 0;
+    let dust = 0;
+    for (const r of s.runes || []) {
+      if (tier == null || r.tier === tier) { count++; dust += runeDustValue(r.tier); }
+      else keep.push(r);
+    }
+    if (count === 0) return { count: 0, dust: 0 };
+    s.runes = keep;
+    if (dust > 0) {
+      s.dust = (s.dust || 0) + dust;
+      this.emit('salvage', { amount: dust, bulk: count, rune: true });
+    }
+    this.afterInventory();
+    return { count, dust };
   }
 
   /* ---------- sběratelský deník (Bestiář + Arzenál) ---------- */
@@ -1138,17 +1259,36 @@ export class Engine {
     const now = Date.now();
     if ((s.abilities.cooldowns[id] || 0) > now) return;     // ještě se nabíjí
     s.abilities.cooldowns[id] = now + abilityCooldown(id, level);
+    // Cooldown žije ve sdíleném s.abilities.cooldowns → JEDEN cooldown napříč hlavní
+    // hrou i Pekelným výtahem (cast v jednom „nabíjí" i ten druhý). Pokud běží výtah,
+    // burst míří do PATRA (ne do arény), jinak normálně do nepřítele.
+    const hell = s.hellRun && s.hellRun.phase === 'running' ? s.hellRun : null;
     if (def.kind === 'buff') {
-      s.abilities.active[id] = now + def.durationMs;
+      s.abilities.active[id] = now + def.durationMs;        // abilityMods ho čtou i v běhu výtahu
     } else if (def.kind === 'nuke') {
-      const e = s.enemy;
       const dmg = totalDps(s) * abilityValue(id, level);
-      if (e && dmg > 0) {
-        if (dmg >= e.hp) { e.hp = 0; this.defeat(); } else e.hp -= dmg; // mimo _recordDmg (anti peakDps)
+      if (hell) {
+        this._hellDamage(dmg);                              // burst do patra (mimo _recordDmg jako klik/auto)
+      } else {
+        const e = s.enemy;
+        if (e && dmg > 0) {
+          if (dmg >= e.hp) { e.hp = 0; this.defeat(); } else e.hp -= dmg; // mimo _recordDmg (anti peakDps)
+        }
       }
     } else if (def.kind === 'frenzy') {
-      this.startFrenzy(performance.now());
-      s.frenzy.until += abilityValue(id, level);            // bonus ms navíc k základu
+      const bonus = abilityValue(id, level);                // bonus ms navíc k základu zuřivosti
+      if (hell) {
+        if (!hell.noFrenzy) {                               // 🤐 kletba ticha umlčí i rituál
+          const pnow = performance.now();
+          hell.frenzy.until = Math.max(hell.frenzy.until, pnow) + HELLEVATOR.frenzyMs + bonus;
+          hell.frenzy.charge = 0;
+          hell.frenzy.on = true;
+          this.emit('frenzy', { active: true });
+        }
+      } else {
+        this.startFrenzy(performance.now());
+        s.frenzy.until += bonus;
+      }
     }
     const aw = abilityAwakening(id, level);
     this.emit('ability', { id, name: aw.name, emoji: aw.emoji, kind: def.kind });
@@ -1196,11 +1336,15 @@ export class Engine {
     s.hell.passes -= 1;
     if (!s.hell.passAt && s.hell.passes < HELLEVATOR.passMax) s.hell.passAt = Date.now() + HELLEVATOR.passRegenMs;
     const now = performance.now();
+    // 💀 kletby: tvrdší běh (víc HP / míň času / bez zuřivosti / bez zbraní) za víc 🔥.
+    const mods = hellRunMods(s.hellCurses);
     s.hellRun = {
-      phase: 'running', startedAt: now, endsAt: now + HELLEVATOR.runMs,
+      phase: 'running', startedAt: now, endsAt: now + mods.runMs,
       floor: 1, cleared: 0, dealt: 0, clicks: 0,
       hp: 0, maxHp: 0, floorStartedAt: now, isBossFloor: false,
       frenzy: { charge: 0, until: 0, on: false }, summary: null,
+      curses: mods.active.slice(), curseHpMult: mods.hpMult, curseMult: mods.mult,
+      noFrenzy: mods.noFrenzy, noAuto: mods.noAuto,
     };
     this._hellSpawn(1);
     save(s);
@@ -1214,7 +1358,7 @@ export class Engine {
     const r = s.hellRun;
     if (!r) return;
     r.floor = floor;
-    r.maxHp = hellFloorHp(s, floor);
+    r.maxHp = Math.ceil(hellFloorHp(s, floor) * (r.curseHpMult || 1)); // 🧱 kletba tuhosti = víc HP
     r.hp = r.maxHp;
     r.floorStartedAt = performance.now();
     r.isBossFloor = isHellBossFloor(floor);
@@ -1261,7 +1405,7 @@ export class Engine {
     const now = performance.now();
     if (now >= r.endsAt) { this.finishHellRun(); return; }
     r.clicks++;
-    if (now >= r.frenzy.until) {
+    if (!r.noFrenzy && now >= r.frenzy.until) { // 🤐 kletba ticha = zuřivost se nenabíjí
       r.frenzy.charge += 1;
       if (r.frenzy.charge >= HELLEVATOR.frenzyClicksToFill) {
         r.frenzy.charge = 0;
@@ -1284,7 +1428,7 @@ export class Engine {
     const r = s.hellRun;
     if (!r || r.phase !== 'running') return;
     const now = performance.now();
-    const auto = totalDps(s);
+    const auto = r.noAuto ? 0 : totalDps(s); // 🥊 kletba holých pěstí = bez auto-DPS zbraní
     if (auto > 0) {
       const mult = now < r.frenzy.until ? CONFIG.frenzyMult : 1;
       this._hellDamage(auto * dt * mult);
@@ -1318,7 +1462,14 @@ export class Engine {
      denní bonus za první běh. Bounded faucet — žádný dmgPct, mimo difficulty. */
   grantHellLoot(deepest) {
     const s = this.state;
-    const base = siraForRun(deepest);
+    // 💀 kletby násobí JEN základ za patra (challenge reward); rekord/denní bonus jsou
+    // ploché lákadlo. Kletby hloubku jen snižují → strop běhu (siraRunCap) škáluje s
+    // multiplikátorem, takže výzva má smysl i hluboko, ale zůstává bounded faucet.
+    const curseMult = (s.hellRun && s.hellRun.curseMult) || 1;
+    const curses = (s.hellRun && s.hellRun.curses) || [];
+    const baseRaw = siraForRun(deepest);
+    const base = Math.round(baseRaw * curseMult);
+    const curseBonus = base - baseRaw;
     const prevBest = s.hell.bestFloor || 0;
     let recordBonus = 0;
     const record = deepest > prevBest;
@@ -1334,7 +1485,7 @@ export class Engine {
     }
     const total = base + recordBonus + dailyBonus;
     if (total > 0) s.sira = (s.sira || 0) + total;
-    return { sira: total, base, recordBonus, dailyBonus, record, prevBest };
+    return { sira: total, base: baseRaw, curseBonus, curseMult, curses: curses.slice(), recordBonus, dailyBonus, record, prevBest };
   }
 
   /* Zavři výsledky běhu (skóre/🔥 jsou dávno zaúčtované) → zpět do lobby.
@@ -1358,6 +1509,33 @@ export class Engine {
     s.hellShop[id] = tier + 1;
     this.emit('hellPerk', { id, tier: tier + 1 });
     this.afterBuy();
+  }
+
+  /* 🌋 Sírová pec — utop 🔥 do dalšího žárového stupně (cena roste geometricky →
+     nekonečný sink; bonus dustFind má měkký strop přes klesající křivku). */
+  buyHellForge() {
+    const s = this.state;
+    if (!s.hellForge) s.hellForge = { tier: 0 };
+    const tier = s.hellForge.tier || 0;
+    const cost = hellForgeCost(tier);
+    if (!isFinite(cost) || (s.sira || 0) < cost) return;
+    s.sira -= cost;
+    s.hellForge.tier = tier + 1;
+    this.emit('hellForge', { tier: tier + 1 });
+    this.afterBuy();
+  }
+
+  /* 💀 Přepni kletbu (volitelný debuff běhu) — drží se mezi běhy (přežívá rebirth,
+     mře sezónou). Aplikuje se až při startHellRun → během běhu se nemění. */
+  toggleHellCurse(id) {
+    const s = this.state;
+    if (!HELL_CURSES[id]) return;
+    if (s.hellRun && s.hellRun.phase === 'running') return; // za běhu kletby nepřepínej
+    if (!s.hellCurses) s.hellCurses = {};
+    s.hellCurses[id] = !s.hellCurses[id];
+    this.emit('hellCurse', { id, on: !!s.hellCurses[id] });
+    save(s);
+    this.notify();
   }
 
   /* Dokup 1 žeton za 🔥 (do stropu passMax). */
@@ -1575,6 +1753,19 @@ export class Engine {
     save(s);
     this.notify();
     return true;
+  }
+
+  /* Přilij ZLATO do cechovní kasy — klientský sink jako zakládací poplatek (server
+     kasu připisuje bounded a vidí jen atestovaná data, ne zůstatek zlata). Strhne
+     `min(cost, zůstatek)`, ať nikdy nespadneš pod nulu. Vrátí skutečně stržené zlato. */
+  payGuildGold(gold = 0) {
+    const s = this.state;
+    const cost = Math.max(0, Math.min(Math.floor(gold), s.gold || 0));
+    if (cost <= 0) return 0;
+    s.gold -= cost;
+    save(s);
+    this.notify();
+    return cost;
   }
 
   /* Nastav perky cechu (server-derived z /api/me/guild). NEUKLÁDÁ se do save ani

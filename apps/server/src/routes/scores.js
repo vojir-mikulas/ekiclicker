@@ -15,7 +15,7 @@ import {
   rowToScore, updateScoreMonotonic,
   getActiveSeason, getPlayerSeasonRow, upsertSeasonScore, playerSeasonRank,
 } from '../lib/players.js';
-import { guildIdOf, maybeRecomputeGuildSeason } from '../lib/guilds.js';
+import { guildIdOf, maybeRecomputeGuildSeason, recomputeGuildSeason } from '../lib/guilds.js';
 
 const router = Router();
 const defaultBoard = boardByKey(DEFAULT_BOARD);
@@ -69,11 +69,19 @@ router.post('/', requirePlayer, async (req, res, next) => {
     await upsertSeasonScore(active.id, p.id, v.value, achIds);
     const updated = await updateScoreMonotonic(p.id, v.value, save);
     const rank = await playerSeasonRank(active.id, p.id, defaultBoard);
-    // piggyback: přepočti sezónní postavení cechu hráče (throttled, best-effort —
-    // selhání nikdy nesmí shodit zápis skóre)
+    // piggyback: přepočti sezónní postavení cechu hráče (best-effort — selhání nikdy
+    // nesmí shodit zápis skóre). Nový rekord ve výtahu (jediná řídká událost, co mění
+    // cechový SOUČET hell_floors) přepočítej HNED, bez throttle: submit s rekordem bývá
+    // ten poslední v session (visibility-hidden) → throttle by ho zahodil a kdyby člen
+    // pak odešel, cechový žebříček by zůstal zastaralý (viděno: cech „1. patro" navzdory
+    // členovi na 2400). Jinak levný throttled přepočet jako dosud.
     try {
       const gid = await guildIdOf(p.id);
-      if (gid) await maybeRecomputeGuildSeason(active.id, gid);
+      if (gid) {
+        const hellRecord = v.value.hellBestFloor > (prev?.hellBestFloor ?? 0);
+        if (hellRecord) await recomputeGuildSeason(active.id, gid);
+        else await maybeRecomputeGuildSeason(active.id, gid);
+      }
     } catch { /* best-effort */ }
     res.status(200).json({ ok: true, rank, score: rowToScore(updated) });
   } catch (err) {

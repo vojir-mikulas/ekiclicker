@@ -18,7 +18,8 @@ export const ITEMS = {
   unlockLevel: 1000, // od této NEJVYŠŠÍ dosažené úrovně se výbava odemkne (sniž pro testy)
   invCap: 60,        // strop inventáře — při zaplnění padne nejslabší kus
   ilvlScale: 1500,   // velikost afixu roste o +100 % za každých tolik úrovní ilvl
-  rarityLiftPer: 1200, // s ilvl se váhy posouvají k vyšším vzácnostem (čím nižší, tím rychleji)
+  rarityLiftPer: 2600, // s ilvl se váhy posouvají k vyšším vzácnostem (čím nižší, tím rychleji)
+  rarityLiftCap: 2.4,  // STROP posunu vzácnosti — i v endgame zůstane „běžný" nejčastější (jinak by se rozdělení převrátilo a vzácné kusy by přestaly být vzácné)
 
   // šance na drop podle typu nepřítele — laděno na VZÁCNOST (kořist má být „wow",
   // ne běžná). KLÍČOVÉ: inventoryUnlocked je TRVALÝ příznak → KAŽDÝ rebirth běh
@@ -139,11 +140,11 @@ const SLOT_POOLS = {
    vzácnosti (1–3) → vyšší vzácnost = víc soketů; povýšení vzácnosti přidá soket. */
 export const RARITY_ORDER = ['common', 'rare', 'epic', 'legendary', 'mythic'];
 export const RARITIES = {
-  common:    { name: 'Běžný',      mult: 1,   affixes: 1, weight: 100, sockets: 1, color: '#9aa3b8' },
-  rare:      { name: 'Vzácný',     mult: 1.6, affixes: 2, weight: 42,  sockets: 2, color: '#46a0ff' },
-  epic:      { name: 'Epický',     mult: 2.5, affixes: 3, weight: 14,  sockets: 2, color: '#c06bff' },
-  legendary: { name: 'Legendární', mult: 4,   affixes: 4, weight: 3.4, sockets: 3, color: '#ff9d2b' },
-  mythic:    { name: 'Mýtický',    mult: 6,   affixes: 5, weight: 0.6, sockets: 3, color: '#ff4d6d' },
+  common:    { name: 'Běžný',      mult: 1,   affixes: 1, weight: 100,  sockets: 1, color: '#9aa3b8' },
+  rare:      { name: 'Vzácný',     mult: 1.6, affixes: 2, weight: 30,   sockets: 2, color: '#46a0ff' },
+  epic:      { name: 'Epický',     mult: 2.5, affixes: 3, weight: 8,    sockets: 2, color: '#c06bff' },
+  legendary: { name: 'Legendární', mult: 4,   affixes: 4, weight: 1.6,  sockets: 3, color: '#ff9d2b' },
+  mythic:    { name: 'Mýtický',    mult: 6,   affixes: 5, weight: 0.25, sockets: 3, color: '#ff4d6d' },
 };
 
 /* ----------------------------- základy (emoji + tier) -----------------------------
@@ -211,7 +212,7 @@ function makeId() {
 
 /* Vzácnost: s ilvl se váhy vyšších tierů zvedají (lift^tierIndex). */
 export function rollRarity(level) {
-  const lift = 1 + Math.max(0, level) / ITEMS.rarityLiftPer;
+  const lift = Math.min(ITEMS.rarityLiftCap, 1 + Math.max(0, level) / ITEMS.rarityLiftPer);
   let total = 0;
   const acc = RARITY_ORDER.map((id, i) => {
     total += RARITIES[id].weight * Math.pow(lift, i);

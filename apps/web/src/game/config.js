@@ -210,6 +210,16 @@ export const MULT = {
   luckPerLevel: 0.15, // prestige "Štěstí": +15 % šance na Lucky Eki
   critPerLevel: 0.02, // prestige "Přesnost": +2 % crit šance
   weaponMilestone: 25, // každých 25 kusů zbraně = ×2 jejímu poškození
+  // ARZENÁLOVÁ SYNERGIE — drží rané/střední zbraně „za nákup" i v endgame.
+  // Rané zbraně mají oproti špičce ŘÁDOVĚ nižší baseDmg (×7/tier) → jako PŘÍMÝ zdroj
+  // DPS pozdní hru nikdy nedohoní. Místo toho každý milník (každých weaponMilestone
+  // kusů) JAKÉKOLIV zbraně dá malý GLOBÁLNÍ bonus ke VŠEM zbraním → dotlačit i levnou
+  // ranou zbraň na další milník posílí celý arzenál. Strop tierů NA ZBRAŇ nutí kupovat
+  // NAPŘÍČ arzenálem (ne mega-stackovat jednu nejlevnější) a drží to BOUNDED (max
+  // = #zbraní × cap × perTier) → žádný nový exponenciál; NEvstupuje do difficultyScale
+  // (jako weaponPct/milník) → anti-blitz/anti-runaway beze změny.
+  arsenalSynergyPerTier: 0.02, // +2 % všem zbraním za každý započítaný milník
+  arsenalSynergyTierCap: 5,    // max milníků na zbraň, co se počítá do synergie (= 125 kusů)
   clickFromDpsPerLevel: 0.01, // gold "Údernost": úder + 1 % DPS za level
   punchStep: 3, // gold "Síla pěsti": +3 základ úderu za level
   critDmgPerLevel: 0.5, // gold "Tvrdý dopad": +0,5 ke krit násobiči za level

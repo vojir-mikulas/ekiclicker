@@ -8,10 +8,11 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { useEngine, useEngineFrame, useEngineSelector, useEngineEvent, shallowEqual } from '../../hooks/useEngine.js';
 import Modal from '../modals/Modal.jsx';
 import EffectsLayer from '../EffectsLayer.jsx';
+import AbilityBar from '../arena/AbilityBar.jsx';
 import HellShop from './HellShop.jsx';
 import { fxRefs } from '../../effects/fxRefs.js';
 import { CONFIG } from '../../game/config.js';
-import { HELLEVATOR, hellEnemyAt, hellEnemyName, hellEnemyTier, isHellBossFloor } from '../../game/data/hellevator.js';
+import { HELLEVATOR, hellEnemyAt, hellEnemyName, hellEnemyTier, isHellBossFloor, HELL_CURSES, HELL_CURSE_KEYS, hellCurseMult } from '../../game/data/hellevator.js';
 import { PLACEHOLDER, REACTION_IMGS, REACTION_EMOJI } from '../../game/data/texts.js';
 import { fmt } from '../../game/format.js';
 
@@ -38,12 +39,15 @@ export default function HellevatorModal({ onClose }) {
 const selLobby = (s) => ({
   best: s.hell?.bestFloor || 0,
   sira: Math.floor(s.sira || 0),
+  curses: HELL_CURSE_KEYS.map((k) => (s.hellCurses && s.hellCurses[k] ? '1' : '0')).join(''),
 });
 
 function HellLobby({ onShop }) {
   const engine = useEngine();
   useEngineFrame(); // živý odpočet regenu žetonů
-  const { best, sira } = useEngineSelector(selLobby, shallowEqual);
+  const { best, sira } = useEngineSelector(selLobby, shallowEqual); // selLobby.curses drží re-render živý
+  const curses = engine.state.hellCurses || {};
+  const curseMult = hellCurseMult(curses);
 
   useEffect(() => {
     engine.tickHellPasses();
@@ -84,8 +88,33 @@ function HellLobby({ onShop }) {
         <div className="hell-regen">Další žeton za {fmtClock(regenMs)}</div>
       )}
 
+      <div className="hell-curses">
+        <div className="hell-curses-head">
+          <span>💀 Kletby</span>
+          <span className={'hell-curse-mult' + (curseMult > 1 ? ' on' : '')}>🔥 ×{curseMult.toFixed(2)}</span>
+        </div>
+        <div className="hell-curse-grid">
+          {HELL_CURSE_KEYS.map((id) => {
+            const c = HELL_CURSES[id];
+            const on = !!curses[id];
+            return (
+              <button
+                key={id}
+                className={'hell-curse-chip' + (on ? ' on' : '')}
+                onClick={() => engine.toggleHellCurse(id)}
+                title={c.desc}
+              >
+                <span className="ico">{c.emoji}</span>
+                <span className="nm">{c.name}</span>
+                <span className="ef">{c.desc} · +{Math.round(c.mult * 100)} % 🔥</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       <button className="hell-go" disabled={!canRun} onClick={() => engine.startHellRun()}>
-        {canRun ? '🔻 Sjet dolů (−1 žeton)' : 'Došly žetony'}
+        {canRun ? <>🔻 Sjet dolů (−1 žeton){curseMult > 1 ? ` · 🔥 ×${curseMult.toFixed(2)}` : ''}</> : 'Došly žetony'}
       </button>
 
       <button className="hell-shop-link" onClick={onShop}>🔥 Pekelný krám</button>
@@ -143,6 +172,7 @@ function HellRun() {
   const frenzyOn = now < r.frenzy.until;
   const frenzyPct = frenzyOn ? 100 : Math.min(100, (r.frenzy.charge / HELLEVATOR.frenzyClicksToFill) * 100);
   const boss = isHellBossFloor(r.floor);
+  const curses = r.curses || [];
 
   return (
     <div className={'hell-run-screen' + (panic ? ' panic' : '')}>
@@ -157,12 +187,20 @@ function HellRun() {
           <span className="t">{secs.toFixed(panic ? 1 : 0)}</span>
           <span className="u">s</span>
         </div>
+        {curses.length > 0 && (
+          <div className="hell-run-curses">
+            {curses.map((id) => (
+              <span key={id} className="hell-run-curse" title={HELL_CURSES[id]?.desc}>{HELL_CURSES[id]?.emoji}</span>
+            ))}
+            <span className="hell-run-curse mult">🔥×{(r.curseMult || 1).toFixed(2)}</span>
+          </div>
+        )}
       </div>
 
       <div className={'hell-arena' + (boss ? ' boss' : '')} ref={(el) => (fxRefs.arena = el)}>
-        <div className={'frenzy-bar' + (frenzyOn ? ' active' : '')}>
-          <span className="lbl">{frenzyOn ? '😡 Zuřivost!' : 'Zuřivost'}</span>
-          <div className="fill" style={{ width: frenzyPct + '%' }} />
+        <div className={'frenzy-bar' + (frenzyOn ? ' active' : '') + (r.noFrenzy ? ' silenced' : '')}>
+          <span className="lbl">{r.noFrenzy ? '🤐 Umlčeno' : frenzyOn ? '😡 Zuřivost!' : 'Zuřivost'}</span>
+          <div className="fill" style={{ width: (r.noFrenzy ? 0 : frenzyPct) + '%' }} />
         </div>
 
         <div className={'enemy-name' + (boss ? ' boss' : '')}>{hellEnemyName(r.floor)}</div>
@@ -195,6 +233,9 @@ function HellRun() {
           <div className="hptext">{fmt(Math.ceil(r.hp))} / {fmt(r.maxHp)}</div>
         </div>
       </div>
+
+      {/* Bojové rituály i tady — sdílí cooldown s hlavní hrou, burst míří do patra. */}
+      <AbilityBar />
 
       <button className="punch-btn hell-punch" ref={(el) => (fxRefs.button = el)} tabIndex={-1} onPointerDown={punch}>
         DEJ MU! 👊
@@ -230,6 +271,7 @@ function HellResults() {
 
       <div className="hell-res-rows">
         <div className="hell-res-row"><span>🔥 Za patra</span><b>+{fmt(sum.base)}</b></div>
+        {sum.curseBonus > 0 && <div className="hell-res-row curse"><span>💀 Kletby ×{(sum.curseMult || 1).toFixed(2)}</span><b>+{fmt(sum.curseBonus)}</b></div>}
         {sum.recordBonus > 0 && <div className="hell-res-row"><span>🏆 Bonus za rekord</span><b>+{fmt(sum.recordBonus)}</b></div>}
         {sum.dailyBonus > 0 && <div className="hell-res-row"><span>📅 První běh dne</span><b>+{fmt(sum.dailyBonus)}</b></div>}
         <div className="hell-res-row total"><span>🔥 Síra celkem</span><b>+{fmt(sum.sira)}</b></div>

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { GUILDS } from '@ekiclicker/shared';
+import { GUILDS, guildDonationGoldPerPoint } from '@ekiclicker/shared';
 import { GuildContext } from './guildContext.js';
 import { useEngine } from '../hooks/useEngine.js';
 import { useAccount } from '../hooks/useAccount.js';
@@ -29,6 +29,7 @@ export function GuildProvider({ children }) {
           roster: res.roster || [],
           invites: res.invites || [],
           requests: res.requests || [],
+          donation: res.donation || null,
         });
         // promítni bounded perky cechu do enginu (gold/dust/luck; bez dmgPct)
         engine.setGuildPerks(res.guild?.perks || null);
@@ -72,6 +73,30 @@ export function GuildProvider({ children }) {
   }, [joined, busy, engine, refresh]);
 
   const myId = data?.guild?.id || null;
+
+  /* Přilij ZLATO do kasy — server připíše bounded `granted` body (denní strop dle
+     atestované úrovně), zlato strhneme KLIENTSKY až za skutečně připsané body. */
+  const donate = useCallback(async (points) => {
+    if (!joined || busy || !myId) return null;
+    setBusy(true);
+    try {
+      const res = await api.guildDonate(myId, Math.max(0, Math.floor(points || 0)));
+      if (res?.ok && res.granted > 0) {
+        const level = engine.state.level || engine.state.highestLevel || 1;
+        engine.payGuildGold(guildDonationGoldPerPoint(level) * res.granted);
+        await refresh();
+      }
+      return res;
+    } catch (e) {
+      return { ok: false, reason: e?.code || 'fail' };
+    } finally {
+      setBusy(false);
+    }
+  }, [joined, busy, myId, engine, refresh]);
+
+  /* Mistr koupí vylepšení za kasu (žádná lokální měna — kasa žije na serveru). */
+  const buyUpgrade = useCallback((key) => act(() => api.guildUpgrade(myId, key)), [act, myId]);
+
   const invite = useCallback((payload) => act(() => api.guildInvite(myId, payload)), [act, myId]);
   const respondInvite = useCallback((inviteId, accept) => act(() => api.guildInviteRespond(inviteId, accept)), [act]);
   const request = useCallback((guildId) => act(() => api.guildRequest(guildId)), [act]);
@@ -114,6 +139,7 @@ export function GuildProvider({ children }) {
       roster: data?.roster || [],
       invites,
       requests,
+      donation: data?.donation || null,
       isOfficer,
       isMaster: role === 'master',
       // odznak: čekající pozvánka na mě, nebo (pro důstojníka) čekající žádost o vstup
@@ -121,6 +147,8 @@ export function GuildProvider({ children }) {
       busy,
       refresh,
       found,
+      donate,
+      buyUpgrade,
       invite,
       respondInvite,
       request,
@@ -133,7 +161,7 @@ export function GuildProvider({ children }) {
       disband,
       browse,
     };
-  }, [data, busy, refresh, found, invite, respondInvite, request, respondRequest,
+  }, [data, busy, refresh, found, donate, buyUpgrade, invite, respondInvite, request, respondRequest,
     kick, leave, setRole, transfer, setMotd, disband, browse]);
 
   return <GuildContext.Provider value={value}>{children}</GuildContext.Provider>;

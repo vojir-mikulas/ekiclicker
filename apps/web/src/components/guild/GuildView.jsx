@@ -3,7 +3,7 @@
    MOTD, roster s nástroji důstojníků a žádosti o vstup. Identita přežívá sezónu;
    úroveň/perky se počítají per-sezóna (Fáze 4 je naplní — teď default úroveň 1). */
 import { useState, useEffect, useCallback } from 'react';
-import { GUILDS } from '@ekiclicker/shared';
+import { GUILDS, GUILD_UPGRADES, guildUpgradeCost, guildDonationGoldPerPoint } from '@ekiclicker/shared';
 import { useGuild } from '../../hooks/useGuild.js';
 import { useAccount } from '../../hooks/useAccount.js';
 import { useEngine, useEngineSelector, shallowEqual } from '../../hooks/useEngine.js';
@@ -27,6 +27,7 @@ const FEED_TEXT = {
   promote: (a, t) => `⬆️ ${t} → důstojník`,
   demote: (a, t) => `⬇️ ${t} → člen`,
   transfer: (a, t) => `👑 ${t} je nový Mistr`,
+  upgrade: (a) => `⚒️ ${a} vylepšil(a) cech z kasy`,
 };
 function feedText(f) {
   const fn = FEED_TEXT[f.kind];
@@ -232,8 +233,10 @@ function InGuild({ guild, account, onSelectPlayer, onOpenHellevator }) {
               <li><span>🍀 Štěstí</span><b>+{pct(perks.luck)}</b></li>
               {perks.memberSlots > 0 && <li><span>👥 Sloty navíc</span><b>+{perks.memberSlots}</b></li>}
             </ul>
-            <p className="guild-foot">Bonusy rostou s úrovní cechu (max {GUILDS.maxLevel}). Nikdy nezvyšují poškození — jen pohodlí, takže neovlivní obtížnost ani žebříček.</p>
+            <p className="guild-foot">Bonusy = z úrovně cechu (max {GUILDS.maxLevel}) + z vylepšení kasy. Nikdy nezvyšují poškození — jen pohodlí, takže neovlivní obtížnost ani žebříček.</p>
           </div>
+
+          <GuildTreasury guild={guild} />
 
           {guild.isOfficer && <OfficerTools guild={guild} />}
 
@@ -258,6 +261,75 @@ function InGuild({ guild, account, onSelectPlayer, onOpenHellevator }) {
         </div>
       </div>
     </>
+  );
+}
+
+/* ---------- Pokladnice 🏦 — členové přilévají zlato, Mistr kupuje vylepšení ----------
+   Příspěvek je serverem capnutý denním stropem dle ATESTOVANÉ úrovně; zlato se utratí
+   lokálně (klientský sink jako zakládací poplatek). Vylepšení nesou jen bounded perky. */
+const selGoldLevel = (s) => ({ gold: s.gold || 0, level: s.level || s.highestLevel || 1 });
+
+function GuildTreasury({ guild }) {
+  const g = guild.guild;
+  const donation = guild.donation; // { cap, donatedToday, remaining } | null
+  const { gold, level } = useEngineSelector(selGoldLevel, shallowEqual);
+  const upgrades = g.upgrades || {};
+  const treasury = Math.floor(g.treasury || 0);
+
+  const perPoint = guildDonationGoldPerPoint(level);
+  const remaining = donation?.remaining ?? 0;
+  const affordable = Math.floor(gold / perPoint);
+  const donateMax = Math.max(0, Math.min(remaining, affordable));
+  const donateCost = donateMax * perPoint;
+
+  return (
+    <div className="guild-treasury">
+      <div className="guild-section-head">🏦 Pokladnice cechu</div>
+      <div className="guild-treasury-bal"><b>{fmt(treasury)}</b><span>v kase</span></div>
+
+      <div className="guild-donate">
+        <div className="guild-donate-meta">
+          Tvůj denní příspěvek: <b>{donation ? donation.donatedToday : 0}</b> / {donation ? donation.cap : '—'}
+        </div>
+        <button className="primary-btn sm" onClick={() => donateMax > 0 && guild.donate(donateMax)}
+          disabled={guild.busy || donateMax <= 0}
+          title={remaining <= 0 ? 'Dnes už máš denní strop vyčerpaný'
+            : affordable <= 0 ? 'Málo zlata na příspěvek' : 'Přilij zlato do kasy'}>
+          🪙 Přispět{donateMax > 0 ? ` +${donateMax}` : ''}
+        </button>
+        {donateMax > 0
+          ? <span className="guild-donate-cost">za {fmt(donateCost)} 🪙</span>
+          : remaining <= 0
+            ? <span className="guild-donate-cost dim">Denní strop vyčerpán — vrať se zítra.</span>
+            : <span className="guild-donate-cost dim">Potřebuješ aspoň {fmt(perPoint)} 🪙.</span>}
+      </div>
+
+      <div className="guild-upgrades">
+        <div className="guild-section-head sub">⚒️ Vylepšení {guild.isMaster ? '' : '· kupuje Mistr'}</div>
+        <ul className="guild-upgrade-list">
+          {Object.entries(GUILD_UPGRADES).map(([key, u]) => {
+            const cur = Math.max(0, Number(upgrades[key]) || 0);
+            const maxed = cur >= u.max;
+            const cost = maxed ? null : guildUpgradeCost(key, cur);
+            const effect = key === 'slots' ? `+${cur * u.perLevel}` : `+${Math.round(cur * u.perLevel * 100)} %`;
+            const canBuy = guild.isMaster && !maxed && treasury >= cost && !guild.busy;
+            return (
+              <li key={key} className="guild-upgrade-row">
+                <span className="guild-upgrade-name">{u.icon} {u.label}</span>
+                <span className="guild-upgrade-lvl">Lv {cur}/{u.max} · <b>{effect}</b></span>
+                {maxed
+                  ? <span className="guild-upgrade-max">MAX</span>
+                  : guild.isMaster
+                    ? <button className="ghost-btn sm" onClick={() => guild.buyUpgrade(key)} disabled={!canBuy}
+                      title={treasury < cost ? 'Málo v kase' : 'Koupit další úroveň'}>🏦 {fmt(cost)}</button>
+                    : <span className="guild-upgrade-cost dim">🏦 {fmt(cost)}</span>}
+              </li>
+            );
+          })}
+        </ul>
+        <p className="guild-foot">Vylepšení platí Mistr z kasy. Bounded bonusy (zlato/úlomky/štěstí/sloty) — nikdy poškození. Kasa i vylepšení se resetují každou sezónu.</p>
+      </div>
+    </div>
   );
 }
 

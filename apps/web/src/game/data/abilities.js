@@ -120,8 +120,9 @@ export const ABILITY_KEYS = Object.keys(ABILITIES);
 
 /* Odemkne se po dosažení této NEJVYŠŠÍ úrovně (trvalý příznak, přežívá rebirth —
    jako výbava/elixíry/mazlíčci/mřížka). „Velká" brána: aspirační endgame VERB,
-   který cílí přesně na hráče s nejdelším blitzem (hluboká prestiž). Laditelné. */
-export const ABILITIES_CFG = { unlockLevel: 3500 };
+   který cílí přesně na hráče s nejdelším blitzem (hluboká prestiž). Laditelné.
+   cooldownMult škáluje VŠECHNY cooldowny (rituály jsou vzácný burst, ne spam). */
+export const ABILITIES_CFG = { unlockLevel: 3500, cooldownMult: 5 };
 
 /* Identita modifikátorů (žádný rituál aktivní). dmg/gold/weapon/click = ×1,
    critChance = +0. Mirror ELIXIR_IDENTITY. */
@@ -152,11 +153,12 @@ export function abilityValue(id, level) {
   return (a.effect.base + a.effect.perLevel * (level || 0)) * aw.mult;
 }
 
-/* Efektivní cooldown (ms) — základ × cdMult probuzení (vyšší tier = svižnější). */
+/* Efektivní cooldown (ms) — základ × globální cooldownMult × cdMult probuzení
+   (vyšší tier = svižnější). */
 export function abilityCooldown(id, level) {
   const a = ABILITIES[id];
   if (!a) return Infinity;
-  return Math.round(a.cooldownMs * abilityAwakening(id, level).cdMult);
+  return Math.round(a.cooldownMs * ABILITIES_CFG.cooldownMult * abilityAwakening(id, level).cdMult);
 }
 
 /* Cena dalšího levelu (zlato). Roste geometricky → trvalý endgame gold-sink. */
