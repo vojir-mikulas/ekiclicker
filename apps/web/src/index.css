@@ -30,8 +30,36 @@ body{
   overflow-x:hidden;
 }
 
+/* ---------- App shell / 16:9 rám ---------- */
+/* Hra teče od kraje ke kraji obrazovky, ale obsah drží uvnitř rámu o poměru
+   ~16:9 (šířka omezená výškou viewportu), aby se na širokých monitorech
+   nerozplácl. Na mobilu/portrétu se rám chová jako běžně tekoucí stránka. */
+.app-shell{ min-height:100dvh; display:flex; flex-direction:column; }
+.app-frame{
+  flex:1 0 auto; width:100%;
+  max-width:min(100%, calc(100dvh * 16 / 9), 2240px);
+  margin-inline:auto;
+  padding:0 18px 22px;
+  display:flex; flex-direction:column;
+}
+/* tělo pod topbarem: vsazený reklamní rail vlevo + hlavní pohled (1fr).
+   flex:1 → vyplní zbytek rámu pod topbarem; sloupce se táhnou na plnou výšku. */
+.app-body{
+  flex:1 1 auto; min-height:0;
+  display:grid; grid-template-columns:312px minmax(0,1fr); gap:18px;
+  margin-top:8px;
+}
+.app-view{ min-width:0; min-height:0; }
+
+/* Herní pohled vyplní 16:9 rám: aréna + obchod se svisle vystředí jako pás
+   uprostřed. margin:auto → vystředí, ale při přetečení splaskne na 0 (scroll,
+   nic se neořízne). Ostatní pohledy (žebříček, boss…) zůstávají nahoře. */
+.app-body--game .app-view{ display:flex; flex-direction:column; }
+.app-body--game .game{ margin-block:auto; width:100%; }
+.app-body--game .app-rail-inner{ position:static; margin-block:auto; }
+
 /* ---------- Top bar ---------- */
-.topbar{ max-width:1080px; margin:14px auto 0; padding:0 16px; }
+.topbar{ margin:14px 0 0; padding:0; flex:0 0 auto; }
 .topbar-inner{
   display:flex; align-items:center; gap:12px; flex-wrap:wrap;
   background:linear-gradient(180deg, rgba(40,46,64,.9), var(--panel));
@@ -59,29 +87,42 @@ body{
   display:flex; align-items:center; justify-content:center; transition:color .15s, border-color .15s, transform .1s; }
 .topbar-btn:hover{ color:var(--text); border-color:#3a445c; }
 .topbar-btn:active{ transform:translateY(1px); }
+.topbar-btn.active{ color:var(--gold); border-color:var(--gold); background:var(--panel-2); }
 
-/* ---------- Layout ---------- */
-.game{ display:grid; grid-template-columns:1fr 380px; gap:18px; max-width:1080px; margin:8px auto 40px; padding:0 16px; }
-@media (max-width:880px){ .game{grid-template-columns:1fr; gap:12px; margin-top:4px;} }
+/* ---------- Layout (hra: aréna + obchod) ---------- */
+.game{ display:grid; grid-template-columns:minmax(0,1fr) 380px; gap:18px; min-width:0; }
+/* širokoúhlá obrazovka: aréna je výraznější „pódium" vystředěné ve sloupci,
+   s větším Ekim — ať se centrální sloupec nerozplácne prázdnem */
+@media (min-width:1181px){
+  .arena{ max-width:760px; margin-inline:auto; width:100%; }
+  /* Eki škáluje s výškou viewportu → vejde se i na nižší notebooky (768) */
+  .game .photo-wrap{ width:auto; height:clamp(300px, 40vh, 398px); aspect-ratio:280/340; }
+  .game .enemy-name{ font-size:34px; }
+  .game .punch-btn{ font-size:27px; padding:20px 44px; min-width:300px; }
+}
 
-/* ---------- Boční bannery 300×600 ---------- */
-.side-banner{ display:none; position:fixed; top:50%; transform:translateY(-50%);
-  width:300px; height:600px; z-index:40; }
-/* zarovnáno do prázdného místa vedle obsahu (sloupec 1080px), 12px mezera od něj */
-.side-banner--left{ left:max(8px, calc(50vw - 540px - 312px)); }
-.side-banner--right{ right:max(8px, calc(50vw - 540px - 312px)); }
-.side-banner-inner{ width:100%; height:100%; border-radius:14px; overflow:hidden;
-  background:var(--panel); border:1px solid var(--line); box-shadow:0 8px 28px rgba(0,0,0,.28);
-  display:flex; align-items:center; justify-content:center; }
+/* ---------- Vsazený reklamní rail 300×600 ---------- */
+/* order:-1 → rail vlevo (první grid track), i když je v DOM až za hlavním
+   obsahem kvůli přístupnosti. Drží se nahoře (sticky) při scrollu. */
+.app-rail{ order:-1; align-self:stretch; display:flex; justify-content:center; }
+.app-rail-inner{ position:sticky; top:14px; width:300px; height:600px;
+  border-radius:14px; overflow:hidden; background:var(--panel); border:1px solid var(--line);
+  box-shadow:0 8px 28px rgba(0,0,0,.28); display:flex; align-items:center; justify-content:center; }
 .side-banner-iframe{ display:block; width:300px; height:600px; border:0; }
-/* zobraz jen když je dost místa do stran (1080 + 2×312) i na výšku */
-@media (min-width:1720px) and (min-height:680px){ .side-banner{ display:block; } }
+
+/* dost místa na rail jen na širokých displejích — jinak ho schovej a obsah
+   roztáhni přes celou šířku rámu */
+@media (max-width:1180px){
+  .app-body{ grid-template-columns:minmax(0,1fr); }
+  .app-rail{ display:none; }
+}
+@media (max-width:880px){ .game{ grid-template-columns:minmax(0,1fr); gap:12px; } }
 
 /* ---------- Arena ---------- */
 .arena{
   background:var(--panel); border:1px solid var(--line); border-radius:18px; padding:22px 18px 26px;
   display:flex; flex-direction:column; align-items:center; position:relative; overflow:hidden; min-height:540px;
-  transition:box-shadow .3s ease;
+  min-width:0; transition:box-shadow .3s ease;
 }
 /* desktop: aréna (boss) zůstane viditelná, zatímco obchod scrolluje
    (musí být AŽ ZA základním .arena pravidlem, jinak ho position:relative přebije) */
@@ -171,7 +212,7 @@ body{
 @keyframes dmg{ 0%{opacity:0; transform:translate(-50%,-50%) scale(.6);} 20%{opacity:1; transform:translate(-50%,-90%) scale(1.1);} 100%{opacity:0; transform:translate(-50%,-200%) scale(1);} }
 
 /* ---------- Shop ---------- */
-.shop{ display:flex; flex-direction:column; gap:14px; }
+.shop{ display:flex; flex-direction:column; gap:14px; min-width:0; }
 .panel{ background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:14px; }
 .panel h3{ margin:0 0 4px; font-family:'Anton',sans-serif; font-size:16px; letter-spacing:.06em; text-transform:uppercase; }
 .panel .sub{ font-size:11px; color:var(--muted); margin:0 0 10px; }
@@ -285,6 +326,25 @@ body{
 .popup-content img{width:100%; border-radius:10px;}
 .closeBtn{position:absolute; top:8px; right:14px; font-size:28px; font-weight:bold; color:#888; cursor:pointer; background:none; border:none;}
 .closeBtn:hover{color:#fff;}
+
+/* ---------- Utility obrazovky jako vsazené stránky (ne overlay) ---------- */
+/* Stejný obsah jako modal, ale teče v hlavní ploše vedle reklamního railu.
+   Drží si svou max-width (vystředí se), zruší 88vh strop → scrolluje stránka. */
+.modal-page{ width:100%; }
+.modal-page .popup-content.as-page{
+  position:relative; width:100%; margin:0 auto;
+  max-height:none; overflow:visible;
+  box-shadow:0 10px 30px rgba(0,0,0,.28);
+}
+.page-back{
+  display:inline-flex; align-items:center; gap:6px; margin:0 0 16px;
+  padding:9px 14px 9px 11px; border-radius:11px;
+  background:rgba(0,0,0,.22); border:1px solid var(--line); color:var(--muted);
+  font-family:'Inter',sans-serif; font-weight:800; font-size:13px; cursor:pointer;
+  transition:color .15s, border-color .15s, transform .1s;
+}
+.page-back:hover{ color:var(--text); border-color:var(--line-hi); }
+.page-back:active{ transform:translateY(1px); }
 
 /* Načítací overlay (lazy modaly) — okamžitá zpětná vazba po kliknutí. */
 .popup-content.modal-loading{ display:flex; align-items:center; justify-content:center; min-height:140px; max-width:200px; }
@@ -468,11 +528,17 @@ body{
 .board-me-row .rank, .board-me-row .val{ font-family:'Anton',sans-serif; color:var(--gold); }
 
 @media (max-width:880px){
-  .topbar{ margin-top:10px; padding:0 12px; }
+  .app-frame{ padding:0 10px 16px; }
+  .app-body{ margin-top:4px; }
+  .topbar{ margin-top:10px; }
   .topbar-nav{ flex-wrap:wrap; gap:8px; }
-  .topbar-nav-right{ gap:6px; }
+  /* segment přes celou řádku; 5 záložek se rovnoměrně roztáhne a zalomí na
+     druhou řádku, když se nevejdou — nikdy se neschová za scroll */
+  .segmented{ flex:1 1 100%; min-width:0; flex-wrap:wrap; }
+  .segmented .seg{ flex:1 1 auto; padding:8px 10px; font-size:13px; text-align:center; }
+  /* pravá lišta (identita + ikony) na vlastní řádku, ikony se zalomí */
+  .topbar-nav-right{ flex:1 1 100%; flex-wrap:wrap; justify-content:flex-end; gap:6px; }
   .topbar-btn{ width:38px; height:38px; font-size:18px; }
-  .segmented .seg{ padding:8px 12px; font-size:13px; }
   .identity{ max-width:150px; }
   .board{ padding:0 12px 40px; }
   .topbar-inner{ gap:8px; padding:10px; }
@@ -604,6 +670,24 @@ body{
 .new-season .ns-theme b{ color:var(--text); }
 .new-season .ns-theme-perks{ display:block; margin-top:4px; font-size:12px; color:var(--gold); }
 @keyframes nsPop{ 0%{ opacity:0; transform:scale(.7) translateY(8px); } 70%{ transform:scale(1.08); } 100%{ opacity:1; transform:scale(1) translateY(0); } }
+
+/* ---------- Uvítací modal nové funkce (UnlockModal) ---------- */
+.popup-content.unlock-modal{ text-align:center; max-width:420px; overflow:hidden;
+  background:radial-gradient(120% 80% at 50% 0%, rgba(255,210,63,.16), transparent 60%); }
+.unlock-modal .ul-confetti{ font-size:34px; letter-spacing:6px; animation:nsPop .5s ease-out both; }
+.unlock-modal .ul-kicker{ font-size:11px; letter-spacing:.26em; text-transform:uppercase; color:var(--muted); margin-top:4px; }
+.unlock-modal .ul-badge{ font-size:56px; line-height:1; margin:8px 0 2px; filter:drop-shadow(0 4px 14px rgba(255,210,63,.4));
+  animation:nsPop .55s .05s ease-out both; }
+.unlock-modal .ul-title{ font-family:'Anton',sans-serif; color:var(--gold); font-size:34px; line-height:1.05;
+  margin:0 0 2px; text-shadow:0 2px 10px rgba(255,210,63,.35); }
+.unlock-modal .ul-tagline{ color:var(--text); font-size:14px; font-weight:700; margin:0 0 10px; }
+.unlock-modal .ul-desc{ color:var(--muted); font-size:13px; line-height:1.55; margin:0; }
+.unlock-modal .ul-perks{ list-style:none; margin:14px 0 0; padding:10px 12px; border-radius:12px;
+  background:var(--panel-2); border:1px solid var(--line); text-align:left; display:grid; gap:7px; }
+.unlock-modal .ul-perks li{ font-size:13px; color:var(--text); line-height:1.35; }
+.unlock-modal .ul-actions{ display:flex; gap:10px; margin-top:16px; }
+.unlock-modal .ul-actions .primary-btn{ margin-top:0; flex:1; }
+.unlock-modal .ul-actions .ghost-btn{ flex:none; }
 
 @media (max-width:880px){
   .profile-statcol, .profile-ach-grid{ grid-template-columns:1fr; }

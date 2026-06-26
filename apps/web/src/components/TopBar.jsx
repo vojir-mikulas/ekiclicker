@@ -32,7 +32,7 @@ const select = (s) => ({
   hellPasses: s.hell?.passes || 0,
 });
 
-export default function TopBar({ view, onView, onOpenSettings, onOpenJoin, onOpenAccount, onOpenStats, onOpenDaily, onOpenInventory, onOpenPets, onOpenRunes, onOpenMastery, onOpenAlbum, onOpenHellevator }) {
+export default function TopBar({ view, page, onView, onOpenSettings, onOpenJoin, onOpenAccount, onOpenStats, onOpenDaily, onOpenInventory, onOpenPets, onOpenRunes, onOpenMastery, onOpenAlbum, onOpenHellevator }) {
   const { gold, forgiveness, dust, level, click, daily, invUnlocked, chestCount, petsUnlocked, eggCount, equippedPet, petLevel, runesUnlocked, runeCount, masteryUnlocked, masteryPoints, albumNew, hellUnlocked, hellPasses } = useEngineSelector(select, shallowEqual);
   const account = useAccount();
   const wb = useWorldBoss();
@@ -94,15 +94,15 @@ export default function TopBar({ view, onView, onOpenSettings, onOpenJoin, onOpe
           ) : (
             <span className="identity loading">…</span>
           )}
-          <button className="topbar-btn badged" onClick={onOpenDaily} title="Denní úkoly" aria-label="Denní úkoly">
+          <button className={'topbar-btn badged' + (page === 'daily' ? ' active' : '')} onClick={onOpenDaily} title="Denní úkoly" aria-label="Denní úkoly">
             📜{daily > 0 && <span className="topbar-badge">{daily}</span>}
           </button>
-          <button className="topbar-btn badged" onClick={onOpenInventory} title="Výbava / bedny" aria-label="Výbava">
+          <button className={'topbar-btn badged' + (page === 'inventory' ? ' active' : '')} onClick={onOpenInventory} title="Výbava / bedny" aria-label="Výbava">
             🎒{invUnlocked && chestCount > 0 && <span className="topbar-badge">{chestCount}</span>}
           </button>
           {petsUnlocked && (
             <button
-              className="topbar-btn badged"
+              className={'topbar-btn badged' + (page === 'pets' ? ' active' : '')}
               onClick={onOpenPets}
               title={equippedPet ? `${petName(equippedPet)} — ${petBonusLabel(equippedPet, petLevel)}` : 'Mazlíčci / vejce'}
               aria-label="Mazlíčci"
@@ -111,12 +111,12 @@ export default function TopBar({ view, onView, onOpenSettings, onOpenJoin, onOpe
             </button>
           )}
           {runesUnlocked && (
-            <button className="topbar-btn badged" onClick={onOpenRunes} title="Runy & sokety" aria-label="Runy">
+            <button className={'topbar-btn badged' + (page === 'runes' ? ' active' : '')} onClick={onOpenRunes} title="Runy & sokety" aria-label="Runy">
               🔣{runeCount > 0 && <span className="topbar-badge">{runeCount}</span>}
             </button>
           )}
           {masteryUnlocked && (
-            <button className="topbar-btn badged" onClick={onOpenMastery} title="Mistrovská mřížka" aria-label="Mistrovská mřížka">
+            <button className={'topbar-btn badged' + (page === 'mastery' ? ' active' : '')} onClick={onOpenMastery} title="Mistrovská mřížka" aria-label="Mistrovská mřížka">
               🔱{masteryPoints >= 1 && <span className="topbar-badge">{masteryPoints > 99 ? '99+' : Math.floor(masteryPoints)}</span>}
             </button>
           )}
@@ -125,10 +125,10 @@ export default function TopBar({ view, onView, onOpenSettings, onOpenJoin, onOpe
               🛗{hellPasses > 0 && <span className="topbar-badge">{hellPasses}</span>}
             </button>
           )}
-          <button className="topbar-btn badged" onClick={onOpenAlbum} title="Sběratelský deník" aria-label="Sběratelský deník">
+          <button className={'topbar-btn badged' + (page === 'album' ? ' active' : '')} onClick={onOpenAlbum} title="Sběratelský deník" aria-label="Sběratelský deník">
             📖{albumNew > 0 && <span className="topbar-badge">{albumNew}</span>}
           </button>
-          <button className="topbar-btn" onClick={onOpenStats} title="Statistiky" aria-label="Statistiky">📊</button>
+          <button className={'topbar-btn' + (page === 'stats' ? ' active' : '')} onClick={onOpenStats} title="Statistiky" aria-label="Statistiky">📊</button>
           <button className="topbar-btn" onClick={onOpenSettings} title="Nastavení" aria-label="Nastavení">⚙️</button>
         </div>
       </div>

@@ -53,30 +53,6 @@ export default function ToastHost() {
             title: `Otevřeno ${payload.count}× ${CHESTS[payload.tier]?.name || 'bedna'}`,
             sub: parts.join(' • ') || '—',
           });
-        } else if (type === 'unlock' && payload.feature === 'inventory') {
-          push({
-            ico: '🎒',
-            title: 'Odemčena výbava!',
-            sub: 'Z nepřátel teď padají bedny s kořistí 💠 — vystroj se ve Výbavě',
-          });
-        } else if (type === 'unlock' && payload.feature === 'elixirs') {
-          push({
-            ico: '🧪',
-            title: 'Odemčeny elixíry!',
-            sub: 'V Obchodě je nová záložka 🧪 — kup a vypij dočasné buffy',
-          });
-        } else if (type === 'unlock' && payload.feature === 'pets') {
-          push({
-            ico: '🐾',
-            title: 'Odemčeni mazlíčci!',
-            sub: 'Z nepřátel teď padají vejce 🥚 — vylíhni si parťáka',
-          });
-        } else if (type === 'unlock' && payload.feature === 'runes') {
-          push({
-            ico: '🔣',
-            title: 'Odemčeny runy & sokety!',
-            sub: 'Z Archónů padají „Pivní tácky" — vsaď je do výbavy v 🔣 Runách',
-          });
         } else if (type === 'rune' && !payload.crafted) {
           push({
             ico: '🔣',
@@ -84,18 +60,6 @@ export default function ToastHost() {
             sub: payload.full
               ? `Runa se rozpustila na +${fmt(payload.dust)} 💠 — uvolni místo v 🔣 Runách`
               : `${runeName(payload)} (${runeTierName(payload)}) — vsaď ho v 🔣 Runách`,
-          });
-        } else if (type === 'unlock' && payload.feature === 'enchanting') {
-          push({
-            ico: '✨',
-            title: 'Odemčen zaklínací stůl!',
-            sub: 'Ve Výbavě 🎒 zaklej kusy za zlato 💰 — tajemné runy, ještě lepší staty',
-          });
-        } else if (type === 'unlock' && payload.feature === 'mastery') {
-          push({
-            ico: '🔱',
-            title: 'Odemčena Mistrovská mřížka!',
-            sub: 'Úrovně nad 4000 sypou Mistrovské body 🔱 — investuj je do stromu',
           });
         } else if (type === 'enchant') {
           push({

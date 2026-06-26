@@ -35,8 +35,13 @@ export const CONFIG = {
   curveKnee: tune('KNEE', 200),   // „koleno": L, kde růst klesne na půl cesty mezi G0 a floor
   // Zlato je svázané se STEJNOU křivkou: goldGrowth(L) = 1 + goldRatio×(g(L)-1).
   // goldRatio<1 → mírná, ale TRVALÁ brzda (odměna/HP pomalu klesá → zeď existuje
-  // v každé hloubce, žádný coast-to-∞). HLAVNÍ ladicí páka obtížnosti („mid").
-  goldRatio: tune('RATIO', 0.62),
+  // v každé hloubce, žádný coast-to-∞). NASTAVUJE ZEĎ ČERSTVÉHO BĚHU (bez prestige):
+  // 0,62 → čerstvý dojede až ~1289 („1→1200 bez rebirthu"); 0,58 → ~298 (rebirth se
+  // VYŽADUJE brzo). Hypersenzitivní kolem 0,55–0,62 (sweep: 0,55→99, 0,58→298,
+  // 0,60→693, 0,62→1289), ale zeď SATURUJE — i +400 % zlata (album/cech/peklo/sezóna)
+  // posune čerstvou zeď jen 298→~880, NE zpět na 1200 → bezpečně drží „žádný 1→1200".
+  // Páruje se s difficultyExp (níž): goldRatio = základní zeď, exp = rozpětí prestiže.
+  goldRatio: tune('RATIO', 0.58),
   bossEvery: 5, // každá 5. úroveň = boss (Golden Eki)
   megaBossEvery: 25, // každá 25. = mega boss (Eki Král)
   ultraBossEvery: 100, // každá 100. = ultra boss (Eki Titán) — endgame milník
@@ -81,10 +86,20 @@ export const CONFIG = {
   // „burstne" instakillem (vše one-hit). HLAVNÍ páka proti one-hitu ⇄ dosahu:
   //   nižší exp = větší dosah prestiže, ale delší one-hit burst po rebirthu;
   //   vyšší exp = krátký/žádný burst (svižnější tempo), ale menší přínos prestiže.
-  // Laděno simulátorem (blitz tabulka): @0,95 hluboká prestiž one-hitne jen ~300-600 lvl
-  // pak GRIND na ~2300-3200 (whale). Nad ~0,97 se prestiž slévá; @1,0 už škodí (fist se
-  // ve snapshotu přepočítává). 0,95 = „svižné tempo, prestiž pořád odměňuje hloubku".
-  difficultyExp: tune('DEXP', 0.95),
+  // Laděno simulátorem (blitz tabulka, @goldRatio0,58) — exp NASTAVUJE ROZPĚTÍ DOSAHU
+  // PRESTIŽE (čerstvá zeď ~298 je exp-nezávislá; prestiž ji posouvá výš):
+  //   exp | fresh modest strong  deep  whale     (brány: loot1000 elix1500 pets2000
+  //   0,74|  298   872   1774   3111   3264       wpn2400 rune2500 ench3000 mast4000)
+  //   0,78|  298   791   1299   2481   3192   ← čistý žebřík, každý stupeň má reálnou GRIND zónu
+  //   0,82|  298   769    998   1871   3129       po výbuchu (strong<1000 → mine loot bránu)
+  // 0,78 = sweet spot: strong→loot, deep→pets/wpn, whale→ench; žádný stupeň není jen
+  // „burst". Burst je v REÁLNÉM čase rychlý (maxDefeatsPerTick 50×10/s = 500 killů/s →
+  // 2400 lvl ≈ 5 s nárazu síly), pak nastane skutečný GRIND v zóně killS 0,3–8 s.
+  // Nižší exp = větší dosah prestiže ale delší náraz; vyšší = svižnější ale stlačený
+  // žebřík. Páruje se s goldRatio (výš): goldRatio = základní zeď, exp = rozpětí.
+  // (Dřív 0,95 — to ale bylo s goldRatio0,62, kde volná ekonomika „utíkala" na 5000;
+  // při utažené 0,58 zeď saturuje, takže nižší exp už neutíká → koherentní spolu-laděno.)
+  difficultyExp: tune('DEXP', 0.78),
 
   // --- souboj ---
   critChance: 0.1,
