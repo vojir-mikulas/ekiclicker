@@ -3,6 +3,7 @@ import { useAccount } from '../hooks/useAccount.js';
 import { useWorldBoss } from '../hooks/useWorldBoss.js';
 import { useRaid } from '../hooks/useRaid.js';
 import { useGuild } from '../hooks/useGuild.js';
+import { useMailbox } from '../hooks/useMailbox.js';
 import { fmt } from '../game/format.js';
 import { clickDamage } from '../game/formulas.js';
 import { claimableCount } from '../game/data/quests.js';
@@ -25,17 +26,19 @@ const select = (s) => ({
   petLevel: (s.equippedPet && s.pets?.[s.equippedPet]?.level) || 0,
   runesUnlocked: s.runesUnlocked,
   runeCount: (s.runes || []).length,
+  abilitiesUnlocked: s.abilitiesUnlocked,
   masteryUnlocked: s.masteryUnlocked,
   masteryPoints: s.mastery?.points || 0,
   albumNew: s.album?.new || 0,
 });
 
-export default function TopBar({ view, page, onView, onOpenSettings, onOpenJoin, onOpenAccount, onOpenStats, onOpenDaily, onOpenInventory, onOpenPets, onOpenRunes, onOpenMastery, onOpenAlbum }) {
-  const { gold, forgiveness, dust, level, click, daily, invUnlocked, chestCount, petsUnlocked, eggCount, equippedPet, petLevel, runesUnlocked, runeCount, masteryUnlocked, masteryPoints, albumNew } = useEngineSelector(select, shallowEqual);
+export default function TopBar({ view, page, onView, onOpenSettings, onOpenJoin, onOpenAccount, onOpenStats, onOpenDaily, onOpenInventory, onOpenPets, onOpenRunes, onOpenAbilities, onOpenMastery, onOpenAlbum, onOpenMailbox }) {
+  const { gold, forgiveness, dust, level, click, daily, invUnlocked, chestCount, petsUnlocked, eggCount, equippedPet, petLevel, runesUnlocked, runeCount, abilitiesUnlocked, masteryUnlocked, masteryPoints, albumNew } = useEngineSelector(select, shallowEqual);
   const account = useAccount();
   const wb = useWorldBoss();
   const rd = useRaid();
   const gd = useGuild();
+  const mb = useMailbox();
 
   return (
     <div className="topbar">
@@ -113,6 +116,11 @@ export default function TopBar({ view, page, onView, onOpenSettings, onOpenJoin,
               🔣{runeCount > 0 && <span className="topbar-badge">{runeCount}</span>}
             </button>
           )}
+          {abilitiesUnlocked && (
+            <button className={'topbar-btn' + (page === 'abilities' ? ' active' : '')} onClick={onOpenAbilities} title="Bojové rituály" aria-label="Bojové rituály">
+              🌀
+            </button>
+          )}
           {masteryUnlocked && (
             <button className={'topbar-btn badged' + (page === 'mastery' ? ' active' : '')} onClick={onOpenMastery} title="Mistrovská mřížka" aria-label="Mistrovská mřížka">
               🔱{masteryPoints >= 1 && <span className="topbar-badge">{masteryPoints > 99 ? '99+' : Math.floor(masteryPoints)}</span>}
@@ -121,6 +129,11 @@ export default function TopBar({ view, page, onView, onOpenSettings, onOpenJoin,
           <button className={'topbar-btn badged' + (page === 'album' ? ' active' : '')} onClick={onOpenAlbum} title="Sběratelský deník" aria-label="Sběratelský deník">
             📖{albumNew > 0 && <span className="topbar-badge">{albumNew}</span>}
           </button>
+          {account.status === 'joined' && (
+            <button className="topbar-btn badged" onClick={onOpenMailbox} title="Schránka" aria-label="Schránka">
+              📬{mb?.badge > 0 && <span className="topbar-badge alert">{mb.badge > 9 ? '9+' : mb.badge}</span>}
+            </button>
+          )}
           <button className={'topbar-btn' + (page === 'stats' ? ' active' : '')} onClick={onOpenStats} title="Statistiky" aria-label="Statistiky">📊</button>
           <button className="topbar-btn" onClick={onOpenSettings} title="Nastavení" aria-label="Nastavení">⚙️</button>
         </div>

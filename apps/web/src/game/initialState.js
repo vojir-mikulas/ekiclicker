@@ -86,6 +86,12 @@ export function createState() {
     elixir: { active: null, until: 0 },
     elixirStock: {}, // id -> počet koupených
     elixirsUnlocked: false, // odemkne se na ELIXIRS_CFG.unlockLevel = 1500 (přežívá rebirth)
+    // --- bojové rituály 🌀 (active abilities; odemyká se na ABILITIES_CFG.unlockLevel = 3500) ---
+    // levels: id -> koupený level (ZLATO, přežívá rebirth jako zaklínání);
+    // active: id -> until (epoch ms běžícího buffu — přechodné, jako elixir);
+    // cooldowns: id -> readyAt (epoch ms, kdy lze znovu seslat).
+    abilities: { levels: {}, active: {}, cooldowns: {} },
+    abilitiesUnlocked: false, // jednou true → zůstává (přežívá rebirth)
     lucky: null,
     daily: null, // denní úkoly — narolují se při startu/změně dne (engine.refreshDaily)
     // --- pozdní hra: kořist / vybavení (odemyká se na ITEMS.unlockLevel) ---
@@ -115,7 +121,7 @@ export function createState() {
     masteryUnlocked: false,       // jednou true → zůstává (přežívá rebirth)
     mastery: createMastery(),     // { points, nodes } — paragon strom (přežívá rebirth; resetRun ho nechá být)
     // --- sociální: Cech 🛡️ (odemyká se na GUILDS.foundLevel = 888) ---
-    guildUnlocked: false,         // jednou true → zůstává (přežívá rebirth; jen pro uvítací popup — bránu drží atestovaná highestLevel)
+    guildUnlocked: false,         // jednou true → zůstává (přežívá rebirth) — KLIENTSKÁ brána založení + uvítací popup; server gatuje atestovanou highestLevel
     // --- cechovní časový režim: Pekelný výtah 🛗 (přístup gatuje členství v cechu) ---
     hell: { bestFloor: 0, passes: 0, passAt: 0, freeDay: '', lastRunDay: '' }, // rekord + žetony + denní 🔥 bonus (přežívá rebirth, mře sezónou)
     sira: 0,                      // 🔥 Síra — měna z výtahu (přežívá rebirth, mře sezónou)
@@ -139,6 +145,8 @@ export function resetRun(state, startLevel) {
   state.combo = { count: 0, lastClickAt: 0 };
   state.frenzy = { active: false, until: 0, charge: 0 };
   state.elixir = { active: null, until: 0 }; // běžící buff rebirth nepřežije (sklad ano)
+  // bojové rituály: běžící buffy + cooldowny rebirth nepřežijí (koupené LEVELY ano)
+  if (state.abilities) { state.abilities.active = {}; state.abilities.cooldowns = {}; }
   state.lucky = null;
   state.enemy = null;
   state.pendingOpen = null; // přechodná ruleta — rebirth ji nenese

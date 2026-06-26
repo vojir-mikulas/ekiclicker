@@ -46,6 +46,10 @@ export const ELIXIRS = {
     // jako u Špendlíků), o něco nižší — slabší combat špička, zato násobí i zlato.
     desc: '×3 zlato + ×2 poškození', durationMs: 2 * 60_000, baseCost: 9000, goldPct: 0.33,
     effect: { dmg: 2, gold: 3, weapon: 1, click: 1, critChance: 0 },
+    // Jen tak pro radost: dokud běží, obarví celou obrazovku (čistě vizuální
+    // backdrop-filter veil — viz components/ElixirScreenFx.jsx). Žádný dopad na
+    // formulky/obtížnost, jen barvičky.
+    screenFilter: 'saturate(1.6)',
   },
 };
 

@@ -33,6 +33,7 @@ import playersRoutes from './routes/players.js';
 import worldBossRoutes from './routes/worldboss.js';
 import raidsRoutes from './routes/raids.js';
 import guildsRoutes, { meGuildRouter } from './routes/guilds.js';
+import mailboxRoutes from './routes/mailbox.js';
 import eventsRoutes, { initEvents } from './routes/events.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -86,6 +87,7 @@ api.use('/world-boss', worldBossRoutes);
 api.use('/raids', raidsRoutes);
 api.use('/guilds', guildsRoutes);
 api.use('/me/guild', meGuildRouter);
+api.use('/mailbox', mailboxRoutes);
 
 app.use('/api', api);
 

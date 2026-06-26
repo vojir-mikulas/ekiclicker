@@ -10,6 +10,8 @@ import {
   rowToScore, getActiveSeason, getSeasonByNumber,
   leaderboardTopSeason, playerSeasonRank, getPlayerSeasonRow,
 } from '../lib/players.js';
+import { arenaLeaderboardSeason, playerArenaRank } from '../lib/raids.js';
+import { guildHellLeaderboardSeason, playerGuildHellRank } from '../lib/guilds.js';
 
 const router = Router();
 
@@ -36,18 +38,35 @@ router.get('/', optionalPlayer, async (req, res, next) => {
       return res.status(200).json({ board: board.key, season: null, entries: [] });
     }
 
-    const entries = await leaderboardTopSeason(season.id, board, limit);
+    // dispatch dle scope žebříčku: 'arena' (raid_state), 'guild' (guild_season),
+    // jinak default 'season' (season_scores). Tvar výstupu je sjednocený.
+    const scope = board.scope || 'season';
     const out = {
       board: board.key,
       season: { number: season.number, status: season.status },
-      entries,
+      entries: [],
     };
 
-    if (req.player) {
-      const rank = await playerSeasonRank(season.id, req.player.id, board);
-      if (rank != null) {
-        const row = await getPlayerSeasonRow(season.id, req.player.id);
-        out.me = { rank, id: req.player.id, nickname: req.player.nickname, value: rowToScore(row)[board.field] };
+    if (scope === 'arena') {
+      out.entries = await arenaLeaderboardSeason(season.id, limit);
+      if (req.player) {
+        const me = await playerArenaRank(season.id, req.player.id);
+        if (me) out.me = { ...me, id: req.player.id, nickname: req.player.nickname };
+      }
+    } else if (scope === 'guild') {
+      out.entries = await guildHellLeaderboardSeason(season.id, limit);
+      if (req.player) {
+        const me = await playerGuildHellRank(season.id, req.player.id);
+        if (me) out.me = me; // me.id = cech, me.nickname = jméno cechu
+      }
+    } else {
+      out.entries = await leaderboardTopSeason(season.id, board, limit);
+      if (req.player) {
+        const rank = await playerSeasonRank(season.id, req.player.id, board);
+        if (rank != null) {
+          const row = await getPlayerSeasonRow(season.id, req.player.id);
+          out.me = { rank, id: req.player.id, nickname: req.player.nickname, value: rowToScore(row)[board.field] };
+        }
       }
     }
 

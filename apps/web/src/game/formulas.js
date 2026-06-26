@@ -13,6 +13,7 @@ import { albumStats } from './data/album.js';
 import { socketStats } from './data/runes.js';
 import { masteryStats } from './data/mastery.js';
 import { elixirMods } from './data/elixirs.js';
+import { abilityMods } from './data/abilities.js';
 import { hellEnemyAt, hellShopStats } from './data/hellevator.js';
 import { seasonThemeStats } from './data/seasonThemes.js';
 
@@ -84,7 +85,8 @@ export function globalMult(s) {
     ach *
     frenzy *
     gear *
-    elixirMods(s).dmg // 🍸 elixír (burst, NEvstupuje do obtížnosti — jako frenzy)
+    elixirMods(s).dmg * // 🍸 elixír (burst, NEvstupuje do obtížnosti — jako frenzy)
+    abilityMods(s).dmg // 🌀 bojový rituál (Nářez) — taktéž burst mimo obtížnost
   );
 }
 
@@ -92,11 +94,11 @@ export function goldMult(s) {
   const ach = achievementMult(s.achievements).gold;
   const fortune = 1 + (s.upgrades.fortune || 0) * MULT.fortuneGoldPerLevel;
   const gear = 1 + combatStats(s).goldPct;
-  return (1 + s.prestige.greed * MULT.greedPerLevel) * fortune * ach * gear * elixirMods(s).gold; // 🍺 elixír
+  return (1 + s.prestige.greed * MULT.greedPerLevel) * fortune * ach * gear * elixirMods(s).gold * abilityMods(s).gold; // 🍺 elixír + 🌀 Hojnost
 }
 
 export function critChance(s) {
-  return Math.min(0.9, CONFIG.critChance + s.prestige.crit * MULT.critPerLevel + combatStats(s).critChance + elixirMods(s).critChance); // 🐂 elixír
+  return Math.min(0.9, CONFIG.critChance + s.prestige.crit * MULT.critPerLevel + combatStats(s).critChance + elixirMods(s).critChance + abilityMods(s).critChance); // 🐂 elixír + 👁️ Vševidoucí oko
 }
 /* Krit násobič — základ z CONFIG + gold upgrade "Tvrdý dopad" + vybavení. */
 export function critMult(s) {
@@ -155,7 +157,7 @@ export const milestoneMult = (count) =>
 export function weaponShotDamage(s, w) {
   const count = s.weapons[w.id] || 0;
   if (count <= 0) return 0;
-  return w.baseDmg * count * milestoneMult(count) * globalMult(s) * (1 + combatStats(s).weaponPct) * elixirMods(s).weapon; // 🧃 elixír (jen auto-zbraně)
+  return w.baseDmg * count * milestoneMult(count) * globalMult(s) * (1 + combatStats(s).weaponPct) * elixirMods(s).weapon * abilityMods(s).weapon; // 🧃 elixír + 🌀 Přetížení (jen auto-zbraně)
 }
 
 export function weaponDps(s, w) {
@@ -182,7 +184,7 @@ export function basePunch(s) {
 /* Plný úder hráče = základ + % z DPS (upgrade Údernost). Bez kritu/comba. */
 export function clickDamage(s) {
   const fromDps = totalWeaponDps(s) * (s.upgrades.click * MULT.clickFromDpsPerLevel);
-  return (basePunch(s) + fromDps) * elixirMods(s).click; // 🐂 elixír (jen manuální úder, NE stín pěsti)
+  return (basePunch(s) + fromDps) * elixirMods(s).click * abilityMods(s).click; // 🐂 elixír + 🌀 rituál (jen manuální úder, NE stín pěsti)
 }
 
 /* DPS Stínu pěsti (auto-údery z prestige), s očekávaným kritem. */

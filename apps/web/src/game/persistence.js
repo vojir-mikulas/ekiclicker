@@ -82,6 +82,10 @@ export function buildSnapshot(state) {
     elixir: state.elixir,
     elixirStock: state.elixirStock,
     elixirsUnlocked: state.elixirsUnlocked,
+    // bojové rituály 🌀: koupené levely (přežívají rebirth) + běžící buffy/cooldowny
+    // (epoch ms → po reloadu se vypršelé buffy zahodí, viz hydrate). Aditivní.
+    abilities: state.abilities,
+    abilitiesUnlocked: state.abilitiesUnlocked,
     buyAmount: state.buyAmount,
     t: Date.now(),
   };
@@ -163,6 +167,19 @@ export function hydrateState(d) {
     ? { active: d.elixir.active, until: d.elixir.until }
     : { active: null, until: 0 };
   state.elixirsUnlocked = !!d.elixirsUnlocked;
+  // bojové rituály 🌀 (starý save → prázdné). Levely přežívají; běžící buffy jen
+  // pokud nevypršely (epoch ms), cooldowny zachovat (anti reload-reset cooldownu).
+  state.abilitiesUnlocked = !!d.abilitiesUnlocked;
+  if (d.abilities && typeof d.abilities === 'object') {
+    state.abilities.levels = (d.abilities.levels && typeof d.abilities.levels === 'object') ? { ...d.abilities.levels } : {};
+    state.abilities.cooldowns = (d.abilities.cooldowns && typeof d.abilities.cooldowns === 'object') ? { ...d.abilities.cooldowns } : {};
+    const now = Date.now();
+    const act = {};
+    if (d.abilities.active && typeof d.abilities.active === 'object') {
+      for (const id in d.abilities.active) if (d.abilities.active[id] > now) act[id] = d.abilities.active[id];
+    }
+    state.abilities.active = act;
+  }
   state.buyAmount = d.buyAmount || 1;
   return state;
 }

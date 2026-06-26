@@ -1,12 +1,83 @@
 /* Veřejný profil hráče — postup a úspěchy PO SEZÓNÁCH (+ celkový souhrn).
    Data z GET /api/players/:id; názvy úspěchů mapujeme přes lokální ACHIEVEMENTS. */
 import { useState, useEffect, useMemo } from 'react';
-import { SCORE_FIELDS, SCORE_LABELS } from '@ekiclicker/shared';
+import { SCORE_FIELDS, SCORE_LABELS, MAIL } from '@ekiclicker/shared';
 import Modal from './Modal.jsx';
 import { api } from '../../net/api.js';
 import { accountErrorMessage } from '../../net/errors.js';
+import { useAccount } from '../../hooks/useAccount.js';
+import { useGuild } from '../../hooks/useGuild.js';
+import { useMailbox } from '../../hooks/useMailbox.js';
 import { ACHIEVEMENTS, ACHIEVEMENT_COUNT } from '../../game/data/achievements.js';
 import { fmt, fmtDuration } from '../../game/format.js';
+
+const MAIL_REASON = {
+  no_target: 'Hráče nenašel.',
+  self: 'Sám sobě psát nemůžeš. 🙂',
+  rate: 'Posíláš moc zpráv — dej tomu chvíli.',
+  flood: 'Tenhle hráč má od tebe moc nepřečtených zpráv.',
+};
+const INVITE_REASON = {
+  no_target: 'Hráče nenašel.',
+  target_in_guild: 'Hráč už je v cechu.',
+  already_invited: 'Už jsi ho pozval(a).',
+  forbidden: 'Na pozvání nemáš právo.',
+  not_member: 'Nejsi v cechu.',
+};
+
+/* Akce nad cizím profilem: napsat zprávu (schránka) + (pro důstojníka) pozvat do cechu. */
+function ProfileActions({ id, nickname }) {
+  const account = useAccount();
+  const guild = useGuild();
+  const mailbox = useMailbox();
+  const [composing, setComposing] = useState(false);
+  const [body, setBody] = useState('');
+  const [msg, setMsg] = useState('');
+  const [inviteMsg, setInviteMsg] = useState('');
+
+  // jen u CIZÍCH profilů a jen když jsem připojen k žebříčku (schránka/cech je serverová věc)
+  if (!account?.player || account.player.id === id) return null;
+
+  const sendMessage = async (e) => {
+    e.preventDefault();
+    if (!body.trim()) return;
+    setMsg('');
+    const res = await mailbox.send({ recipientId: id, body: body.trim() });
+    if (res?.ok) { setBody(''); setComposing(false); setMsg('✓ Zpráva odeslána.'); }
+    else setMsg(MAIL_REASON[res?.reason] || res?.error || 'Zprávu se nepovedlo odeslat.');
+  };
+
+  const invite = async () => {
+    setInviteMsg('');
+    const res = await guild.invite({ playerId: id });
+    setInviteMsg(res?.ok ? '✓ Pozvánka do cechu odeslána.' : (INVITE_REASON[res?.reason] || 'Pozvánku se nepovedlo odeslat.'));
+  };
+
+  return (
+    <div className="profile-actions">
+      <div className="profile-action-row">
+        <button className="ghost-btn sm" onClick={() => { setComposing((c) => !c); setMsg(''); }}>
+          {composing ? '✕ Zavřít' : '✉️ Napsat zprávu'}
+        </button>
+        {guild?.isOfficer && (
+          <button className="ghost-btn sm" onClick={invite} disabled={guild.busy}>🛡️ Pozvat do cechu</button>
+        )}
+      </div>
+      {inviteMsg && <p className="profile-action-msg">{inviteMsg}</p>}
+      {composing && (
+        <form className="mail-compose" onSubmit={sendMessage}>
+          <textarea className="text-input mail-body-input" value={body} maxLength={MAIL.bodyMax} rows={3}
+            onChange={(e) => { setBody(e.target.value); setMsg(''); }} placeholder={`Zpráva pro ${nickname}…`} />
+          <div className="mail-compose-foot">
+            <span className="mail-count">{body.length}/{MAIL.bodyMax}</span>
+            <button className="primary-btn sm" type="submit" disabled={mailbox.busy || !body.trim()}>Odeslat</button>
+          </div>
+        </form>
+      )}
+      {msg && <p className="profile-action-msg">{msg}</p>}
+    </div>
+  );
+}
 
 function formatValue(field, value) {
   if (field === 'playTimeMs') return fmtDuration((value || 0) / 1000);
@@ -100,6 +171,8 @@ export default function PlayerProfile({ id, onClose }) {
               Hráč od {new Date(data.createdAt).toLocaleDateString('cs')} · {data.rebirths} rebirthů
             </span>
           </div>
+
+          <ProfileActions id={id} nickname={data.nickname} />
 
           {medals.length > 0 && (
             <div className="profile-medals">

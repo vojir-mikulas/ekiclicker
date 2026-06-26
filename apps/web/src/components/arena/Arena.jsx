@@ -10,6 +10,7 @@ import BossTimer from './BossTimer.jsx';
 import ComboMeter from './ComboMeter.jsx';
 import FrenzyBar from './FrenzyBar.jsx';
 import LuckyEki from './LuckyEki.jsx';
+import AbilityBar from './AbilityBar.jsx';
 
 const selectGain = (s) => forgivenessGain(s.highestLevel);
 // Obtížnost (HP Ekiů) i prestige síla jsou v rámci běhu konstantní — mění se až
@@ -44,13 +45,19 @@ export default function Arena({ onOpenRebirth }) {
       <ComboMeter />
       <FrenzyBar />
       <HpBar />
-      <BossTimer />
+      {/* Slot drží výšku 16px i bez bosse → fotka/tlačítko neposkočí pokaždé,
+          když boss (a jeho časovač) přibude nebo zmizí. */}
+      <div className="boss-timer-slot">
+        <BossTimer />
+      </div>
 
       <div className="photo-wrap" ref={(el) => (fxRefs.photoWrap = el)} onPointerDown={punch}>
         <EnemyView />
       </div>
 
       <LuckyEki />
+
+      <AbilityBar />
 
       <button
         className="punch-btn"

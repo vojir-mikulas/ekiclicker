@@ -5,7 +5,7 @@ import { useEngineSelector, shallowEqual } from '../../hooks/useEngine.js';
 import { fmt } from '../../game/format.js';
 import Modal from './Modal.jsx';
 
-const select = (s) => ({ level: s.highestLevel || 1, dust: Math.floor(s.dust || 0) });
+const select = (s) => ({ founded: !!s.guildUnlocked, level: s.highestLevel || 1, dust: Math.floor(s.dust || 0) });
 
 const REASON = {
   fee: 'Nemáš dost úlomků 💠 na založení.',
@@ -20,14 +20,14 @@ const REASON = {
 /* Založení cechu — jméno + [TAG], gate úrovně + sink úlomků (klientský). */
 export default function FoundGuildModal({ onClose }) {
   const guild = useGuild();
-  const { level, dust } = useEngineSelector(select, shallowEqual);
+  const { founded, level, dust } = useEngineSelector(select, shallowEqual);
   const [name, setName] = useState('');
   const [tag, setTag] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
   const canAfford = dust >= GUILDS.foundFeeDust;
-  const highEnough = level >= GUILDS.foundLevel;
+  const highEnough = founded; // trvalý odznak odemčení (přežívá rebirth), ne živá úroveň
 
   const submit = async (e) => {
     e.preventDefault();

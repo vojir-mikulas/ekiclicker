@@ -96,9 +96,10 @@ async function recordFeed(client, guildId, kind, actorId, targetId = null) {
 export async function recomputeGuildSeason(seasonId, guildId, nowMs = Date.now()) {
   const { rows } = await query(
     `select gm.player_id,
-            coalesce(ss.highest_level, 1) as highest_level,
-            coalesce(ss.peak_dps, 0)      as peak_dps,
-            coalesce(bd.dmg, 0)           as boss_damage
+            coalesce(ss.highest_level, 1)   as highest_level,
+            coalesce(ss.peak_dps, 0)        as peak_dps,
+            coalesce(ss.hell_best_floor, 0) as hell_best_floor,
+            coalesce(bd.dmg, 0)             as boss_damage
        from guild_members gm
        left join season_scores ss on ss.season_id = $1 and ss.player_id = gm.player_id
        left join (
@@ -113,23 +114,26 @@ export async function recomputeGuildSeason(seasonId, guildId, nowMs = Date.now()
 
   let totalContribution = 0;
   let totalBossDamage = 0;
+  let totalHellFloors = 0; // KOLEKTIVNÍ postup cechu výtahem = součet rekordů členů
   const perMember = rows.map((r) => {
     const bossDmg = Number(r.boss_damage) || 0;
     const bossW = bossDmg > 0 ? Math.min(2, Math.log10(bossDmg + 1) / 3) : 0; // bounded boss term
     const c = guildLevelWeight(r.highest_level) + guildDpsWeight(r.peak_dps) + bossW;
     totalContribution += c;
     totalBossDamage += bossDmg;
+    totalHellFloors += Number(r.hell_best_floor) || 0;
     return { playerId: r.player_id, contribution: c };
   });
   const level = guildLevelForContribution(totalContribution);
 
   await query(
-    `insert into guild_season (season_id, guild_id, contribution, level, boss_damage, updated_at)
-     values ($1, $2, $3, $4, $5, $6)
+    `insert into guild_season (season_id, guild_id, contribution, level, boss_damage, hell_floors, updated_at)
+     values ($1, $2, $3, $4, $5, $6, $7)
      on conflict (season_id, guild_id) do update
        set contribution = excluded.contribution, level = excluded.level,
-           boss_damage = excluded.boss_damage, updated_at = excluded.updated_at`,
-    [seasonId, guildId, totalContribution, level, totalBossDamage, new Date(nowMs)],
+           boss_damage = excluded.boss_damage, hell_floors = excluded.hell_floors,
+           updated_at = excluded.updated_at`,
+    [seasonId, guildId, totalContribution, level, totalBossDamage, totalHellFloors, new Date(nowMs)],
   );
   for (const m of perMember) {
     await query(
@@ -394,6 +398,55 @@ export async function guildLeaderboard(limit = 50, seasonId = null) {
 }
 
 /* =========================================================================
+   ŽEBŘÍČEK PEKELNÉHO VÝTAHU — KOLEKTIVNÍ (pro hlavní žebříčkovou sekci, scope='guild').
+   Řadí AKTIVNÍ cechy dle guild_season.hell_floors = SOUČET rekordů (hell_best_floor)
+   členů → „kolektivní postup cechu". Tvar řádku sjednocen s ostatními žebříčky
+   (id = cech, nickname = jméno cechu, tag = [TAG], value = patra) → stejná tabulka.
+   ========================================================================= */
+export async function guildHellLeaderboardSeason(seasonId, limit) {
+  const lim = Math.min(100, Math.max(1, Number(limit) || 50));
+  const { rows } = await query(
+    `select g.id, g.name, g.tag,
+            coalesce(gs.hell_floors, 0) as hell_floors,
+            (select count(*)::int from guild_members gm where gm.guild_id = g.id) as members
+       from guilds g
+       left join guild_season gs on gs.season_id = $1 and gs.guild_id = g.id
+      where g.disbanded_at is null and coalesce(gs.hell_floors, 0) > 0
+      order by gs.hell_floors desc nulls last, members desc, g.founded_at asc
+      limit $2`,
+    [seasonId, lim],
+  );
+  return rows.map((r, i) => ({
+    rank: i + 1, id: r.id, nickname: r.name, tag: r.tag,
+    value: Number(r.hell_floors) || 0, memberCount: r.members,
+  }));
+}
+
+/* Kolektivní patra cechu hráče + jeho rank v žebříčku výtahu dané sezóny.
+   null když hráč není v cechu nebo cech nemá záznam (0 pater). */
+export async function playerGuildHellRank(seasonId, playerId) {
+  const guildId = await guildIdOf(playerId);
+  if (!guildId) return null;
+  const { rows } = await query(
+    `with me as (
+       select g.name, g.tag, coalesce(gs.hell_floors, 0) as hf
+         from guilds g
+         left join guild_season gs on gs.season_id = $1 and gs.guild_id = g.id
+        where g.id = $2 and g.disbanded_at is null
+     )
+     select (select name from me) as name, (select tag from me) as tag,
+            (select hf from me) as value,
+            case when (select hf from me) is null or (select hf from me) <= 0 then null
+                 else 1 + (select count(*)::int from guild_season
+                            where season_id = $1 and hell_floors > (select hf from me)) end as rank`,
+    [seasonId, guildId],
+  );
+  const r = rows[0];
+  if (!r || r.rank == null) return null;
+  return { rank: r.rank, id: guildId, nickname: r.name, tag: r.tag, value: Number(r.value) || 0 };
+}
+
+/* =========================================================================
    POZVÁNKY / ŽÁDOSTI / VSTUP
    ========================================================================= */
 
@@ -443,16 +496,34 @@ export async function invite(guildId, byPlayerId, targetPlayerId) {
   const exists = await query('select 1 from players where id = $1', [targetPlayerId]);
   if (!exists.rows[0]) return { ok: false, reason: 'no_target' };
 
+  let inviteId;
   try {
-    await query(
+    const ins = await query(
       `insert into guild_invites (guild_id, player_id, kind, created_by)
-       values ($1, $2, 'invite', $3)`,
+       values ($1, $2, 'invite', $3) returning id`,
       [guildId, targetPlayerId, byPlayerId],
     );
+    inviteId = ins.rows[0].id;
   } catch (err) {
     if (err.code === '23505') return { ok: false, reason: 'already_invited' };
     throw err;
   }
+
+  // doruč pozvánku i do SCHRÁNKY jako akční zprávu (přijmout/odmítnout). Best-effort —
+  // selhání zápisu schránky nesmí shodit pozvánku (záložka cechu ji ukáže i tak).
+  try {
+    const g = (await query('select name, tag from guilds where id = $1', [guildId])).rows[0];
+    if (g) {
+      await query(
+        `insert into mail (recipient_id, sender_id, kind, subject, payload)
+         values ($1, $2, 'guild_invite', $3, $4::jsonb)`,
+        [
+          targetPlayerId, byPlayerId, `Pozvánka do cechu [${g.tag}] ${g.name}`,
+          JSON.stringify({ inviteId, guildId, guildName: g.name, guildTag: g.tag }),
+        ],
+      );
+    }
+  } catch { /* best-effort — pozvánka platí i bez zrcadla ve schránce */ }
   return { ok: true };
 }
 

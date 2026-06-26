@@ -8,8 +8,10 @@ import { BoardSkeleton } from './Skeletons.jsx';
 
 const POLL_MS = 15_000; // jak často se otevřený žebříček sám obnoví
 
-function formatValue(field, value) {
-  if (field === 'playTimeMs') return fmtDuration((value || 0) / 1000);
+function formatValue(board, value) {
+  if (board.field === 'playTimeMs') return fmtDuration((value || 0) / 1000);
+  // aréna (rating) i výtah (patra) jsou malá celá čísla → bez K/M zkratek
+  if (board.scope === 'arena' || board.scope === 'guild') return (value || 0).toLocaleString('cs-CZ');
   return fmt(value || 0);
 }
 
@@ -65,9 +67,13 @@ export default function Leaderboard({ onJoin, season, active, onSelectPlayer }) 
     loadRef.current({ background: true });
   }, [syncTick]);
 
-  const myId = account.player?.id;
   const entries = data?.entries || [];
-  const selectPlayer = (id) => { if (id && onSelectPlayer) onSelectPlayer(id); };
+  // guild scope = řádky jsou CECHY (ne hráči) → neproklikávají na profil hráče.
+  const rowsArePlayers = board.scope !== 'guild';
+  // koho zvýraznit / odečíst z me-řádku: hráč (player.id) nebo můj cech (data.me.id).
+  const meId = data?.me?.id ?? (rowsArePlayers ? account.player?.id : null);
+  const meSuffix = board.scope === 'guild' ? '(tvůj cech)' : '(ty)';
+  const selectPlayer = (id) => { if (id && rowsArePlayers && onSelectPlayer) onSelectPlayer(id); };
 
   return (
     <div className="board">
@@ -111,29 +117,32 @@ export default function Leaderboard({ onJoin, season, active, onSelectPlayer }) 
       {!loading && !error && entries.length > 0 && (
         <table className="board-table">
           <thead>
-            <tr><th>#</th><th>Hráč</th><th>{board.label}</th></tr>
+            <tr><th>#</th><th>{rowsArePlayers ? 'Hráč' : 'Cech'}</th><th>{board.valueLabel || board.label}</th></tr>
           </thead>
           <tbody>
             {entries.map((row) => (
               <tr
                 key={row.id || row.rank}
-                className={(myId && row.id === myId ? 'me' : '') + (row.id ? ' clickable' : '')}
+                className={(meId && row.id === meId ? 'me' : '') + (row.id && rowsArePlayers ? ' clickable' : '')}
                 onClick={() => selectPlayer(row.id)}
               >
                 <td className="rank">{medal(row.rank) || row.rank}</td>
                 <td className="nick">{row.tag && <span className="guild-tag">[{row.tag}]</span>}{row.nickname}</td>
-                <td className="val">{formatValue(board.field, row.value)}</td>
+                <td className="val">{formatValue(board, row.value)}</td>
               </tr>
             ))}
           </tbody>
         </table>
       )}
 
-      {!loading && data?.me && !entries.some((e) => e.id === myId) && (
-        <div className="board-me-row clickable" onClick={() => selectPlayer(myId)}>
+      {!loading && data?.me && !entries.some((e) => e.id === meId) && (
+        <div
+          className={'board-me-row' + (rowsArePlayers ? ' clickable' : '')}
+          onClick={() => selectPlayer(meId)}
+        >
           <span className="rank">#{data.me.rank}</span>
-          <span className="nick">{data.me.nickname} (ty)</span>
-          <span className="val">{formatValue(board.field, data.me.value)}</span>
+          <span className="nick">{data.me.nickname} {meSuffix}</span>
+          <span className="val">{formatValue(board, data.me.value)}</span>
         </div>
       )}
     </div>

@@ -19,6 +19,7 @@ const FIELD_TO_COLUMN = {
   playTimeMs: 'play_time_ms',
   achievements: 'achievements',
   peakDps: 'peak_dps',
+  hellBestFloor: 'hell_best_floor',
 };
 
 /* numeric sloupce čteme přes Number() (pg vrací numeric jako string). */

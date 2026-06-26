@@ -12,6 +12,9 @@ import { fmt } from '../../game/format.js';
 import GuildProfile from './GuildProfile.jsx';
 
 const selectLevel = (s) => s.highestLevel || 1;
+// Založení gatuje TRVALÝ odznak odemčení (jako výbava/mazlíčci) — odpálí se při dosažení
+// foundLevel a přežívá rebirth; živá highestLevel se rebirthem resetuje, takže ji použít nelze.
+const selectFounded = (s) => !!s.guildUnlocked;
 const pct = (x) => `${Math.round((x || 0) * 100)} %`;
 const roleBadge = (role) => (role === 'master' ? '👑 Mistr' : role === 'officer' ? '🎖️ Důstojník' : 'Člen');
 
@@ -43,6 +46,7 @@ export default function GuildView({ onJoin, onSelectPlayer, onFound, onOpenHelle
   const guild = useGuild();
   const account = useAccount();
   const myLevel = useEngineSelector(selectLevel);
+  const founded = useEngineSelector(selectFounded);
 
   if (account.status === 'local') {
     return (
@@ -60,19 +64,19 @@ export default function GuildView({ onJoin, onSelectPlayer, onFound, onOpenHelle
     <div className="guild-page">
       {guild.guild
         ? <InGuild guild={guild} myLevel={myLevel} account={account} onSelectPlayer={onSelectPlayer} onOpenHellevator={onOpenHellevator} />
-        : <NoGuild guild={guild} myLevel={myLevel} onFound={onFound} onSelectPlayer={onSelectPlayer} />}
+        : <NoGuild guild={guild} myLevel={myLevel} founded={founded} onFound={onFound} onSelectPlayer={onSelectPlayer} />}
     </div>
   );
 }
 
 /* ---------- bez cechu: pozvánky + prohlížeč + CTA Založit ---------- */
-function NoGuild({ guild, myLevel, onFound, onSelectPlayer }) {
+function NoGuild({ guild, myLevel, founded, onFound, onSelectPlayer }) {
   const [list, setList] = useState(null);
   const [q, setQ] = useState('');
   const [requested, setRequested] = useState(() => new Set());
   const [viewId, setViewId] = useState(null); // otevřený detail cechu
   const canJoin = myLevel >= GUILDS.joinLevel;
-  const canFound = myLevel >= GUILDS.foundLevel;
+  const canFound = founded; // trvalé odemčení na foundLevel (přežívá rebirth), ne živá úroveň
 
   const load = useCallback(async () => { setList(await guild.browse()); }, [guild]);
   useEffect(() => { void load(); }, [load]);

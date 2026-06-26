@@ -153,7 +153,7 @@ export const CONFIG = {
   // se rozvlní + balík BOUNDED odměn (zlato/💠/🕊/zuřivost) → žádný dmgPct, žádný
   // vliv na snapshot obtížnosti (drží anti-blitz filozofii jako Lucky/album/runy).
   tripMinLevel: 2000,        // objeví se až od této úrovně (endgame překvapení)
-  tripSpawnChance: 0.01,     // ~1 % nebossových spawnů v hloubce
+  tripSpawnChance: 0.0015,   // ~0,15 % nebossových spawnů v hloubce
   tripGoldDpsSeconds: 120,   // zlatý balík ≥ 120 s aktuálního DPS…
   tripGoldRewardMult: 8,     // …nebo 8× vlastní odměna varianty (co je víc)
   tripDustPerLevel: 0.5,     // 💠 úlomky = level × 0,5 × dustMult

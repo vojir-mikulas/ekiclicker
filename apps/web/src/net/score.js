@@ -10,5 +10,6 @@ export function buildScore(state) {
     playTimeMs: state.stats.playTimeMs,
     achievements: Object.keys(state.achievements).length,
     peakDps: state.stats.peakDps || 0,
+    hellBestFloor: state.hell?.bestFloor || 0, // rekord hloubky výtahu (kolektivní cechový žebříček)
   };
 }

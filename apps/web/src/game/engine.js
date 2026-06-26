@@ -39,6 +39,10 @@ import { RUNES_CFG, rollRune, mintRune, socketCount, canFuse } from './data/rune
 import { ALBUM, discoveredCount, albumKeyForItem } from './data/album.js';
 import { ELIXIRS, elixirCostAt, ELIXIRS_CFG } from './data/elixirs.js';
 import {
+  ABILITIES, ABILITIES_CFG, abilityCost, abilityCooldown, abilityValue,
+  abilityTier, abilityAwakening,
+} from './data/abilities.js';
+import {
   ENCHANTS_CFG, canEnchant, rollEnchantOffers, applyOffer, rerollOffersCost,
 } from './data/enchants.js';
 import { MASTERY, NODE_BY_ID, TREE_BY_NODE, pointsInTree, masteryRemaining } from './data/mastery.js';
@@ -215,14 +219,16 @@ export class Engine {
     this.checkPetsUnlock();
     this.checkRunesUnlock();
     this.checkEnchantingUnlock();
+    this.checkAbilitiesUnlock();
     this.checkMasteryUnlock();
     this.checkGuildUnlock();
   }
 
-  /* Cech 🛡️ se odemkne po DOSAŽENÍ GUILDS.foundLevel (atestovaná nejvyšší úroveň).
-     Příznak je trvalý → jednou odemčeno, zůstává (přežívá rebirth i sezónu). Samotnou
-     bránu pro založení drží highestLevel ≥ foundLevel (klient i server) — tohle jen
-     odpálí jednorázový uvítací popup. */
+  /* Cech 🛡️ se odemkne po DOSAŽENÍ GUILDS.foundLevel (nejvyšší úroveň). Příznak je
+     trvalý jako u ostatních pozdních funkcí → jednou odemčeno, zůstává (přežívá rebirth;
+     sezónu nepřežívá — hardReset ho vynuluje). Drží KLIENTSKOU bránu založení (živá
+     highestLevel se rebirthem resetuje, proto na ni nelze gateovat) i jednorázový uvítací
+     popup. Server gatuje nezávisle atestovanou (monotonní all-time) highestLevel ≥ foundLevel. */
   checkGuildUnlock() {
     const s = this.state;
     if (!s.guildUnlocked && s.highestLevel >= GUILDS.foundLevel) {
@@ -272,6 +278,16 @@ export class Engine {
     if (!s.elixirsUnlocked && s.highestLevel >= ELIXIRS_CFG.unlockLevel) {
       s.elixirsUnlocked = true;
       this.emit('unlock', { feature: 'elixirs' });
+    }
+  }
+
+  /* Bojové rituály 🌀 se odemknou po dosažení ABILITIES_CFG.unlockLevel (nejvyšší
+     úroveň). Trvalý příznak — stejně jako výbava/elixíry/mazlíčci/mřížka. */
+  checkAbilitiesUnlock() {
+    const s = this.state;
+    if (!s.abilitiesUnlocked && s.highestLevel >= ABILITIES_CFG.unlockLevel) {
+      s.abilitiesUnlocked = true;
+      this.emit('unlock', { feature: 'abilities' });
     }
   }
 
@@ -1086,6 +1102,59 @@ export class Engine {
     this.afterInventory(); // save + notify
   }
 
+  /* ---------- bojové rituály 🌀 (active abilities) ---------- */
+  /* Kup LEVEL rituálu za ZLATO (hromadně dle buyAmount). Level přežívá rebirth
+     (trvalý gold-sink jako zaklínání). Překročení prahu probuzení → 'awaken'. */
+  levelAbility(id) {
+    const s = this.state;
+    const def = ABILITIES[id];
+    if (!s.abilitiesUnlocked || !def) return;
+    const before = s.abilities.levels[id] || 0;
+    const cap = def.maxLevel - before;
+    const batch = buyBatch((i) => abilityCost(id, before + i), s.gold, s.buyAmount, cap);
+    if (batch.count <= 0 || s.gold < batch.cost) return;
+    s.gold -= batch.cost;
+    const after = before + batch.count;
+    s.abilities.levels[id] = after;
+    if (abilityTier(id, after) > abilityTier(id, before)) {
+      const aw = abilityAwakening(id, after);
+      this.emit('awaken', { id, name: aw.name, emoji: aw.emoji, tier: abilityTier(id, after) });
+    }
+    this.afterBuy();
+  }
+
+  /* Sešli rituál (odemčeno + koupený ≥1 + mimo cooldown). Efekt je čistý BURST
+     (jako zuřivost/elixír) → mimo difficultyScale, žádný anti-blitz dopad.
+       buff   → nastav běžící buff (abilityMods ho čtou; tick ho nech vypršet),
+       nuke   → okamžitý zásah = totalDps × N s (BEZ _recordDmg → nenafoukne
+                atestovaný peakDps, stejně jako Pekelný výtah),
+       frenzy → spusť & prodluž zuřivost. */
+  castAbility(id) {
+    const s = this.state;
+    const def = ABILITIES[id];
+    if (!s.abilitiesUnlocked || !def) return;
+    const level = s.abilities.levels[id] || 0;
+    if (level < 1) return;                                  // nekoupený rituál nejde seslat
+    const now = Date.now();
+    if ((s.abilities.cooldowns[id] || 0) > now) return;     // ještě se nabíjí
+    s.abilities.cooldowns[id] = now + abilityCooldown(id, level);
+    if (def.kind === 'buff') {
+      s.abilities.active[id] = now + def.durationMs;
+    } else if (def.kind === 'nuke') {
+      const e = s.enemy;
+      const dmg = totalDps(s) * abilityValue(id, level);
+      if (e && dmg > 0) {
+        if (dmg >= e.hp) { e.hp = 0; this.defeat(); } else e.hp -= dmg; // mimo _recordDmg (anti peakDps)
+      }
+    } else if (def.kind === 'frenzy') {
+      this.startFrenzy(performance.now());
+      s.frenzy.until += abilityValue(id, level);            // bonus ms navíc k základu
+    }
+    const aw = abilityAwakening(id, level);
+    this.emit('ability', { id, name: aw.name, emoji: aw.emoji, kind: def.kind });
+    this.afterInventory(); // save + notify
+  }
+
   /* ====================================================================
      PEKELNÝ VÝTAH 🛗 — vlastní mini-engine 60s sprintu (oddělený od arény:
      jiný spawn, vlastní hodiny, žádné bedny/loot z normálních zabití). Sdílí ale
@@ -1615,6 +1684,16 @@ export class Engine {
     if (s.elixir.active && Date.now() >= s.elixir.until) {
       s.elixir.active = null;
       this.emit('elixir', { active: null });
+    }
+
+    // bojové rituály: vyprší běžící buffy (wall-clock; klíč v active = právě
+    // aktivní, abilityMods je čtou). Smaž vypršelé → formulky se vrátí na identitu.
+    const ab = s.abilities;
+    if (ab && ab.active) {
+      const nowA = Date.now();
+      for (const id in ab.active) {
+        if (nowA >= ab.active[id]) { delete ab.active[id]; this.emit('ability', { id, expired: true }); }
+      }
     }
 
     // Pekelný výtah 🛗 — běh má vlastní hodiny + spawn (oddělený od arény níž)

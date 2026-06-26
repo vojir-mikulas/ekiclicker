@@ -195,10 +195,12 @@ function EquipSlot({ slot, item, dust, onUnequip, onReroll, onUpgrade, enchantUn
           >
             <SetBadge item={item} />
             <ItemIcon item={item} />
-            <div className="inv-name">{itemName(item)}</div>
-            <RarityLine item={item} />
-            <Affixes item={item} />
-            <EnchantLines item={item} />
+            <div className="equip-item-info">
+              <div className="inv-name">{itemName(item)}</div>
+              <RarityLine item={item} />
+              <Affixes item={item} />
+              <EnchantLines item={item} />
+            </div>
           </div>
           <ForgeBar item={item} dust={dust} onReroll={onReroll} onUpgrade={onUpgrade} enchantUnlocked={enchantUnlocked} onEnchant={onEnchant} />
         </>
@@ -463,7 +465,11 @@ function InventoryGrid({ inv, dust, engine }) {
         />
       )}
       {inv.length === 0 ? (
-        <p className="inv-empty">Zatím žádná kořist — poraz nepřátele (hlavně bosse) a kusy začnou padat.</p>
+        <div className="inv-empty">
+          <div className="inv-empty-ico">🎁</div>
+          <p>Zatím žádná kořist — poraz nepřátele (hlavně bosse) a kusy začnou padat.</p>
+          <p className="inv-empty-sub">Otevři bedny vlevo nebo vykovej kus z úlomků 💠.</p>
+        </div>
       ) : (
         <div className="inv-grid">
           {inv.map((item) => (

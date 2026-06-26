@@ -23,6 +23,7 @@ export const SCORE_FIELDS = [
   'playTimeMs',
   'achievements',
   'peakDps',
+  'hellBestFloor',
 ];
 
 /* Lidsky čitelné popisky (UI). */
@@ -36,15 +37,23 @@ export const SCORE_LABELS = {
   playTimeMs: 'Čas hraní',
   achievements: 'Úspěchy',
   peakDps: 'Špičkové DPS',
+  hellBestFloor: 'Pekelný výtah',
 };
 
-/* ---------- definice žebříčků (záložky) ---------- */
+/* ---------- definice žebříčků (záložky) ----------
+   `scope` rozlišuje ZDROJ řádků (server route podle něj dispatchuje):
+     • 'season' (default) — hráči dle sezónního sloupce v season_scores.
+     • 'arena'            — hráči dle Elo ratingu v raid_state (server-autoritativní).
+     • 'guild'            — CECHY dle kolektivního agregátu v guild_season.
+   `valueLabel` = volitelný nadpis hodnotového sloupce (default = label). */
 export const LEADERBOARD_BOARDS = [
-  { key: 'level', field: 'highestLevel', label: 'Úroveň' },
-  { key: 'gold', field: 'totalGold', label: 'Zlato' },
-  { key: 'rebirths', field: 'rebirths', label: 'Rebirthy' },
-  { key: 'kills', field: 'kills', label: 'Zabití' },
-  { key: 'dps', field: 'peakDps', label: 'Špičkové DPS' },
+  { key: 'level', field: 'highestLevel', label: 'Úroveň', scope: 'season' },
+  { key: 'gold', field: 'totalGold', label: 'Zlato', scope: 'season' },
+  { key: 'rebirths', field: 'rebirths', label: 'Rebirthy', scope: 'season' },
+  { key: 'kills', field: 'kills', label: 'Zabití', scope: 'season' },
+  { key: 'dps', field: 'peakDps', label: 'Špičkové DPS', scope: 'season' },
+  { key: 'arena', field: 'rating', label: 'Aréna', valueLabel: 'Rating', scope: 'arena' },
+  { key: 'hell', field: 'hellFloors', label: 'Výtah 🛗', valueLabel: 'Pater', scope: 'guild' },
 ];
 
 export const DEFAULT_BOARD = 'level';
@@ -296,7 +305,10 @@ export function sanitizeScore(raw) {
   if (!raw || typeof raw !== 'object') return { ok: false, error: 'Chybí data skóre.' };
   const value = {};
   for (const f of SCORE_FIELDS) {
-    const n = Number(raw[f]);
+    // Chybějící pole → 0 (forward/backward kompatibilita: starší klient nemusí
+    // posílat nově přidané pole; monotonní GREATEST zachová dosavadní hodnotu).
+    const raw_f = raw[f];
+    const n = (raw_f === undefined || raw_f === null) ? 0 : Number(raw_f);
     if (!Number.isFinite(n) || n < 0) return { ok: false, error: `Neplatná hodnota: ${f}.` };
     value[f] = n;
   }
@@ -447,5 +459,40 @@ export function validateGuildTag(raw) {
     return { ok: false, error: `TAG musí mít ${GUILDS.tag.min}–${GUILDS.tag.max} znaky.` };
   }
   if (!/^[A-Z0-9]+$/.test(value)) return { ok: false, error: 'TAG smí mít jen písmena A–Z a číslice.' };
+  return { ok: true, value };
+}
+
+/* =========================================================================
+   SCHRÁNKA (MAIL) — perzistentní asynchronní zprávy mezi hráči + doručení
+   pozvánek do cechu jako AKČNÍ zprávy (přijmout/odmítnout). Žádná nová
+   důvěryhodná plocha: posílá se jen bounded text (rate-limited), pozvánky
+   delegují na guild_invites (stejný atomický vstup jako záložka cechu).
+   Identita přežívá sezónu (jako cechy) — schránka se sezónou neresetuje.
+   ========================================================================= */
+export const MAIL = {
+  subjectMax: 60,          // délka předmětu (volitelný)
+  bodyMax: 500,            // délka těla zprávy
+  inboxCap: 100,           // kolik zpráv schránka drží na příjemce (starší PŘEČTENÉ se prořežou)
+  sendWindowMs: 3_600_000, // okno pro rate-limit odesílání (1 h)
+  sendPerWindow: 30,       // max odeslaných textovek na odesílatele / okno (anti-spam)
+  maxUnreadFromSender: 5,  // anti-flood: max NEPŘEČTENÝCH textovek od jednoho odesílatele u příjemce
+  kinds: ['text', 'guild_invite', 'system'],
+};
+
+/* Tělo zprávy (povinné, bounded). Vrátí { ok, value, error }. */
+export function validateMailBody(raw) {
+  if (typeof raw !== 'string') return { ok: false, error: 'Zpráva chybí.' };
+  const value = raw.trim();
+  if (value.length < 1) return { ok: false, error: 'Zpráva je prázdná.' };
+  if (value.length > MAIL.bodyMax) return { ok: false, error: `Zpráva smí mít nejvýš ${MAIL.bodyMax} znaků.` };
+  return { ok: true, value };
+}
+
+/* Předmět zprávy (volitelný, bounded). Prázdný = ok s value:''. */
+export function validateMailSubject(raw) {
+  if (raw == null || raw === '') return { ok: true, value: '' };
+  if (typeof raw !== 'string') return { ok: false, error: 'Neplatný předmět.' };
+  const value = raw.trim().replace(/\s+/g, ' ');
+  if (value.length > MAIL.subjectMax) return { ok: false, error: `Předmět smí mít nejvýš ${MAIL.subjectMax} znaků.` };
   return { ok: true, value };
 }

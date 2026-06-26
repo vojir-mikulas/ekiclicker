@@ -87,6 +87,20 @@ export const FEATURE_UNLOCKS = {
     cta: 'Otevřít cechy 🛡️',
     open: 'guild',
   },
+  abilities: {
+    emoji: '🌀',
+    name: 'Bojové rituály',
+    level: 3500,
+    tagline: 'Aktivní schopnosti s cooldownem',
+    desc: 'Odemkl se panel Bojových rituálů 🌀. Mačkej aktivní schopnosti přímo v boji, leveluj je zlatem 💰 a probouzej je do silnějších forem — jako probuzení v Narutu.',
+    perks: [
+      '👊 6 aktivních rituálů (burst — mimo obtížnost)',
+      '💰 Leveluj zlatem (trvalé, jako zaklínání)',
+      '🔥 Probuzení: silnější formy na prazích levelu',
+    ],
+    cta: 'Otevřít rituály 🌀',
+    open: 'abilities',
+  },
   mastery: {
     emoji: '🔱',
     name: 'Mistrovská mřížka',

@@ -95,4 +95,11 @@ export const api = {
   guildTransfer: (id, playerId) => req(`/guilds/${encodeURIComponent(id)}/transfer`, { method: 'POST', body: { playerId }, auth: true }),
   guildMotd: (id, motd) => req(`/guilds/${encodeURIComponent(id)}/motd`, { method: 'POST', body: { motd }, auth: true }),
   guildDisband: (id) => req(`/guilds/${encodeURIComponent(id)}`, { method: 'DELETE', auth: true }),
+  // schránka (mailbox — perzistentní zprávy mezi hráči + doručené pozvánky do cechu)
+  mailbox: () => req('/mailbox', { auth: true }),
+  mailSend: ({ nickname, recipientId, subject, body }) => req('/mailbox', { method: 'POST', body: { nickname, recipientId, subject, body }, auth: true }),
+  mailAck: () => req('/mailbox/ack', { method: 'POST', auth: true }),
+  mailRead: (id) => req(`/mailbox/${encodeURIComponent(id)}/read`, { method: 'POST', auth: true }),
+  mailRespond: (id, accept) => req(`/mailbox/${encodeURIComponent(id)}/${accept ? 'accept' : 'decline'}`, { method: 'POST', auth: true }),
+  mailDelete: (id) => req(`/mailbox/${encodeURIComponent(id)}`, { method: 'DELETE', auth: true }),
 };

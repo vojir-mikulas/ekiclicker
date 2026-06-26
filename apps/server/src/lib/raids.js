@@ -382,3 +382,48 @@ export async function getRaidView(seasonId, playerId, nowMs = Date.now()) {
 
   return { me, incoming, unseen, mine, top };
 }
+
+/* =========================================================================
+   ŽEBŘÍČEK ARÉNY (pro hlavní žebříčkovou sekci, scope='arena').
+   Čte server-autoritativní raid_state.rating dané sezóny (i uzavřené — řádky
+   přežívají, sezóna se jen rotuje). Tvar řádku = jako ostatní žebříčky
+   ({ rank, id, nickname, tag, value }) → klient renderuje stejnou tabulkou.
+   ========================================================================= */
+
+/* Top N hráčů sezóny dle Elo ratingu (remíza: víc výher, pak delší série). */
+export async function arenaLeaderboardSeason(seasonId, limit) {
+  const { rows } = await query(
+    `select rs.player_id, rs.rating, rs.wins, p.nickname, g.tag as guild_tag
+       from raid_state rs
+       join players p on p.id = rs.player_id
+       left join guild_members gm on gm.player_id = rs.player_id
+       left join guilds g on g.id = gm.guild_id and g.disbanded_at is null
+      where rs.season_id = $1
+      order by rs.rating desc, rs.wins desc, rs.best_streak desc, rs.updated_at asc
+      limit $2`,
+    [seasonId, limit],
+  );
+  return rows.map((r, i) => ({
+    rank: i + 1,
+    id: r.player_id,
+    nickname: r.nickname,
+    tag: r.guild_tag || null,
+    value: r.rating,
+    wins: r.wins,
+  }));
+}
+
+/* Rating + rank hráče v aréně dané sezóny; null když nemá v aréně řádek. */
+export async function playerArenaRank(seasonId, playerId) {
+  const { rows } = await query(
+    `with me as (select rating from raid_state where season_id = $1 and player_id = $2)
+     select (select rating from me) as value,
+            case when not exists (select 1 from me) then null
+                 else 1 + (select count(*)::int from raid_state
+                            where season_id = $1 and rating > (select rating from me)) end as rank`,
+    [seasonId, playerId],
+  );
+  const r = rows[0];
+  if (!r || r.rank == null) return null;
+  return { rank: r.rank, value: r.value };
+}

@@ -137,6 +137,22 @@ export default function ToastHost() {
             title: payload.count > 1 ? `Přepadli tě ${payload.count}×!` : 'Někdo tě přepadl!',
             sub: (parts.length ? parts.join(' • ') + ' — ' : '') + 'pomsti se v aréně ⚔️',
           });
+        } else if (type === 'mailReceived') {
+          push({
+            ico: payload.invite ? '🛡️' : '📬',
+            title: payload.invite
+              ? `Pozvánka do cechu${payload.guild?.tag ? ` [${payload.guild.tag}]` : ''}!`
+              : (payload.count > 1 ? `${payload.count} nové zprávy ve schránce!` : 'Nová zpráva ve schránce!'),
+            sub: payload.invite
+              ? 'Otevři 📬 a rozhodni se, jestli vstoupíš'
+              : (payload.from ? `Od ${payload.from} — otevři 📬` : 'Otevři 📬'),
+          });
+        } else if (type === 'awaken') {
+          push({
+            ico: payload.emoji,
+            title: `Probuzení! ${payload.name}`,
+            sub: `Rituál se probudil do silnější formy 🌀`,
+          });
         } else if (type === 'vaultDeposit') {
           const parts = [];
           if (payload.gold) parts.push(`${fmt(payload.gold)} 💰`);

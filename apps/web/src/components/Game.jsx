@@ -8,6 +8,7 @@ import Shop from './shop/Shop.jsx';
 import EffectsLayer from './EffectsLayer.jsx';
 import ToastHost from './ToastHost.jsx';
 import UpdateBanner from './UpdateBanner.jsx';
+import ElixirScreenFx from './ElixirScreenFx.jsx';
 import AdRail from './SideBanners.jsx';
 import ModalFallback from './modals/ModalFallback.jsx';
 import { ModalModeContext } from './modals/modalMode.js';
@@ -25,6 +26,7 @@ const PetsModal = lazy(() => import('./modals/PetsModal.jsx'));
 const RunesModal = lazy(() => import('./modals/RunesModal.jsx'));
 const EnchantModal = lazy(() => import('./modals/EnchantModal.jsx'));
 const MasteryModal = lazy(() => import('./modals/MasteryModal.jsx'));
+const AbilitiesModal = lazy(() => import('./modals/AbilitiesModal.jsx'));
 const AlbumModal = lazy(() => import('./modals/AlbumModal.jsx'));
 const PetRevealModal = lazy(() => import('./modals/PetRevealModal.jsx'));
 const DailyQuests = lazy(() => import('./modals/DailyQuests.jsx'));
@@ -36,12 +38,13 @@ const WorldBossView = lazy(() => import('./worldboss/WorldBossView.jsx'));
 const RaidView = lazy(() => import('./raid/RaidView.jsx'));
 const GuildView = lazy(() => import('./guild/GuildView.jsx'));
 const FoundGuildModal = lazy(() => import('./modals/FoundGuildModal.jsx'));
+const MailboxModal = lazy(() => import('./modals/MailboxModal.jsx'));
 const HellevatorModal = lazy(() => import('./hell/HellevatorModal.jsx'));
 const UnlockModal = lazy(() => import('./modals/UnlockModal.jsx'));
 
 // Obrazovky, které se otevírají jako vsazená stránka v obsahu (ne overlay).
 // Vše ostatní (nastavení, účet, potvrzení, ruleta…) zůstává klasický modal.
-const PAGE_IDS = ['daily', 'inventory', 'pets', 'runes', 'mastery', 'album', 'stats'];
+const PAGE_IDS = ['daily', 'inventory', 'pets', 'runes', 'abilities', 'mastery', 'album', 'stats'];
 // Hlavní záložky (přepínají se přes setView, ne přes page/modal) — sem míří např. CTA uvítacího modalu cechu.
 const VIEW_IDS = ['game', 'boss', 'raid', 'guild', 'board'];
 
@@ -116,8 +119,10 @@ export default function Game() {
           onOpenInventory={() => openScreen('inventory')}
           onOpenPets={() => openScreen('pets')}
           onOpenRunes={() => openScreen('runes')}
+          onOpenAbilities={() => openScreen('abilities')}
           onOpenMastery={() => openScreen('mastery')}
           onOpenAlbum={() => openScreen('album')}
+          onOpenMailbox={() => openScreen('mailbox')}
         />
 
         <div className={'app-body app-body--' + (page ? 'page' : view)}>
@@ -129,6 +134,7 @@ export default function Game() {
                   {page === 'inventory' && <InventoryModal onClose={closePage} />}
                   {page === 'pets' && <PetsModal onClose={closePage} />}
                   {page === 'runes' && <RunesModal onClose={closePage} />}
+                  {page === 'abilities' && <AbilitiesModal onClose={closePage} />}
                   {page === 'mastery' && <MasteryModal onClose={closePage} />}
                   {page === 'album' && <AlbumModal onClose={closePage} />}
                   {page === 'stats' && <StatsModal onClose={closePage} />}
@@ -163,6 +169,7 @@ export default function Game() {
       </div>
 
       {view === 'game' && !page && <EffectsLayer />}
+      <ElixirScreenFx />
       <ToastHost />
       <UpdateBanner />
 
@@ -174,6 +181,7 @@ export default function Game() {
         {enchantOn && <EnchantModal />}
         {pendingOpenId && <RouletteModal key={pendingOpenId} />}
         {modal === 'foundGuild' && <FoundGuildModal onClose={() => setModal(null)} />}
+        {modal === 'mailbox' && <MailboxModal onClose={() => setModal(null)} />}
         {modal === 'hellevator' && <HellevatorModal onClose={() => setModal(null)} />}
         {pendingEggId && <PetRevealModal key={pendingEggId} />}
         {offline && <OfflineModal offline={offline} onClose={() => setOffline(null)} />}
