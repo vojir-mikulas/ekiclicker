@@ -57,12 +57,12 @@ function MatLobby({ onPlay }) {
       </div>
 
       <div className="mat-games">
-        <button className="mat-game-card wheel" disabled={!canPlay} onClick={() => onPlay('wheel')}>
+        <button className="mat-game-card mat-wheel" disabled={!canPlay} onClick={() => onPlay('wheel')}>
           <span className="mat-game-emoji">🎡</span>
           <span className="mat-game-name">Kolo štěstí</span>
           <span className="mat-game-desc">Zatoč a urvi výhru. 1 🎟️</span>
         </button>
-        <button className="mat-game-card duck" disabled={!canPlay} onClick={() => onPlay('duck')}>
+        <button className="mat-game-card mat-duck" disabled={!canPlay} onClick={() => onPlay('duck')}>
           <span className="mat-game-emoji">🦆</span>
           <span className="mat-game-name">Střelnice</span>
           <span className="mat-game-desc">Sestřel kachny na čas. 1 🎟️</span>
