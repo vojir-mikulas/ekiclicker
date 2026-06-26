@@ -292,6 +292,10 @@ export const PROFANITY_ROOTS = [
   'fuck', 'shit', 'bitch', 'cunt', 'asshole', 'retard',
 ];
 
+/* Kořeny, které jsou součástí běžných slov → matchují se jen jako CELÉ slovo,
+   aby "zídka"/"Pico"/"David" neprošly cenzurou. Ostatní kořeny matchují i uvnitř slova. */
+const WHOLEWORD_ROOTS = new Set(['zid', 'jeb', 'cura', 'pico', 'idiot']);
+
 const LEET_MAP = { '0': 'o', '1': 'i', '3': 'e', '4': 'a', '5': 's', '7': 't', '@': 'a', '$': 's' };
 
 /* Normalizuje text pro porovnání s kořeny nadávek. */
@@ -322,13 +326,48 @@ export function containsProfanity(raw) {
     return acc;
   }, []).map((t) => t.text);
   for (const root of PROFANITY_ROOTS) {
-    if (root.length <= 4) {
-      if (words.includes(root)) return true;             // krátké jen jako celé slovo
+    if (WHOLEWORD_ROOTS.has(root)) {
+      if (words.includes(root)) return true;             // kolizní kořeny jen jako celé slovo (zídka ≠ zid)
     } else if (collapsed.includes(root)) {
-      return true;
+      return true;                                       // ostatní i uvnitř slova (CoolNegrCech)
     }
   }
   return false;
+}
+
+/* Diakritické / leetspeak varianty pro každé písmeno (pro maskování v zobrazení). */
+const LETTER_VARIANTS = {
+  a: 'aáàâäãåā4@', b: 'b', c: 'cćč', d: 'ď', e: 'eéèêëě3', f: 'f', g: 'g',
+  h: 'h', i: 'iíìîï1', j: 'j', k: 'k', l: 'l', m: 'm', n: 'nñńň', o: 'oóòôöõ0',
+  p: 'p', q: 'q', r: 'rř', s: 'sśš5$', t: 't7', u: 'uúùûůü', v: 'v', w: 'w',
+  x: 'x', y: 'yý', z: 'zźžż',
+};
+
+/* Tolerantní regex pro kořen: písmeno (vč. diakritiky/leetu) + volitelné oddělovače mezi nimi. */
+function rootRegex(root) {
+  const parts = [...root].map((ch) => {
+    const variants = LETTER_VARIANTS[ch] || ch;
+    return `[${variants.replace(/[\]\\^-]/g, '\\$&')}]`;
+  });
+  return new RegExp(parts.join('[\\s._-]*'), 'gi');
+}
+
+const ROOT_REGEXES = PROFANITY_ROOTS.map((r) => rootRegex(r));
+
+/* Vrátí text s zamaskovanými nadávkami (pro ZOBRAZENÍ už uložených jmen).
+   Čistý text projde beze změny. Cílí jen na nalezený kořen → "CoolNegrCech"
+   → "Cool****Cech"; když cílené maskování selže, zacenzuruje celé jméno. */
+export function maskProfanity(raw) {
+  if (typeof raw !== 'string' || !containsProfanity(raw)) return raw;
+  let out = raw;
+  for (const re of ROOT_REGEXES) {
+    re.lastIndex = 0;
+    out = out.replace(re, (m) => (m.trim() ? '*'.repeat([...m].length) : m));
+  }
+  if (out !== raw && !containsProfanity(out)) return out;
+  // fallback: cílené maskování nezabralo (exotická obfuskace) → cenzura celého jména
+  const first = [...raw.trim()][0] || '*';
+  return `${first}***`;
 }
 
 export const NICKNAME = {

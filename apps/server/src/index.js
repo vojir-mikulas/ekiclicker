@@ -25,6 +25,7 @@ import { initDb, isDbReady } from './db.js';
 import { runMigrations } from './migrate.js';
 import { dbGuard } from './middleware/dbGuard.js';
 import { generalLimiter } from './middleware/rateLimit.js';
+import { censorResponse } from './middleware/censor.js';
 import authRoutes from './routes/auth.js';
 import scoresRoutes from './routes/scores.js';
 import leaderboardRoutes from './routes/leaderboard.js';
@@ -74,6 +75,7 @@ app.use('/api', eventsRoutes);
 const api = express.Router();
 api.use(generalLimiter); // obecný strop na všechny /api
 api.use(dbGuard); // 503 db_unavailable když !dbReady
+api.use(censorResponse); // zacenzuruje nadávky ve jménech i u už uložených dat (žebříčky atd.)
 
 // jednoduchý healthcheck (po dbGuard → také 503 bez DB)
 api.get('/health', (_req, res) => res.json({ ok: true }));
