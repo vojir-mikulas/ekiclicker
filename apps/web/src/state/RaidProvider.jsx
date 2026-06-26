@@ -4,7 +4,8 @@ import { useEngine } from '../hooks/useEngine.js';
 import { useAccount } from '../hooks/useAccount.js';
 import { api } from '../net/api.js';
 
-const IDLE_POLL_MS = 60_000; // klidové polování (jen pro odznak v topbaru)
+const IDLE_POLL_MS = 60_000;   // klidové polování (jen pro odznak v topbaru)
+const DEPOSIT_POLL_MS = 5 * 60_000; // jak často klient zkusí daň (server gateuje na svůj interval)
 
 /* Sdílený stav arény + polling (POST+poll, žádné WebSockety — stejně jako boss).
    Aktivní jen když je hráč připojen k žebříčku (přepady jsou sezónní serverová věc).
@@ -110,6 +111,26 @@ export function RaidProvider({ children }) {
     }
   }, [joined, engine, refresh]);
 
+  // „daň do trezoru" — server (gated cadence) strhne z účtu bounded díl gold/🕊/💠;
+  // vrátí PŘESNĚ kolik, klient si to odečte z lokálního save (applyVaultDeposit)
+  const deposit = useCallback(async () => {
+    if (!joined) return;
+    try {
+      const s = engine.state;
+      const balances = {
+        gold: Math.floor(s.gold || 0),
+        doves: Math.floor(s.prestige?.forgiveness || 0),
+        dust: Math.floor(s.dust || 0),
+      };
+      const res = await api.raidDeposit(balances);
+      const d = res?.deposited;
+      if (res?.ok && d && (d.gold > 0 || d.doves > 0 || d.dust > 0)) {
+        engine.applyVaultDeposit(d);
+        await refresh();
+      }
+    } catch { /* best-effort */ }
+  }, [joined, engine, refresh]);
+
   const setDefense = useCallback(async (tactic) => {
     if (!joined) return;
     try {
@@ -133,6 +154,15 @@ export function RaidProvider({ children }) {
     const id = setInterval(() => { void refresh(); }, IDLE_POLL_MS);
     return () => clearInterval(id);
   }, [joined, refresh]);
+
+  // periodicky zkus strhnout daň do trezoru (server sám gateuje na svůj interval);
+  // klient volá častěji, ať daň naskočí brzy po otevření jejího okna
+  useEffect(() => {
+    if (!joined) return undefined;
+    const first = setTimeout(() => { void deposit(); }, 8_000);
+    const id = setInterval(() => { void deposit(); }, DEPOSIT_POLL_MS);
+    return () => { clearTimeout(first); clearInterval(id); };
+  }, [joined, deposit]);
 
   // přechod do nové sezóny: zhasni starý trezor/rating a natáhni čerstvý (jako boss)
   const wasPendingRef = useRef(false);

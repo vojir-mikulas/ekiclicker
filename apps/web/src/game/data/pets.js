@@ -17,17 +17,19 @@ import { AFFIXES, affixLabel } from './items.js';
 
 export const PETS_CFG = {
   unlockLevel: 2000,   // nejvyšší dosažená úroveň, od které se mazlíčci odemknou
-  // Šance na drop vejce podle typu nepřítele (Archón dává vejce zaručeně). ZÁMĚRNĚ
-  // NÍZKO: petsUnlocked je TRVALÝ příznak → každý rebirth běh přehrává celé pásmo
-  // 1→zeď a cestou potká ~80 mega (po 25) a ~20 ultra (po 100) bossů. Při starých
-  // sazbách (mega/ultra 0,5) to dělalo ~80 vajec za běh → mazlíček vymaxován za
-  // jediný běh a „otevírání bedny" ztratilo náboj. Sníženo ~3–4× (hlavně boss-tiery,
-  // ty objem dělají), aby vejce zůstala vzácný endgame lov. Ultra má vlastní (vyšší)
-  // sazbu — vzácnější milník = šťavnatější (zrcadlí mega/ultra rozdíl v items.js).
-  eggDropChance: 0.0008,     // běžný nepřítel (objemový zdroj — drž nízko)
-  eggBossDropChance: 0.01,   // boss (Golden Eki, po 5)
-  eggMegaDropChance: 0.06,   // mega boss (Eki Král, po 25)
-  eggUltraDropChance: 0.20,  // ultra boss (Eki Titán, po 100 — vzácnější, štědřejší)
+  // Šance na drop vejce podle typu nepřítele. ZÁMĚRNĚ NÍZKO + TVRDÝ STROP za běh:
+  // petsUnlocked je TRVALÝ příznak → každý rebirth běh přehrává celé pásmo 1→zeď a
+  // cestou potká stovky bossů. Při starých sazbách (+ zaručené archón vejce) to dělalo
+  // ~19 vajec za běh → mazlíčci vymaxováni za pár běhů a „líhnutí" ztratilo náboj.
+  // Sazby jsou ~8× níž a navíc platí maxEggsPerRun → ~1–2 vejce za běh = vzácný
+  // endgame lov. Vyšší boss-tier = vyšší šance (zrcadlí items.js); Archón už NEDÁVÁ
+  // vejce zaručeně (jinak by sám naplnil strop) — jen nejvyšší šanci.
+  eggDropChance: 0.00006,    // běžný nepřítel (objemový zdroj — drž nízko)
+  eggBossDropChance: 0.001,  // boss (Golden Eki, po 5)
+  eggMegaDropChance: 0.006,  // mega boss (Eki Král, po 25)
+  eggUltraDropChance: 0.025, // ultra boss (Eki Titán, po 100)
+  eggArchonDropChance: 0.05, // Archón (po 500 — nejvzácnější, nejvyšší šance)
+  maxEggsPerRun: 2,    // strop vajec za jeden běh → ~1–2 mazlíčci/běh
   maxDupeDust: 250,    // útěcha v úlomcích 💠, když padne duplikát už vymaxovaného mazlíčka
 };
 

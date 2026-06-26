@@ -54,14 +54,17 @@ export function buildSnapshot(state) {
     inventoryUnlocked: state.inventoryUnlocked,
     dust: state.dust,
     chests: state.chests, // neotevřené bedny (pendingOpen se ZÁMĚRNĚ neukládá — viz hydrate)
+    itemsThisRun: state.itemsThisRun, // strop beden za běh — ukládá se, ať reload nezresetuje strop
     // pozdní endgame: mazlíčci (aditivní — starý save bez nich se načte prázdný)
     petsUnlocked: state.petsUnlocked,
     pets: state.pets,
     equippedPet: state.equippedPet,
     eggs: state.eggs, // nevylíhnutá vejce (pendingEgg se ZÁMĚRNĚ neukládá — viz hydrate)
+    eggsThisRun: state.eggsThisRun, // strop vajec za běh — ukládá se, ať reload nezresetuje strop
     // runy & sokety: sklad nevsazených run (vsazené runy jedou uvnitř equipment/inventory)
     runesUnlocked: state.runesUnlocked,
     runes: state.runes,
+    runesThisRun: state.runesThisRun, // strop run za běh — ukládá se, ať reload nezresetuje strop
     // zaklínání: jen příznak odemčení (zaklínadla jedou uvnitř equipment/inventory;
     // pendingEnchant se ZÁMĚRNĚ neukládá — viz hydrate)
     enchantingUnlocked: state.enchantingUnlocked,
@@ -116,6 +119,7 @@ export function hydrateState(d) {
   state.inventoryUnlocked = !!d.inventoryUnlocked;
   state.dust = d.dust || 0;
   state.chests = (d.chests && typeof d.chests === 'object') ? d.chests : {};
+  state.itemsThisRun = d.itemsThisRun || 0; // strop beden za běh (starý save → 0)
   // pendingOpen se NEnačítá: výsledek otevření je už zaúčtovaný (kus v inventáři /
   // útěcha v úlomcích) → po reloadu žádná „viselka" rulety = nejde tím nic zcheatovat.
   state.pendingOpen = null;
@@ -124,10 +128,12 @@ export function hydrateState(d) {
   state.pets = (d.pets && typeof d.pets === 'object') ? d.pets : {};
   state.equippedPet = d.equippedPet || null;
   state.eggs = d.eggs || 0;
+  state.eggsThisRun = d.eggsThisRun || 0; // strop vajec za běh (starý save → 0)
   state.pendingEgg = null; // líhnutí je už zaúčtované (stejně jako pendingOpen) → po reloadu pryč
   // runy & sokety (starý save → prázdné); vsazené runy se načtou uvnitř equipment/inventory
   state.runesUnlocked = !!d.runesUnlocked;
   state.runes = Array.isArray(d.runes) ? d.runes : [];
+  state.runesThisRun = d.runesThisRun || 0; // strop run za běh (starý save → 0)
   // zaklínání (zaklínadla jedou uvnitř equipment/inventory); stůl je přechodný → po reloadu pryč
   state.enchantingUnlocked = !!d.enchantingUnlocked;
   state.pendingEnchant = null;

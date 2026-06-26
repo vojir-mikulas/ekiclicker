@@ -128,10 +128,14 @@ export default function RaidView({ onJoin, onSelectPlayer }) {
           <span>🕊 {fmt(vault?.doves || 0)}</span>
           <span>💠 {fmt(vault?.dust || 0)}</span>
         </div>
-        <button className="primary-btn" onClick={doWithdraw} disabled={!hasLoot}>
-          {hasLoot ? '🔒 Vybrat do bezpečí' : 'Trezor je prázdný'}
+        <button className="primary-btn" onClick={doWithdraw} disabled={!hasLoot || (me.withdrawCooldownMs || 0) > 0}>
+          {(me.withdrawCooldownMs || 0) > 0 ? `⏳ Výběr za ${fmtDuration(me.withdrawCooldownMs / 1000)}`
+            : hasLoot ? '🔒 Vybrat do bezpečí' : 'Trezor je prázdný'}
         </button>
-        <p className="raid-vault-hint">Lup v trezoru ti můžou ostatní ukrást. Vyber ho do bezpečí — pak je tvůj napořád.</p>
+        <p className="raid-vault-hint">
+          Hra ti pravidelně strhává díl peněz z účtu do trezoru — a ten ti můžou ostatní vyloupit.
+          Vybrat do bezpečí jde jen <b>jednou za pár hodin</b>, tak dobře načasuj, kdy je v trezoru nejvíc.
+        </p>
       </div>
 
       {/* jádro: přepad */}

@@ -251,13 +251,15 @@ export class Engine {
   maybeDropChest(v) {
     const s = this.state;
     if (!s.inventoryUnlocked) return;
-    let tier, chance;
-    if (v.archon) { tier = 'archon'; chance = 1; }
+    let tier, chance, capped = true; // capped = počítá se do stropu beden za běh
+    if (v.archon) { tier = 'archon'; chance = 1; capped = false; } // milník: zaručená speciální truhla, MIMO strop
     else if (v.ultra) { tier = 'golden'; chance = ITEMS.ultraDropChance; }
     else if (v.mega) { tier = 'golden'; chance = ITEMS.megaDropChance; }
     else if (v.boss) { tier = 'golden'; chance = ITEMS.bossDropChance; }
     else { tier = 'wooden'; chance = ITEMS.dropChance + dropChanceBonus(s); }
+    if (capped && (s.itemsThisRun || 0) >= ITEMS.maxChestsPerRun) return; // strop náhodné kořisti za běh
     if (Math.random() >= chance) return;
+    if (capped) s.itemsThisRun = (s.itemsThisRun || 0) + 1;
     this.grantChest(tier);
   }
   grantChest(tier) {
@@ -582,14 +584,16 @@ export class Engine {
   maybeDropEgg(v) {
     const s = this.state;
     if (!s.petsUnlocked) return;
-    if (allPetsMaxed(s.pets)) return; // kolekce kompletní → vejce už nepadají
+    if (allPetsMaxed(s.pets)) return; // kolekce kompletní (všech 6 na max úrovni) → vejce už nepadají
+    if ((s.eggsThisRun || 0) >= PETS_CFG.maxEggsPerRun) return; // strop vajec za běh
     let chance;
-    if (v.archon) chance = 1;
+    if (v.archon) chance = PETS_CFG.eggArchonDropChance;
     else if (v.ultra) chance = PETS_CFG.eggUltraDropChance;
     else if (v.mega) chance = PETS_CFG.eggMegaDropChance;
     else if (v.boss) chance = PETS_CFG.eggBossDropChance;
     else chance = PETS_CFG.eggDropChance;
     if (Math.random() >= chance) return;
+    s.eggsThisRun = (s.eggsThisRun || 0) + 1;
     this.grantEgg();
   }
   grantEgg() {
@@ -695,11 +699,13 @@ export class Engine {
   maybeDropRune(v) {
     const s = this.state;
     if (!s.runesUnlocked) return;
+    if ((s.runesThisRun || 0) >= RUNES_CFG.maxRunesPerRun) return; // strop run za běh
     let chance;
     if (v.archon) chance = RUNES_CFG.archonDropChance;
     else if (v.ultra || v.mega) chance = RUNES_CFG.megaDropChance;
     else return;
     if (Math.random() >= chance) return;
+    s.runesThisRun = (s.runesThisRun || 0) + 1;
     this.grantRune();
   }
   grantRune() {
@@ -1137,6 +1143,21 @@ export class Engine {
     this.checkAchievements();
     save(s);
     this.notify();
+  }
+
+  /* Strhni „daň do trezoru" z lokálního save (inverze grantRaidLoot). Server už
+     částku přičetl do trezoru a vrátil PŘESNĚ tolik, kolik strhnout — zlato/🕊/💠
+     reálně ubude z účtu → tvé peníze jsou v sázce (vyber je v aréně do bezpečí). */
+  applyVaultDeposit({ gold = 0, doves = 0, dust = 0 } = {}) {
+    const s = this.state;
+    if (gold > 0) s.gold = Math.max(0, s.gold - gold);
+    if (doves > 0) s.prestige.forgiveness = Math.max(0, s.prestige.forgiveness - doves);
+    if (dust > 0) s.dust = Math.max(0, (s.dust || 0) - dust);
+    if (gold > 0 || doves > 0 || dust > 0) {
+      save(s);
+      this.notify();
+      this.emit('vaultDeposit', { gold, doves, dust });
+    }
   }
 
   /* Nahraj stav ze save blobu (obnova účtu na novém zařízení / po smazání dat).

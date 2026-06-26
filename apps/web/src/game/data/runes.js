@@ -19,9 +19,14 @@ export const RUNES_CFG = {
   unlockLevel: 2500,    // nejvyšší dosažená úroveň, od které se runy odemknou (sniž pro testy)
   stashCap: 80,         // strop skladu run — při zaplnění padne místo runy útěcha v úlomcích
   fullDust: 60,         // útěcha v 💠, když runa padne do plného skladu
-  // drop: hlavně z Eki Archóna (zaručeně), malá šance z mega/ultra bossů
-  archonDropChance: 1,
-  megaDropChance: 0.25,
+  // drop: runesUnlocked je TRVALÝ příznak → každý rebirth běh přehrává pásmo 1→zeď a
+  // cestou potká ~5 archónů + stovku mega/ultra. Při starých sazbách (archón zaručeně)
+  // to dělalo ~29 run za běh → sklad přetékal. Sazby jsou níž + platí TVRDÝ STROP run
+  // za běh (maxRunesPerRun) → ~1–2 runy/běh. Archón zůstává hlavní (nejvyšší) zdroj,
+  // ale už NE zaručeně (jinak by sám naplnil strop). Volume kryje kovárna run (💠 sink).
+  archonDropChance: 0.25,  // Archón (po 500 — hlavní, nejvyšší šance)
+  megaDropChance: 0.004,   // mega/ultra boss (po 25/100 — malá šance)
+  maxRunesPerRun: 2,       // strop run za jeden běh → ~1–2 runy/běh
   // kovárna run (💠 sink)
   craftCost: 420,       // vykování JEDNÉ náhodné runy
   fuseCount: 3,         // kolik stejných run (kind+tier) se slije na +1 tier

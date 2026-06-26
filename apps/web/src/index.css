@@ -1069,14 +1069,16 @@ body{
 .inv-enchants li{ font-size:10.5px; font-weight:800; color:#d9c8ff; background:rgba(120,90,255,.16);
   border:1px solid rgba(150,120,255,.35); border-radius:6px; padding:1px 6px; }
 
-.popup-content.enchant-modal{ max-width:560px; text-align:center;
+.popup-content.enchant-modal{ max-width:560px; max-height:88vh; overflow-y:auto; text-align:center;
   background:radial-gradient(120% 100% at 50% 0%, #1a1430, var(--panel) 70%); }
 .ench-title{ font-family:'MedievalSharp',serif; color:#d9c8ff; letter-spacing:.04em;
   text-shadow:0 0 12px rgba(150,110,255,.5); margin-bottom:14px; }
 
 .ench-item{ display:flex; align-items:center; gap:12px; text-align:left; border:1px solid var(--line);
   border-left:4px solid var(--rc,#9a7bff); border-radius:12px; background:rgba(0,0,0,.25); padding:10px 12px; margin-bottom:14px; }
-.ench-item-img{ width:54px; height:54px; object-fit:contain; flex:none; }
+/* specificita musí přebít globální `.popup-content img{width:100%}` (jinak ikona
+   nafoukne celý řádek a odsune info mimo okno) */
+.enchant-modal .ench-item-img{ width:54px; height:54px; object-fit:contain; flex:none; border-radius:8px; }
 .ench-item-emoji{ font-size:42px; line-height:1; width:54px; text-align:center; flex:none; }
 .ench-item-info{ flex:1; min-width:0; }
 .ench-item-name{ font-weight:900; font-size:15px; }

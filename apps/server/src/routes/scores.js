@@ -15,7 +15,6 @@ import {
   rowToScore, updateScoreMonotonic,
   getActiveSeason, getPlayerSeasonRow, upsertSeasonScore, playerSeasonRank,
 } from '../lib/players.js';
-import { skimVaultGold } from '../lib/raids.js';
 
 const router = Router();
 const defaultBoard = boardByKey(DEFAULT_BOARD);
@@ -69,9 +68,6 @@ router.post('/', requirePlayer, async (req, res, next) => {
     await upsertSeasonScore(active.id, p.id, v.value, achIds);
     const updated = await updateScoreMonotonic(p.id, v.value, save);
     const rank = await playerSeasonRank(active.id, p.id, defaultBoard);
-    // ARÉNA: dopni hráči zlato v trezoru z ATESTOVANÉHO peakDps (best-effort —
-    // selhání nesmí shodit submit). Tím má každý aktivní hráč pořád co ukrást.
-    try { await skimVaultGold(active.id, p.id, v.value.peakDps); } catch { /* nevadí */ }
     res.status(200).json({ ok: true, rank, score: rowToScore(updated) });
   } catch (err) {
     next(err);

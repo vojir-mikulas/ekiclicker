@@ -164,6 +164,16 @@ export default function ToastHost() {
             title: payload.count > 1 ? `Přepadli tě ${payload.count}×!` : 'Někdo tě přepadl!',
             sub: (parts.length ? parts.join(' • ') + ' — ' : '') + 'pomsti se v aréně ⚔️',
           });
+        } else if (type === 'vaultDeposit') {
+          const parts = [];
+          if (payload.gold) parts.push(`${fmt(payload.gold)} 💰`);
+          if (payload.doves) parts.push(`${payload.doves} 🕊`);
+          if (payload.dust) parts.push(`${fmt(payload.dust)} 💠`);
+          push({
+            ico: '🏦',
+            title: 'Daň do trezoru',
+            sub: (parts.length ? parts.join(' • ') + ' — ' : '') + 'vyber v aréně, než ti to někdo sebere!',
+          });
         }
       },
       [push]

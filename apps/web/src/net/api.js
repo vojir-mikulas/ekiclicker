@@ -77,6 +77,7 @@ export const api = {
   raidScout: () => req('/raids/scout', { method: 'POST', auth: true }),
   raidStrike: (defenderId, tactic) => req('/raids/strike', { method: 'POST', body: { defenderId, tactic }, auth: true }),
   raidWithdraw: () => req('/raids/withdraw', { method: 'POST', auth: true }),
+  raidDeposit: (balances) => req('/raids/deposit', { method: 'POST', body: balances, auth: true }),
   raidDefense: (tactic) => req('/raids/defense', { method: 'POST', body: { tactic }, auth: true }),
   raidAck: () => req('/raids/ack', { method: 'POST', auth: true }),
 };

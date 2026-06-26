@@ -93,6 +93,7 @@ export function createState() {
     inventoryUnlocked: false,     // jednou true → zůstává (přežívá rebirth)
     dust: 0,                      // úlomky 💠 z rozkladu kořisti (kovárna; přežívá rebirth)
     chests: {},                   // tier -> počet neotevřených beden (přežívá rebirth)
+    itemsThisRun: 0,              // počet náhodných beden, co padly v TOMTO běhu (strop ITEMS.maxChestsPerRun; reset rebirth)
     pendingOpen: null,            // PŘECHODNÝ vizuál rulety (neukládá se; výsledek je už zaúčtovaný)
     runGearPower: 1,              // snapshot síly vybavení + mazlíčka na startu běhu → obtížnost
     // --- pozdní endgame: mazlíčci (odemyká se na PETS_CFG.unlockLevel = 2000) ---
@@ -100,10 +101,12 @@ export function createState() {
     pets: {},                     // petId -> { level } — vlastnění mazlíčci (přežívá rebirth)
     equippedPet: null,            // petId nasazeného mazlíčka | null (jeden naráz; přežívá rebirth)
     eggs: 0,                      // nevylíhnutá vejce 🥚 (přežívá rebirth)
+    eggsThisRun: 0,               // počet vajec, co padla v TOMTO běhu (strop PETS_CFG.maxEggsPerRun; reset rebirth)
     pendingEgg: null,             // PŘECHODNÝ vizuál líhnutí (neukládá se; výsledek je už zaúčtovaný)
     // --- pozdní endgame: runy & sokety (odemyká se na RUNES_CFG.unlockLevel = 2500) ---
     runesUnlocked: false,         // jednou true → zůstává (přežívá rebirth)
     runes: [],                    // sklad nevsazených run („Pivní tácky"; přežívá rebirth)
+    runesThisRun: 0,              // počet run, co padly v TOMTO běhu (strop RUNES_CFG.maxRunesPerRun; reset rebirth)
     // --- pozdní endgame: zaklínání (odemyká se na ENCHANTS_CFG.unlockLevel = 3000) ---
     enchantingUnlocked: false,    // jednou true → zůstává (přežívá rebirth)
     pendingEnchant: null,         // PŘECHODNÝ vizuál zaklínacího stolu (neukládá se; zaklití je už v kusu)
@@ -130,6 +133,9 @@ export function resetRun(state, startLevel) {
   state.pendingOpen = null; // přechodná ruleta — rebirth ji nenese
   state.pendingEgg = null;  // přechodné líhnutí — rebirth ho nenese
   state.pendingEnchant = null; // přechodný zaklínací stůl — rebirth ho nenese
+  state.itemsThisRun = 0;   // strop náhodných beden je per-běh → na začátku běhu vynuluj
+  state.eggsThisRun = 0;    // strop vajec je per-běh → na začátku běhu vynuluj
+  state.runesThisRun = 0;   // strop run je per-běh → na začátku běhu vynuluj
   // vybavení/inventář/bedny/úlomky/MAZLÍČCI se NEresetují (jako prestige) → snapshot síly
   // do obtížnosti (vybavení + nasazený mazlíček, viz formulas.difficultyScale)
   state.runGearPower = gearPower(state.equipment) * petPower(state);

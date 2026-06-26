@@ -15,7 +15,7 @@ import { Router } from 'express';
 import { requirePlayer } from '../middleware/auth.js';
 import { getActiveSeason, getPlayerSeasonRow, rowToScore } from '../lib/players.js';
 import {
-  findOpponent, resolveRaid, withdrawVault, setDefenseTactic, ackRaids, getRaidView,
+  findOpponent, resolveRaid, depositVault, withdrawVault, setDefenseTactic, ackRaids, getRaidView,
 } from '../lib/raids.js';
 
 const router = Router();
@@ -82,8 +82,24 @@ router.post('/withdraw', requirePlayer, async (req, res, next) => {
   try {
     const active = await seasonGate(req.player, res);
     if (!active) return undefined;
-    const reward = await withdrawVault(active.id, req.player.id);
-    return res.status(200).json({ ok: true, reward });
+    const result = await withdrawVault(active.id, req.player.id);
+    return res.status(200).json(result);
+  } catch (err) {
+    return next(err);
+  }
+});
+
+/* POST /api/raids/deposit — „daň": strhne z účtu do trezoru. { gold, doves, dust } =
+   aktuální zůstatky klienta. Vrátí { ok, deposited:{…} } (kolik server reálně strhl;
+   klient si to odečte) | { ok, skipped } (ještě neuplynul interval / není co strhnout). */
+router.post('/deposit', requirePlayer, async (req, res, next) => {
+  try {
+    const active = await seasonGate(req.player, res);
+    if (!active) return undefined;
+    const b = req.body || {};
+    const balances = { gold: Number(b.gold) || 0, doves: Number(b.doves) || 0, dust: Number(b.dust) || 0 };
+    const result = await depositVault(active.id, req.player.id, balances);
+    return res.status(200).json(result);
   } catch (err) {
     return next(err);
   }

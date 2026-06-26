@@ -169,8 +169,14 @@ export const RAIDS = {
   lootGoldFrac: 0.20,            // ukradne až 20 % zlata z trezoru oběti
   lootDovesFrac: 0.34,           // až 34 % 🕊 (vzácnější jackpot)
   lootDustFrac: 0.25,            // až 25 % 💠
-  vaultGoldSeconds: 150,         // cíl/strop zlata v trezoru ≈ peakDps × 150
-  skimFracPerSubmit: 0.12,       // trezor se doplní o 12 % cíle za každý submit skóre
+  vaultGoldSeconds: 150,         // strop ukradnutelného zlata ≈ peakDps × 150 (cross-tier cap)
+  depositIntervalMs: 30 * 60_000, // jak často se strhne „daň" z účtu do trezoru (server-gated)
+  depositGoldFrac: 0.12,          // 12 % zlata z účtu → trezor (tvé REÁLNÉ peníze v sázce)
+  depositDovesFrac: 0.08,         // 8 % 🕊
+  depositDustFrac: 0.10,          // 10 % 💠
+  depositDovesCap: 40,            // strop 🕊 za jednu daň (anti-abuse vzácné měny)
+  depositDustCap: 500,            // strop 💠 za jednu daň
+  withdrawCooldownMs: 3 * 3600_000, // výběr trezoru jen 1× za 3 h → lup leží odhalený = intenzita
   winBonusDust: 12,              // ražený bonus k výhře (💠), ať přepad vždy potěší
   streakDoveEvery: 4,            // každá 4. výhra v sérii → +1 🕊 ražený bonus
   raidCooldownMs: 90_000,        // min. prodleva mezi tvými přepady
@@ -225,6 +231,17 @@ export function raidWinProb(attackerPower, defenderPower) {
 /* Cíl (a strop) zlata v trezoru — škáluje s atestovaným peakDps. */
 export function raidVaultGoldTarget(peakDps) {
   return Math.max(0, Math.max(RAIDS.minPower, Number(peakDps) || 0) * RAIDS.vaultGoldSeconds);
+}
+
+/* „Daň do trezoru": kolik se hráči strhne z ÚČTU (gold/🕊/💠) do trezoru při jedné
+   dani. Zlomek aktuálního zůstatku, vzácné měny stropované (anti-abuse). Klient
+   tyhle částky reálně odečte z lokálního save → tvé peníze jsou fakt v sázce. */
+export function raidDepositTake(balances) {
+  const b = balances || {};
+  const gold = Math.floor(Math.max(0, Number(b.gold) || 0) * RAIDS.depositGoldFrac);
+  const doves = Math.min(RAIDS.depositDovesCap, Math.floor(Math.max(0, Number(b.doves) || 0) * RAIDS.depositDovesFrac));
+  const dust = Math.min(RAIDS.depositDustCap, Math.floor(Math.max(0, Number(b.dust) || 0) * RAIDS.depositDustFrac));
+  return { gold: Math.max(0, gold), doves: Math.max(0, doves), dust: Math.max(0, dust) };
 }
 
 /* Kolik se ukradne z trezoru oběti (REDISTRIBUCE, žádná ražba). attackerPeakDps

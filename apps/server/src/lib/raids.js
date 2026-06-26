@@ -7,14 +7,15 @@
        sezónního peakDps obou hráčů + taktiky + hodu → klient netvrdí „vyhrál jsem".
      • Krade se jen z TREZORU (raid_state.vault_*), který drží SERVER → krádež
        „drží" i u offline oběti (její lokální save je nedotčený a nemůže ji přepsat).
-     • Trezor je WITHDRAW-ONLY: plní ho `skimVaultGold` (zlato z atest. postupu)
-       + uloupený lup; klient ho jen VYBÍRÁ. Žádný „deposit" → nejde prát falešné zlato.
+     • Trezor plní `depositVault` („daň" — bounded díl gold/🕊/💠 z účtu hráče,
+       server-gated cadence) + uloupený lup. VÝBĚR (`withdrawVault`) jen 1× za pár
+       hodin (cooldown) → lup leží odhalený = intenzita. Vzácné měny stropované.
      • Matchmaking páruje podle peakDps (férové, vyrovnané souboje); rating je jen
        žebříček arény. Štít po vyloupení + cooldowny + denní strop drží přepady fér.
    ========================================================================= */
 import {
   RAIDS, isRaidTactic, tacticOutcome, raidPower, raidEffectivePower, raidWinProb,
-  raidRatingDelta, raidStolenLoot, raidWinBonus, raidVaultGoldTarget, DEFAULT_DEFENSE_TACTIC,
+  raidRatingDelta, raidStolenLoot, raidWinBonus, raidDepositTake, DEFAULT_DEFENSE_TACTIC,
 } from '@ekiclicker/shared';
 import { query, tx } from '../db.js';
 import { rowToScore } from './players.js';
@@ -34,6 +35,7 @@ function shapeState(r, nowMs) {
     defenseTactic: r.defense_tactic,
     shieldMs: r.shield_until ? Math.max(0, ms(r.shield_until) - nowMs) : 0,
     cooldownMs: r.last_raid_at ? Math.max(0, RAIDS.raidCooldownMs - (nowMs - ms(r.last_raid_at))) : 0,
+    withdrawCooldownMs: r.withdraw_at ? Math.max(0, RAIDS.withdrawCooldownMs - (nowMs - ms(r.withdraw_at))) : 0,
     dailyLeft: Math.max(0, RAIDS.dailyRaidCap - dailyCountNow(r, nowMs)),
   };
 }
@@ -53,21 +55,36 @@ async function ensureRow(client, seasonId, playerId) {
   );
 }
 
-/* Skim: dopni hráči zlato v trezoru k cíli odvozenému z ATESTOVANÉHO peakDps.
-   Voláno (best-effort) po každém přijatém submitu skóre. Tím má každý aktivní
-   hráč pořád co ukrást (zlato je hlavní lup). Strop = cíl (least()). */
-export async function skimVaultGold(seasonId, playerId, peakDps) {
-  const target = Math.floor(raidVaultGoldTarget(peakDps));
-  if (target <= 0) return;
-  const inc = Math.max(1, Math.floor(target * RAIDS.skimFracPerSubmit));
-  await query(
-    `insert into raid_state (season_id, player_id, rating, defense_tactic, vault_gold, skim_at)
-     values ($1, $2, $3, $4, $5, now())
-     on conflict (season_id, player_id) do update set
-       vault_gold = least($6::numeric, raid_state.vault_gold + $5::numeric),
-       skim_at = now(), updated_at = now()`,
-    [seasonId, playerId, RAIDS.ratingStart, DEFAULT_DEFENSE_TACTIC, inc, target],
-  );
+/* „Daň do trezoru": strhne hráči z ÚČTU bounded zlomek gold/🕊/💠 do trezoru →
+   pořád je co ukrást a jsou to TVÉ reálné peníze (intenzita). Server-gated cadence
+   (depositIntervalMs) → nejde spamovat. Klient pošle aktuální zůstatky, server
+   spočítá daň (raidDepositTake), přičte do trezoru a vrátí, KOLIK reálně přidal —
+   to si klient odečte z lokálního save. Před uplynutím intervalu vrátí skipped. */
+export async function depositVault(seasonId, playerId, balances, nowMs = Date.now()) {
+  return tx(async (client) => {
+    await ensureRow(client, seasonId, playerId);
+    const { rows } = await client.query(
+      'select * from raid_state where season_id = $1 and player_id = $2 for update',
+      [seasonId, playerId],
+    );
+    const r = rows[0];
+    if (r.deposit_at && nowMs - ms(r.deposit_at) < RAIDS.depositIntervalMs) {
+      return { ok: true, skipped: true, deposited: { gold: 0, doves: 0, dust: 0 } };
+    }
+    const take = raidDepositTake(balances);
+    if (take.gold <= 0 && take.doves <= 0 && take.dust <= 0) {
+      // chudý hráč → nenastavuj časovač, zkus to příště
+      return { ok: true, skipped: true, deposited: { gold: 0, doves: 0, dust: 0 } };
+    }
+    await client.query(
+      `update raid_state set
+         vault_gold = vault_gold + $3::numeric, vault_doves = vault_doves + $4, vault_dust = vault_dust + $5,
+         deposit_at = $6, updated_at = now()
+       where season_id = $1 and player_id = $2`,
+      [seasonId, playerId, take.gold, take.doves, take.dust, new Date(nowMs)],
+    );
+    return { ok: true, deposited: take };
+  });
 }
 
 /* Najdi oběť: nejbližší dle peakDps (férový souboj), bez sebe, bez nováčků pod
@@ -236,21 +253,27 @@ export async function resolveRaid(seasonId, attackerId, defenderId, attackerTact
 }
 
 /* Vyber celý trezor do bezpečí (→ klient si lup připíše do lokálního save). */
-export async function withdrawVault(seasonId, playerId) {
+export async function withdrawVault(seasonId, playerId, nowMs = Date.now()) {
   return tx(async (client) => {
     const { rows } = await client.query(
       'select * from raid_state where season_id = $1 and player_id = $2 for update',
       [seasonId, playerId],
     );
     const r = rows[0];
-    if (!r) return { gold: 0, doves: 0, dust: 0 };
-    const out = { gold: Math.floor(Number(r.vault_gold)), doves: r.vault_doves, dust: r.vault_dust };
+    if (!r) return { ok: false, reason: 'empty' };
+    // výběr jen 1× za pár hodin → lup leží odhalený (intenzita)
+    if (r.withdraw_at && nowMs - ms(r.withdraw_at) < RAIDS.withdrawCooldownMs) {
+      return { ok: false, reason: 'cooldown', cooldownMs: RAIDS.withdrawCooldownMs - (nowMs - ms(r.withdraw_at)) };
+    }
+    const reward = { gold: Math.floor(Number(r.vault_gold)), doves: r.vault_doves, dust: r.vault_dust };
+    if (reward.gold <= 0 && reward.doves <= 0 && reward.dust <= 0) return { ok: false, reason: 'empty' };
     await client.query(
-      `update raid_state set vault_gold = 0, vault_doves = 0, vault_dust = 0, updated_at = now()
+      `update raid_state set vault_gold = 0, vault_doves = 0, vault_dust = 0,
+         withdraw_at = $3, updated_at = now()
         where season_id = $1 and player_id = $2`,
-      [seasonId, playerId],
+      [seasonId, playerId, new Date(nowMs)],
     );
-    return out;
+    return { ok: true, reward };
   });
 }
 

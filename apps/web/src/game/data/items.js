@@ -21,13 +21,18 @@ export const ITEMS = {
   rarityLiftPer: 1200, // s ilvl se váhy posouvají k vyšším vzácnostem (čím nižší, tím rychleji)
 
   // šance na drop podle typu nepřítele — laděno na VZÁCNOST (kořist má být „wow",
-  // ne běžná). Hlavní zdroj objemu je obyčejný boss (každá 5. úroveň) + mega (po 25),
-  // proto jsou nízko; jen ultra/archón (po 100/500 — opravdu vzácné milníky) drží
-  // zaručený drop jako rytmus vzrušení. Klenotník (⚒️) přidává jen na běžnou bednu.
-  dropChance: 0.002,      // běžný nepřítel → dřevěná bedna (vzácný příjemný překvap)
-  bossDropChance: 0.06,   // obyčejný boss (Golden Eki) → zlatá bedna (cca 1 ze 17)
-  megaDropChance: 0.4,    // mega boss (Eki Král, po 25) → zlatá bedna (ne zaručeně)
-  ultraDropChance: 1,     // ultra boss (Eki Titán, po 100) → zlatá bedna zaručeně (milník)
+  // ne běžná). KLÍČOVÉ: inventoryUnlocked je TRVALÝ příznak → KAŽDÝ rebirth běh
+  // přehrává celé pásmo 1→zeď a po cestě potká stovky bossů. Při starých sazbách
+  // (+ zaručené ultra/archón) to dělalo ~80 beden za běh a inventář přetékal. Sazby
+  // jsou proto ~25× níž a navíc platí TVRDÝ STROP beden za běh (maxChestsPerRun) —
+  // pár kousků za běh, ne záplava. Archón (po 500 — nejvzácnější milník) drží svou
+  // ZARUČENOU speciální truhlu („Věčný" sada) MIMO strop, ať se nikdy neztratí.
+  // Klenotník (⚒️) přidává jen na běžnou bednu (přiblíží tě stropu rychleji).
+  dropChance: 0.00005,    // běžný nepřítel → dřevěná bedna (opravdu vzácný překvap)
+  bossDropChance: 0.001,  // obyčejný boss (Golden Eki, po 5) → zlatá bedna
+  megaDropChance: 0.008,  // mega boss (Eki Král, po 25) → zlatá bedna
+  ultraDropChance: 0.025, // ultra boss (Eki Titán, po 100) → zlatá bedna
+  maxChestsPerRun: 2,     // strop náhodných beden za jeden běh (Archón mimo) → ~1–2 kusy/běh
 };
 
 /* ----------------------------- kovárna (úlomky 💠) -----------------------------
