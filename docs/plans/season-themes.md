@@ -1,6 +1,6 @@
 # Plan: Season Themes
 
-Status: **proposed** · Last updated: 2026-06-26
+Status: **implemented** (phases 1–3, client-only) · §6 server `theme` column deferred (optional) · Last updated: 2026-06-26
 
 Builds on `seasons.md` (the full-reset season model) and the bounded-bonus
 pattern shared by album / runes / mastery / guild. Read those first.

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Modal from './Modal.jsx';
 import { useAccount } from '../../hooks/useAccount.js';
 import { fmt } from '../../game/format.js';
+import { themeForSeason } from '../../game/data/seasonThemes.js';
 
 const MEDAL = { 1: '🥇', 2: '🥈', 3: '🥉' };
 
@@ -16,6 +17,7 @@ export default function SeasonEndModal() {
   if (!ps) return null;
   const reward = ps.reward;
   const gotMedal = reward && reward.rank <= 3; // top 3 → trvalá medaile na profilu
+  const theme = themeForSeason(ps.activeNumber ?? null); // pasivní téma nadcházející sezóny
 
   const confirm = async () => {
     setBusy(true);
@@ -47,6 +49,11 @@ export default function SeasonEndModal() {
           mazlíčci, deník, denní úkoly i světový boss se resetují a závodí se znovu od nuly.
           Hodně štěstí! 🚀
         </p>
+      )}
+      {theme && (
+        <div className="se-theme">
+          Téma nové sezóny: <b>{theme.emoji} {theme.label}</b> — {theme.blurb}
+        </div>
       )}
       {err && <p className="se-err">{err}</p>}
       <button className="primary-btn" disabled={busy} onClick={confirm}>

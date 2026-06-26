@@ -4,6 +4,7 @@ import { useEngine } from '../hooks/useEngine.js';
 import { useServerEvents } from '../hooks/useServerEvents.js';
 import { buildSnapshot } from '../game/persistence.js';
 import { buildScore } from '../net/score.js';
+import { themeForSeason } from '../game/data/seasonThemes.js';
 import { api, getToken, setToken, getCachedNick, setCachedNick } from '../net/api.js';
 
 const SYNC_INTERVAL_MS = 20_000;
@@ -24,14 +25,16 @@ export function AccountProvider({ children }) {
   const [newSeason, setNewSeason] = useState(null);
 
   // z /me odvodí, jestli skončila sezóna, ve které hráč soutěžil (active > mine)
+  // + nastav PASIVNÍ téma aktivní sezóny (odvozené z jejího čísla — bounded buff bez dmgPct)
   const applyMeSeason = useCallback((me) => {
     const s = me?.season;
+    engine.setSeasonTheme(themeForSeason(s?.active?.number ?? null));
     if (s && s.active && s.mine != null && s.active.number > s.mine) {
       setPendingSeason({ endedNumber: s.mine, activeNumber: s.active.number, reward: s.pendingReward || null });
     } else {
       setPendingSeason(null);
     }
-  }, []);
+  }, [engine]);
 
   const checkSeason = useCallback(async () => {
     try { applyMeSeason(await api.me()); } catch { /* best-effort */ }
@@ -60,6 +63,7 @@ export function AccountProvider({ children }) {
     // odměna za umístění cechu z minulé sezóny (bounded 🕊+💠; připíše do čerstvého běhu)
     if (res.guildReward && (res.guildReward.doves || res.guildReward.dust)) engine.grantRaidLoot(res.guildReward);
     const number = pendingSeason?.activeNumber;
+    engine.setSeasonTheme(themeForSeason(number ?? null)); // hardReset téma vynuloval → hned nasaď to nové sezóny
     setPendingSeason(null);
     setNewSeason({ number, reward: res.reward || null }); // hype: „Sezóna N je tady!"
     void submitNow();
@@ -126,6 +130,7 @@ export function AccountProvider({ children }) {
     setToken(res.token);
     setCachedNick(res.nickname);
     engine.hardReset(); // čistý start pro žebříček
+    engine.setSeasonTheme(themeForSeason(res.season ?? null)); // rovnou nasaď téma aktivní sezóny
     setPlayer({ id: res.id, nickname: res.nickname });
     setOffline(false);
     setStatus('joined');

@@ -1503,6 +1503,18 @@ export class Engine {
     this.notify();
   }
 
+  /* Aktivní téma sezóny (odvozené z čísla sezóny v /api/me — viz data/seasonThemes.js).
+     NEUKLÁDÁ se do save ani skóre; po reloadu ho znovu nastaví AccountProvider.
+     Bounded gold/dust/luck/boss/drop/combo, ŽÁDNÝ dmgPct → mimo difficultyScale;
+     promítá se přes combatStats/dustMult/… jako perky cechu. Notifikuj jen při změně. */
+  setSeasonTheme(theme) {
+    const next = theme && theme.id ? { id: theme.id, mods: { ...theme.mods } } : null;
+    const cur = this.state.seasonTheme || null;
+    if ((cur && cur.id ? cur.id : null) === (next ? next.id : null)) return;
+    this.state.seasonTheme = next;
+    this.notify();
+  }
+
   /* Nahraj stav ze save blobu (obnova účtu na novém zařízení / po smazání dat).
      Přepíše lokální postup uloženými daty ze serveru. */
   loadSnapshot(blob) {

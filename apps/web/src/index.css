@@ -517,6 +517,11 @@ body{
   margin:4px 0 2px; color:var(--gold); text-shadow:0 3px 0 rgba(0,0,0,.35); }
 .season-banner.closed .sb-title{ color:var(--dove); }
 .sb-sub{ font-size:12px; color:var(--muted); }
+.sb-theme{ display:flex; flex-direction:column; align-items:center; gap:6px; margin:12px auto 2px; max-width:340px; }
+.sb-theme-name{ font-weight:800; font-size:14px; color:var(--text); }
+.sb-theme-perks{ display:flex; flex-wrap:wrap; justify-content:center; gap:6px; }
+.sb-perk{ font-size:11px; padding:3px 8px; border-radius:999px; border:1px solid var(--line);
+  background:rgba(255,255,255,.04); color:var(--muted); white-space:nowrap; }
 .sb-podium-label{ font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); margin:14px 0 8px; }
 
 .podium{ display:flex; justify-content:center; align-items:flex-end; gap:10px; }
@@ -578,6 +583,9 @@ body{
 .season-end .se-title{ font-family:'Anton',sans-serif; color:var(--gold); font-size:24px; margin:6px 0 12px; }
 .season-end .se-desc{ color:var(--text); font-size:14px; line-height:1.55; }
 .season-end .se-desc b{ color:var(--dove); }
+.season-end .se-theme{ margin-top:12px; padding:9px 12px; border-radius:12px; font-size:13px; line-height:1.45;
+  background:var(--panel-2); border:1px solid var(--line); color:var(--muted); }
+.season-end .se-theme b{ color:var(--text); }
 .season-end .se-err{ color:var(--red); font-size:13px; margin-top:8px; }
 
 /* ---------- Nová sezóna (oslavný popup) ---------- */
@@ -591,6 +599,10 @@ body{
 .new-season .ns-reward{ margin-top:12px; padding:10px 12px; border-radius:12px;
   background:var(--panel-2); border:1px solid var(--line); font-size:14px; color:var(--text); }
 .new-season .ns-reward b{ color:var(--dove); }
+.new-season .ns-theme{ margin-top:12px; padding:9px 12px; border-radius:12px; font-size:13px; line-height:1.45;
+  background:var(--panel-2); border:1px solid var(--line); color:var(--muted); }
+.new-season .ns-theme b{ color:var(--text); }
+.new-season .ns-theme-perks{ display:block; margin-top:4px; font-size:12px; color:var(--gold); }
 @keyframes nsPop{ 0%{ opacity:0; transform:scale(.7) translateY(8px); } 70%{ transform:scale(1.08); } 100%{ opacity:1; transform:scale(1) translateY(0); } }
 
 @media (max-width:880px){

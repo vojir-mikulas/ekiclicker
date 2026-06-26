@@ -6,6 +6,7 @@
 import { useState, useEffect } from 'react';
 import { api } from '../../net/api.js';
 import { fmt } from '../../game/format.js';
+import { themeForSeason } from '../../game/data/seasonThemes.js';
 import { PodiumSkeleton } from './Skeletons.jsx';
 
 const MEDAL = { 1: '🥇', 2: '🥈', 3: '🥉' };
@@ -32,6 +33,7 @@ export default function SeasonBanner({ season, onSelectPlayer }) {
 
   if (number == null) return null;
 
+  const theme = themeForSeason(number); // deterministická rotace podle čísla sezóny
   const byRank = (r) => (podium || []).find((p) => p.rank === r);
   const select = (id) => { if (id && onSelectPlayer) onSelectPlayer(id); };
 
@@ -46,6 +48,15 @@ export default function SeasonBanner({ season, onSelectPlayer }) {
             : `Uzavřená ${formatDate(season.closedAt)}`}
         </span>
       </div>
+
+      {theme && (
+        <div className="sb-theme" title={theme.blurb}>
+          <span className="sb-theme-name">{theme.emoji} {theme.label}</span>
+          <span className="sb-theme-perks">
+            {theme.perks.map((p) => <span key={p} className="sb-perk">{p}</span>)}
+          </span>
+        </div>
+      )}
 
       {podium == null && (
         <>

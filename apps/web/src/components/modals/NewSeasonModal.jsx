@@ -4,6 +4,7 @@
 import Modal from './Modal.jsx';
 import { useAccount } from '../../hooks/useAccount.js';
 import { fmt } from '../../game/format.js';
+import { themeForSeason } from '../../game/data/seasonThemes.js';
 
 export default function NewSeasonModal() {
   const account = useAccount();
@@ -12,6 +13,7 @@ export default function NewSeasonModal() {
 
   const reward = ns.reward;
   const champion = reward && reward.rank === 1;
+  const theme = themeForSeason(ns.number ?? null); // pasivní téma nové sezóny
 
   return (
     <Modal onClose={account.dismissNewSeason} className="new-season">
@@ -21,6 +23,12 @@ export default function NewSeasonModal() {
       <p className="ns-desc">
         Čistý štít, čerstvý závod — všichni startují od nuly. Ukaž, kam to dotáhneš! 🚀
       </p>
+      {theme && (
+        <div className="ns-theme">
+          <b>{theme.emoji} {theme.label}</b> — {theme.blurb}
+          <span className="ns-theme-perks">{theme.perks.join(' · ')}</span>
+        </div>
+      )}
       {reward && reward.forgiveness ? (
         <div className="ns-reward">
           Do startu si neseš <b>{fmt(reward.forgiveness)} 🕊</b>

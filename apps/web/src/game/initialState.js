@@ -120,6 +120,8 @@ export function createState() {
     hellShop: {},                 // koupené bounded perky (id -> tier; přežívá rebirth)
     hellExch: { day: '', dust: 0 }, // denní strop směny 🔥→💠
     hellRun: null,                // PŘECHODNÝ stav běhu (neukládá se — jako pendingOpen)
+    // --- téma sezóny (server-derived z čísla sezóny; NEUKLÁDÁ se do save ani skóre) ---
+    seasonTheme: null,            // { id, mods } aktivní sezóny | null — bounded buff bez dmgPct (viz data/seasonThemes.js)
     buyAmount: 1,
   };
 }

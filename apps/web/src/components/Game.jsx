@@ -7,7 +7,7 @@ import Shop from './shop/Shop.jsx';
 import EffectsLayer from './EffectsLayer.jsx';
 import ToastHost from './ToastHost.jsx';
 import UpdateBanner from './UpdateBanner.jsx';
-import SideBanners from './SideBanners.jsx';
+import AdRail from './SideBanners.jsx';
 import ModalFallback from './modals/ModalFallback.jsx';
 
 const SettingsModal = lazy(() => import('./modals/SettingsModal.jsx'));
@@ -64,47 +64,54 @@ export default function Game() {
   }, [engine]);
 
   return (
-    <>
-      <TopBar
-        view={view}
-        onView={setView}
-        onOpenSettings={() => setModal('settings')}
-        onOpenJoin={() => setModal('join')}
-        onOpenAccount={() => setModal('account')}
-        onOpenStats={() => setModal('stats')}
-        onOpenDaily={() => setModal('daily')}
-        onOpenInventory={() => setModal('inventory')}
-        onOpenPets={() => setModal('pets')}
-        onOpenRunes={() => setModal('runes')}
-        onOpenMastery={() => setModal('mastery')}
-        onOpenAlbum={() => setModal('album')}
-        onOpenHellevator={() => setModal('hellevator')}
-      />
+    <div className="app-shell">
+      <div className="app-frame">
+        <TopBar
+          view={view}
+          onView={setView}
+          onOpenSettings={() => setModal('settings')}
+          onOpenJoin={() => setModal('join')}
+          onOpenAccount={() => setModal('account')}
+          onOpenStats={() => setModal('stats')}
+          onOpenDaily={() => setModal('daily')}
+          onOpenInventory={() => setModal('inventory')}
+          onOpenPets={() => setModal('pets')}
+          onOpenRunes={() => setModal('runes')}
+          onOpenMastery={() => setModal('mastery')}
+          onOpenAlbum={() => setModal('album')}
+          onOpenHellevator={() => setModal('hellevator')}
+        />
 
-      {view === 'game' ? (
-        <div className="game">
-          <Arena onOpenRebirth={() => setModal('rebirth')} />
-          <Shop />
+        <div className="app-body">
+          <main className="app-view">
+            {view === 'game' ? (
+              <div className="game">
+                <Arena onOpenRebirth={() => setModal('rebirth')} />
+                <Shop />
+              </div>
+            ) : view === 'boss' ? (
+              <Suspense fallback={<div className="board-loading">Načítám bosse…</div>}>
+                <WorldBossView onJoin={() => setModal('join')} onSelectPlayer={setProfileId} />
+              </Suspense>
+            ) : view === 'raid' ? (
+              <Suspense fallback={<div className="board-loading">Načítám arénu…</div>}>
+                <RaidView onJoin={() => setModal('join')} onSelectPlayer={setProfileId} />
+              </Suspense>
+            ) : view === 'guild' ? (
+              <Suspense fallback={<div className="board-loading">Načítám cech…</div>}>
+                <GuildView onJoin={() => setModal('join')} onSelectPlayer={setProfileId} onFound={() => setModal('foundGuild')} />
+              </Suspense>
+            ) : (
+              <Suspense fallback={<div className="board-loading">Načítám žebříček…</div>}>
+                <Seasons onJoin={() => setModal('join')} onSelectPlayer={setProfileId} />
+              </Suspense>
+            )}
+          </main>
+
+          <AdRail />
         </div>
-      ) : view === 'boss' ? (
-        <Suspense fallback={<div className="board-loading">Načítám bosse…</div>}>
-          <WorldBossView onJoin={() => setModal('join')} onSelectPlayer={setProfileId} />
-        </Suspense>
-      ) : view === 'raid' ? (
-        <Suspense fallback={<div className="board-loading">Načítám arénu…</div>}>
-          <RaidView onJoin={() => setModal('join')} onSelectPlayer={setProfileId} />
-        </Suspense>
-      ) : view === 'guild' ? (
-        <Suspense fallback={<div className="board-loading">Načítám cech…</div>}>
-          <GuildView onJoin={() => setModal('join')} onSelectPlayer={setProfileId} onFound={() => setModal('foundGuild')} />
-        </Suspense>
-      ) : (
-        <Suspense fallback={<div className="board-loading">Načítám žebříček…</div>}>
-          <Seasons onJoin={() => setModal('join')} onSelectPlayer={setProfileId} />
-        </Suspense>
-      )}
+      </div>
 
-      <SideBanners />
       {view === 'game' && <EffectsLayer />}
       <ToastHost />
       <UpdateBanner />
@@ -132,6 +139,6 @@ export default function Game() {
         {account.pendingSeason && <SeasonEndModal />}
         {account.newSeason && <NewSeasonModal />}
       </Suspense>
-    </>
+    </div>
   );
 }
