@@ -38,6 +38,15 @@ export const ELIXIRS = {
     desc: '×5 poškození', durationMs: 90_000, baseCost: 9000, goldPct: 0.44,
     effect: { dmg: 5, gold: 1, weapon: 1, click: 1, critChance: 0 },
   },
+  bahnicko: {
+    id: 'bahnicko', emoji: '🍵', name: 'Bahníčko',
+    // Stejný tier jako Špendlíky (baseCost 9000), ale „greed“ protějšek: místo
+    // čistého bursta kombinuje velké zlato + střední GLOBÁLNÍ poškození → farmící
+    // drink. Delší okno (2 min) za nižší špičku. Vlastní goldPct (síla ≠ baseCost,
+    // jako u Špendlíků), o něco nižší — slabší combat špička, zato násobí i zlato.
+    desc: '×3 zlato + ×2 poškození', durationMs: 2 * 60_000, baseCost: 9000, goldPct: 0.33,
+    effect: { dmg: 2, gold: 3, weapon: 1, click: 1, critChance: 0 },
+  },
 };
 
 export const ELIXIR_KEYS = Object.keys(ELIXIRS);

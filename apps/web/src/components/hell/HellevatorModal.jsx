@@ -1,12 +1,15 @@
-/* Pekelný výtah 🛗 — modal s 3 fázemi: lobby (rekord/žetony/„Sjet dolů"),
-   fullscreen 60s běh (šachta + démon + hodiny + počítadlo pater + kombo) a
-   výsledky (patra + 🔥 + rekord). Běh je živý → komponenty čtou engine.state.hellRun
-   per-frame (useEngineFrame), jako BossTimer/ActiveElixir. Jeden Modal-rám, obsah
-   se přepíná podle fáze, ať nevznikají vnořené overlaye. */
+/* Pekelný výtah 🛗 — CECHOVNÍ aktivita (vstup z cechovní záložky). Tři fáze:
+   lobby (rekord/žetony/„Sjet dolů" + krám), PEVNÝ 60s běh a výsledky. Lobby/výsledky
+   jsou modal; BĚH je vlastní FULLSCREEN vrstva (ne modal!), ať přes ni letí projektily
+   zbraní — poolované .proj/.dmg mají z-index ~120, ale .popup modal je 1000, takže by
+   je schoval. Běh tak vypadá a hraje se jako hlavní obrazovka: klikáš (síla = úder) a
+   zbraně (auto DPS) pálí na nepřítele, jen na čas a do hloubky. */
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useEngine, useEngineFrame, useEngineSelector, useEngineEvent, shallowEqual } from '../../hooks/useEngine.js';
 import Modal from '../modals/Modal.jsx';
+import EffectsLayer from '../EffectsLayer.jsx';
 import HellShop from './HellShop.jsx';
+import { fxRefs } from '../../effects/fxRefs.js';
 import { CONFIG } from '../../game/config.js';
 import { HELLEVATOR, hellEnemyAt, hellEnemyName, hellEnemyTier, isHellBossFloor } from '../../game/data/hellevator.js';
 import { PLACEHOLDER, REACTION_IMGS, REACTION_EMOJI } from '../../game/data/texts.js';
@@ -18,15 +21,13 @@ export default function HellevatorModal({ onClose }) {
   const phase = useEngineSelector(selPhase);
   const [tab, setTab] = useState('lobby'); // lobby | shop
 
-  const cls =
-    phase === 'running' ? 'hell hell-run-modal'
-    : phase === 'done' ? 'hell hell-results-modal'
-    : 'hell hell-lobby-modal';
+  // Běh = fullscreen vrstva mimo modal (viz hlavička) → projektily zbraní jsou vidět.
+  if (phase === 'running') return <HellRun />;
 
+  const cls = phase === 'done' ? 'hell hell-results-modal' : 'hell hell-lobby-modal';
   return (
-    <Modal onClose={onClose} className={cls} showClose={phase !== 'running'}>
-      {phase === 'running' ? <HellRun />
-        : phase === 'done' ? <HellResults />
+    <Modal onClose={onClose} className={cls}>
+      {phase === 'done' ? <HellResults />
         : tab === 'shop' ? <HellShop onBack={() => setTab('lobby')} />
         : <HellLobby onShop={() => setTab('shop')} />}
     </Modal>
@@ -37,7 +38,6 @@ export default function HellevatorModal({ onClose }) {
 const selLobby = (s) => ({
   best: s.hell?.bestFloor || 0,
   sira: Math.floor(s.sira || 0),
-  unlocked: !!s.hellevatorUnlocked,
 });
 
 function HellLobby({ onShop }) {
@@ -60,9 +60,9 @@ function HellLobby({ onShop }) {
     <div className="hell-lobby">
       <div className="hell-title">🛗 Pekelný výtah</div>
       <p className="hell-tag">
-        Výtah se utrhl a padá do pekla. Máš <b>60 s</b> — probij se co
-        <b> nejhlouběji</b>. Každé patro = jeden zlý Eki. Rychlá zabití ti
-        <b> přidávají čas</b> na hodinách.
+        Cechovní sprint do pekla. Máš <b>přesně 60 s</b> — žádné prodlužování. Klikej
+        a zbraněmi se probij co <b>nejhlouběji</b>. Každé patro = jeden zlý Eki. Tvoje
+        nejhlubší patro je <b>příspěvek cechu</b>.
       </p>
 
       <div className="hell-lobby-stats">
@@ -98,32 +98,30 @@ function HellLobby({ onShop }) {
   );
 }
 
-/* ----------------------------- běh (60s sprint) ----------------------------- */
+/* ----------------------------- běh (pevný 60s sprint) -----------------------------
+   Fullscreen vrstva s arénou jako na hlavní obrazovce: fotka nepřítele, HP, zuřivost,
+   velké „DEJ MU!" tlačítko. Mountuje EffectsLayer → sdílený FxManager pálí projektily
+   zbraní + úderu na fxRefs.photoWrap (engine emituje 'hit'/'frenzy' jako hlavní hra). */
 function HellRun() {
   useEngineFrame();
   const engine = useEngine();
   const r = engine.state.hellRun;
 
   const lastPunch = useRef(0);
-  const carRef = useRef(null);
   const reactTimer = useRef(0);
   const [reactSrc, setReactSrc] = useState(null);
   const [reactEmoji, setReactEmoji] = useState(null);
   const [imgMode, setImgMode] = useState(true);
-  const [ext, setExt] = useState(0); // časový tik „+čas!" (rerender klíč)
 
+  // Reakce fotky na zásah (klik i zbraně) — jako EnemyView na hlavní obrazovce.
   useEngineEvent(useCallback((type) => {
-    if (type === 'hellKill') {
-      const el = carRef.current;
-      if (el) { el.classList.remove('drop'); void el.offsetWidth; el.classList.add('drop'); }
-    }
-    if (type === 'hellExtend') setExt((n) => n + 1);
-    if (type === 'hellHit' || type === 'hellKill') {
+    if (type === 'hit' || type === 'react' || type === 'hellKill') {
       clearTimeout(reactTimer.current);
       if (imgMode) setReactSrc(REACTION_IMGS[(Math.random() * REACTION_IMGS.length) | 0]);
       else setReactEmoji(REACTION_EMOJI[(Math.random() * REACTION_EMOJI.length) | 0]);
-      reactTimer.current = setTimeout(() => { setReactSrc(null); setReactEmoji(null); }, 340);
+      reactTimer.current = setTimeout(() => { setReactSrc(null); setReactEmoji(null); }, 500);
     }
+    if (type === 'hellSpawn') { clearTimeout(reactTimer.current); setReactSrc(null); setReactEmoji(null); }
   }, [imgMode]));
 
   const punch = useCallback((e) => {
@@ -147,7 +145,9 @@ function HellRun() {
   const boss = isHellBossFloor(r.floor);
 
   return (
-    <div className={'hell-run' + (panic ? ' panic' : '')}>
+    <div className={'hell-run-screen' + (panic ? ' panic' : '')}>
+      <EffectsLayer />
+
       <div className="hell-run-top">
         <div className="hell-floor">
           <span className="num">{r.floor}.</span>
@@ -156,55 +156,52 @@ function HellRun() {
         <div className={'hell-clock' + (panic ? ' panic' : '')}>
           <span className="t">{secs.toFixed(panic ? 1 : 0)}</span>
           <span className="u">s</span>
-          <span key={ext} className="hell-ext">+čas!</span>
         </div>
       </div>
 
-      <div className={'hell-shaft' + (panic ? ' panic' : '')}>
-        <div className="hell-floor-ghost up">{r.floor + 1}</div>
+      <div className={'hell-arena' + (boss ? ' boss' : '')} ref={(el) => (fxRefs.arena = el)}>
+        <div className={'frenzy-bar' + (frenzyOn ? ' active' : '')}>
+          <span className="lbl">{frenzyOn ? '😡 Zuřivost!' : 'Zuřivost'}</span>
+          <div className="fill" style={{ width: frenzyPct + '%' }} />
+        </div>
+
+        <div className={'enemy-name' + (boss ? ' boss' : '')}>{hellEnemyName(r.floor)}</div>
+        <div className="enemy-tier">{boss ? '☠️ ' : ''}{hellEnemyTier(r.floor)}</div>
+
         <div
-          className={'hell-car' + (boss ? ' boss' : '')}
-          ref={carRef}
+          className="photo-wrap hell-photo"
+          ref={(el) => (fxRefs.photoWrap = el)}
           onPointerDown={punch}
           style={{ '--glow': v.glow }}
         >
-          <div className="hell-enemy-name">{hellEnemyName(r.floor)}</div>
-          <div className="hell-enemy-tier">{boss ? '☠️ ' : ''}{hellEnemyTier(r.floor)}</div>
-          <div className="hell-photo-wrap">
-            <div className="photo-glow" style={{ background: v.glow }} />
-            {imgMode ? (
-              <img
-                className="photo"
-                src={reactSrc || PLACEHOLDER}
-                alt={hellEnemyName(r.floor)}
-                style={{ filter: v.filter || 'none' }}
-                onError={() => setImgMode(false)}
-                draggable={false}
-              />
-            ) : (
-              <div className="face-fallback" style={{ filter: v.filter || 'none' }}>{reactEmoji || '😈'}</div>
-            )}
-            <div className="tint" style={{ background: v.tint || 'transparent', opacity: v.tint ? 1 : 0 }} />
-          </div>
-          <div className="hpbar hell-hp">
-            <div className="hpfill" style={{ width: hpPct + '%' }} />
-            <div className="hptext">{fmt(Math.ceil(r.hp))} / {fmt(r.maxHp)}</div>
-          </div>
+          <div className="photo-glow" style={{ background: v.glow }} />
+          {imgMode ? (
+            <img
+              className="photo"
+              src={reactSrc || PLACEHOLDER}
+              alt={hellEnemyName(r.floor)}
+              style={{ filter: v.filter || 'none' }}
+              onError={() => setImgMode(false)}
+              draggable={false}
+            />
+          ) : (
+            <div className="face-fallback" style={{ filter: v.filter || 'none' }}>{reactEmoji || '😈'}</div>
+          )}
+          <div className="tint" style={{ background: v.tint || 'transparent', opacity: v.tint ? 1 : 0 }} />
         </div>
-        <div className="hell-floor-ghost down">{r.floor - 1 > 0 ? r.floor - 1 : ''}</div>
+
+        <div className="hpbar hell-hp">
+          <div className="hpfill" style={{ width: hpPct + '%' }} />
+          <div className="hptext">{fmt(Math.ceil(r.hp))} / {fmt(r.maxHp)}</div>
+        </div>
       </div>
 
-      <div className={'hell-frenzy' + (frenzyOn ? ' on' : '')}>
-        <div className="fill" style={{ width: frenzyPct + '%' }} />
-        <span className="num">{frenzyOn ? '🔥 ZUŘIVOST!' : 'klikej — nabíjíš zuřivost'}</span>
-      </div>
-
-      <button className="punch-btn hell-punch" tabIndex={-1} onPointerDown={punch}>
+      <button className="punch-btn hell-punch" ref={(el) => (fxRefs.button = el)} tabIndex={-1} onPointerDown={punch}>
         DEJ MU! 👊
       </button>
 
       <div className="hell-run-foot">
-        <span>{r.comboExt > 0 ? `⏱️ prodloužení ×${r.comboExt}` : 'rychlá zabití přidávají čas'}</span>
+        <span>{boss ? '☠️ Bossové patro!' : 'klikej a probíjej se hloub'}</span>
         <button className="hell-give" onClick={() => engine.finishHellRun()}>Vzdát</button>
       </div>
     </div>
@@ -236,7 +233,6 @@ function HellResults() {
         {sum.recordBonus > 0 && <div className="hell-res-row"><span>🏆 Bonus za rekord</span><b>+{fmt(sum.recordBonus)}</b></div>}
         {sum.dailyBonus > 0 && <div className="hell-res-row"><span>📅 První běh dne</span><b>+{fmt(sum.dailyBonus)}</b></div>}
         <div className="hell-res-row total"><span>🔥 Síra celkem</span><b>+{fmt(sum.sira)}</b></div>
-        {sum.comboExt > 0 && <div className="hell-res-row sub"><span>⏱️ Prodloužení času</span><b>×{sum.comboExt}</b></div>}
       </div>
 
       <div className="hell-res-actions">

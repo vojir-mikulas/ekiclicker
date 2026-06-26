@@ -28,12 +28,10 @@ const select = (s) => ({
   masteryUnlocked: s.masteryUnlocked,
   masteryPoints: s.mastery?.points || 0,
   albumNew: s.album?.new || 0,
-  hellUnlocked: s.hellevatorUnlocked,
-  hellPasses: s.hell?.passes || 0,
 });
 
-export default function TopBar({ view, page, onView, onOpenSettings, onOpenJoin, onOpenAccount, onOpenStats, onOpenDaily, onOpenInventory, onOpenPets, onOpenRunes, onOpenMastery, onOpenAlbum, onOpenHellevator }) {
-  const { gold, forgiveness, dust, level, click, daily, invUnlocked, chestCount, petsUnlocked, eggCount, equippedPet, petLevel, runesUnlocked, runeCount, masteryUnlocked, masteryPoints, albumNew, hellUnlocked, hellPasses } = useEngineSelector(select, shallowEqual);
+export default function TopBar({ view, page, onView, onOpenSettings, onOpenJoin, onOpenAccount, onOpenStats, onOpenDaily, onOpenInventory, onOpenPets, onOpenRunes, onOpenMastery, onOpenAlbum }) {
+  const { gold, forgiveness, dust, level, click, daily, invUnlocked, chestCount, petsUnlocked, eggCount, equippedPet, petLevel, runesUnlocked, runeCount, masteryUnlocked, masteryPoints, albumNew } = useEngineSelector(select, shallowEqual);
   const account = useAccount();
   const wb = useWorldBoss();
   const rd = useRaid();
@@ -118,11 +116,6 @@ export default function TopBar({ view, page, onView, onOpenSettings, onOpenJoin,
           {masteryUnlocked && (
             <button className={'topbar-btn badged' + (page === 'mastery' ? ' active' : '')} onClick={onOpenMastery} title="Mistrovská mřížka" aria-label="Mistrovská mřížka">
               🔱{masteryPoints >= 1 && <span className="topbar-badge">{masteryPoints > 99 ? '99+' : Math.floor(masteryPoints)}</span>}
-            </button>
-          )}
-          {hellUnlocked && (
-            <button className="topbar-btn badged" onClick={onOpenHellevator} title="Pekelný výtah — 60s sprint do pekla" aria-label="Pekelný výtah">
-              🛗{hellPasses > 0 && <span className="topbar-badge">{hellPasses}</span>}
             </button>
           )}
           <button className={'topbar-btn badged' + (page === 'album' ? ' active' : '')} onClick={onOpenAlbum} title="Sběratelský deník" aria-label="Sběratelský deník">

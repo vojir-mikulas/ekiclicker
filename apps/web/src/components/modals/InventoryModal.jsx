@@ -350,48 +350,55 @@ export default function InventoryModal({ onClose }) {
     <Modal onClose={onClose} className="inventory-modal">
       <h2>🎒 Výbava <span className="inv-dust" title="Úlomky z rozkladu kořisti — kovárna">💠 {fmt(dust)}</span></h2>
 
-      <ChestPanel engine={engine} dust={dust} />
-
-      <DustExchange engine={engine} dust={dust} />
-
       <DndContext
         sensors={sensors}
         onDragStart={({ active }) => setDragItem(active.data.current?.item || s.equipment[active.data.current?.slot] || null)}
         onDragEnd={onDragEnd}
         onDragCancel={() => setDragItem(null)}
       >
-        <div className="inv-loadout">
-          <div className="inv-loadout-head">
-            <span className="inv-summary-label">Nasazeno</span>
-            <span className="inv-gearpower" title="Násobič poškození z nasazené výbavy (1 + Σ poškození %)">⚔️ ×{(1 + (agg.dmgPct || 0)).toFixed(2)}</span>
-          </div>
-          <div className="equip-slots">
-          {SLOTS.map((slot) => (
-            <EquipSlot
-              key={slot.id}
-              slot={slot}
-              item={s.equipment[slot.id]}
-              dust={dust}
-              onUnequip={() => engine.unequipSlot(slot.id)}
-              onReroll={() => engine.forgeReroll(s.equipment[slot.id]?.id)}
-              onUpgrade={() => engine.forgeUpgrade(s.equipment[slot.id]?.id)}
-              enchantUnlocked={s.enchantingUnlocked}
-              onEnchant={() => engine.openEnchant(s.equipment[slot.id]?.id)}
-            />
-          ))}
-          </div>
+        <div className="inv-layout">
+          {/* levý sloupec: postava (nasazeno + sady + bonusy) a ekonomika (bedny + směnárna) */}
+          <aside className="inv-side">
+            <div className="inv-loadout">
+              <div className="inv-loadout-head">
+                <span className="inv-summary-label">Nasazeno</span>
+                <span className="inv-gearpower" title="Násobič poškození z nasazené výbavy (1 + Σ poškození %)">⚔️ ×{(1 + (agg.dmgPct || 0)).toFixed(2)}</span>
+              </div>
+              <div className="equip-slots">
+                {SLOTS.map((slot) => (
+                  <EquipSlot
+                    key={slot.id}
+                    slot={slot}
+                    item={s.equipment[slot.id]}
+                    dust={dust}
+                    onUnequip={() => engine.unequipSlot(slot.id)}
+                    onReroll={() => engine.forgeReroll(s.equipment[slot.id]?.id)}
+                    onUpgrade={() => engine.forgeUpgrade(s.equipment[slot.id]?.id)}
+                    enchantUnlocked={s.enchantingUnlocked}
+                    onEnchant={() => engine.openEnchant(s.equipment[slot.id]?.id)}
+                  />
+                ))}
+              </div>
+            </div>
+
+            <SetPanel equipment={s.equipment} />
+
+            {summary.length > 0 && (
+              <div className="inv-summary">
+                <span className="inv-summary-label">Bonusy z výbavy</span>
+                <div className="inv-summary-list">{summary.map((t, i) => <span key={i}>{t}</span>)}</div>
+              </div>
+            )}
+
+            <ChestPanel engine={engine} dust={dust} />
+            <DustExchange engine={engine} dust={dust} />
+          </aside>
+
+          {/* pravý sloupec: kořist (scrolluje uvnitř) */}
+          <section className="inv-main">
+            <InventoryGrid inv={inv} dust={dust} engine={engine} />
+          </section>
         </div>
-
-        <SetPanel equipment={s.equipment} />
-
-        {summary.length > 0 && (
-          <div className="inv-summary">
-            <span className="inv-summary-label">Bonusy z výbavy</span>
-            <div className="inv-summary-list">{summary.map((t, i) => <span key={i}>{t}</span>)}</div>
-          </div>
-        )}
-
-        <InventoryGrid inv={inv} dust={dust} engine={engine} />
 
         <DragOverlay>
           {dragItem ? (

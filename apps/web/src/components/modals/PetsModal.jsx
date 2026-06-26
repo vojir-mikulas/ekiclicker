@@ -113,35 +113,40 @@ export default function PetsModal({ onClose }) {
     <Modal onClose={onClose} className="pets-modal">
       <h2>🐾 Mazlíčci <span className="pet-collected">{ownedCount}/{PET_COUNT}</span></h2>
 
-      <EggPanel engine={engine} eggs={s.eggs || 0} allMaxed={allPetsMaxed(s.pets)} />
+      <div className="pets-layout">
+        <aside className="pets-side">
+          <EggPanel engine={engine} eggs={s.eggs || 0} allMaxed={allPetsMaxed(s.pets)} />
 
-      {equippedDef ? (
-        <div className="pet-equipped">
-          <span className="inv-summary-label">Nasazený mazlíček</span>
-          <div className="pet-equipped-row">
-            <span className="pet-equipped-emoji">{equippedDef.emoji}</span>
-            <span className="pet-equipped-name">{equippedDef.name} <b>L{s.pets[equippedDef.id].level}</b></span>
-            <span className="pet-equipped-bonus">{petBonusLabel(equippedDef.id, s.pets[equippedDef.id].level)}</span>
+          {equippedDef ? (
+            <div className="pet-equipped">
+              <span className="inv-summary-label">Nasazený mazlíček</span>
+              <div className="pet-equipped-row">
+                <span className="pet-equipped-emoji">{equippedDef.emoji}</span>
+                <span className="pet-equipped-name">{equippedDef.name} <b>L{s.pets[equippedDef.id].level}</b></span>
+                <span className="pet-equipped-bonus">{petBonusLabel(equippedDef.id, s.pets[equippedDef.id].level)}</span>
+              </div>
+            </div>
+          ) : (
+            <p className="chest-empty">Žádný mazlíček nasazený — nasaď si jednoho vpravo pro jeho bonus.</p>
+          )}
+        </aside>
+
+        <section className="pets-main">
+          <div className="pet-grid">
+            {PET_LIST.map((def) => (
+              <PetCard
+                key={def.id}
+                def={def}
+                owned={s.pets?.[def.id]}
+                equipped={s.equippedPet === def.id}
+                onEquip={() => engine.equipPet(def.id)}
+                onUnequip={() => engine.unequipPet()}
+              />
+            ))}
           </div>
-        </div>
-      ) : (
-        <p className="chest-empty">Žádný mazlíček nasazený — nasaď si jednoho dole pro jeho bonus.</p>
-      )}
-
-      <div className="pet-grid">
-        {PET_LIST.map((def) => (
-          <PetCard
-            key={def.id}
-            def={def}
-            owned={s.pets?.[def.id]}
-            equipped={s.equippedPet === def.id}
-            onEquip={() => engine.equipPet(def.id)}
-            onUnequip={() => engine.unequipPet()}
-          />
-        ))}
+          <p className="pet-foot">{fmt(s.eggs || 0)}× vejce · mazlíčci přežívají rebirth, mizí jen s koncem sezóny.</p>
+        </section>
       </div>
-
-      <p className="pet-foot">{fmt(s.eggs || 0)}× vejce · mazlíčci přežívají rebirth, mizí jen s koncem sezóny.</p>
     </Modal>
   );
 }

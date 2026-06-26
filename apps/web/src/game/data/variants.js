@@ -36,6 +36,11 @@ export const VARIANTS = {
   nightmare:{ name: 'Nightmare Eki',tier: '💀 noční můra',    hp: 245,  gold: 200,  glow: '#c0309a', tint: 'rgba(40,5,30,.66)',       filter: 'hue-rotate(295deg) saturate(1.7) brightness(.55) contrast(1.3)',   minLevel: 3300, weight: 4 },
   prismatic:{ name: 'Prismatic Eki',tier: '🌈 duhový',        hp: 300,  gold: 250,  glow: '#7affd1', tint: 'rgba(255,255,255,.12)',   filter: 'saturate(2.4) contrast(1.2) brightness(1.2) hue-rotate(40deg) drop-shadow(0 0 10px #ff5ed0)', minLevel: 4200, weight: 4 },
 
+  // tajný „trip" Eki — NEjde z fondu (řídí ho tripSpawnChance v enginu, viz `trip`).
+  // Žije s nepřetržitou psychedelickou animací; zabití spustí celoscénový trip + balík
+  // bounded odměn. Vzácný 36. záznam Bestiáře (objeví se až v hloubce, ~1 % spawnů).
+  tripeki: { name: 'Vyšlehanej Eki', tier: '🍄 zfetovaný',     hp: 170,  gold: 220,  glow: '#ff5ed0', tint: 'rgba(255,120,230,.2)',   filter: 'saturate(2.6) contrast(1.15) brightness(1.18) drop-shadow(0 0 12px #ff5ed0)', minLevel: 2000, trip: true },
+
   // bossové (řízeno úrovní, ne fondem)
   gold:    { name: 'Golden Eki',   tier: '★ BOSS ★',         hp: 11,   gold: 18,   glow: '#ffd23f', tint: 'rgba(255,200,40,.55)',    filter: 'sepia(.6) saturate(2) brightness(1.1)',           boss: true },
   king:    { name: 'Eki Král',     tier: '👑 MEGA BOSS',     hp: 38,   gold: 70,   glow: '#ff2bd0', tint: 'rgba(255,40,200,.5)',     filter: 'saturate(1.8) hue-rotate(285deg) brightness(1.15)', boss: true, mega: true },
@@ -48,6 +53,6 @@ export const LUCKY = { emoji: '🍀', name: 'Lucky Eki', glow: '#46e08a' };
 
 export function variantPool(level) {
   return Object.entries(VARIANTS)
-    .filter(([, v]) => !v.boss && level >= v.minLevel)
+    .filter(([, v]) => !v.boss && !v.trip && level >= v.minLevel)
     .map(([id, v]) => ({ id, weight: v.weight }));
 }

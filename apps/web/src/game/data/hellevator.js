@@ -1,34 +1,32 @@
 /* =========================================================================
    PEKELNÝ VÝTAH (Hellevator) — DATA + čisté helpery (žádný stav, žádné DOM).
-   Časový režim: výtah se utrhne a padá do pekla. Patro = jeden zlý Eki (démon).
-   Hráč má 60 s a snaží se probít co NEJHLOUBĚJI — skóre = nejhlubší patro.
+   CECHOVNÍ aktivita: výtah se utrhne a padá do pekla. Patro = jeden zlý Eki
+   (démon). Máš PŘESNĚ 60 s — žádné prodlužování — a klikáním + zbraněmi se probij
+   co NEJHLOUBĚJI. Skóre = nejhlubší patro. Hraje se jen jako člen cechu (vstup je
+   z cechovní záložky), patra se sčítají do cechovního příspěvku.
 
    Návrhové principy (drží stejnou anti-runaway filozofii jako zbytek hry):
-   - „Nejvíc pater za 60 s" je matematicky BENCHMARK špičkového DPS. Obtížnost
-     patra je DETERMINISTICKÁ funkce highestLevel × difficultyScale × hellGrowth
-     → server (fáze 4) umí z atestovaného peakDps dopočítat „max věrohodné patro".
-     Proto: žádné client-RNG mechaniky, které by otevřely cheat plochu.
-   - Skill se rodí z KOMBO-PRODLOUŽENÍ ČASU: zabití patra pod „par time" přidá čas
-     na hodinách (§3 plánu) → drží tě v běhu jen burst-build = headroom buildu.
+   - „Nejvíc pater za 60 s" je matematicky BENCHMARK špičkového DPS — stejný build
+     (úder = síla, zbraně = auto DPS) jako na hlavní obrazovce, jen na čas a do
+     hloubky. Obtížnost patra je DETERMINISTICKÁ funkce highestLevel ×
+     difficultyScale × hellGrowth → server umí z atestovaného peakDps dopočítat
+     „max věrohodné patro". Proto: žádné client-RNG mechaniky (cheat plocha).
+   - 60 s je PEVNÝCH: žádné kombo-prodlužování času. Hloubka = čistě tvůj burst.
    - Odměny (🔥 Síra) jsou BEZ dmgPct → mimo difficultyScale, jako mastery/runy.
 
    Tenhle modul je ČISTÝ (NEimportuje formulas → žádný cyklus): formulky pro HP
-   patra (hellFloorHp/hellCurve/hellParMs) žijí ve formulas.js a importují tahle
-   data. Obrázky/skiny řeší zvlášť (browser-only), fallback = CSS-filter recolor
+   patra (hellFloorHp/hellCurve) žijí ve formulas.js a importují tahle data.
+   Obrázky/skiny řeší zvlášť (browser-only), fallback = CSS-filter recolor
    základního sprite (jako stávající varianty — „barevné grading, ne textura").
    ========================================================================= */
 
 export const HELLEVATOR = {
-  unlockLevel: 100,        // nejdřívější „pokročilý" režim (highestLevel)
-  runMs: 60_000,           // délka jednoho sprintu
-  maxRunMs: 4 * 60_000,    // tvrdý strop délky běhu (pojistka proti nekonečnému kombo-prodlužování)
-  comboBonusMs: 400,       // +0,4 s na hodinách za zabití pod „par time"
-  parFactor: 0.85,         // zabij rychleji než parFactor × par → dostaneš +čas
+  runMs: 60_000,           // PEVNÁ délka sprintu (žádné prodlužování — 60 s je 60 s)
   maxKillsPerTick: 40,     // pojistka kill/tick (anti-lag), jako CONFIG.maxDefeatsPerTick
 
   // hell-lokální zuřivost (klikání) — kratší než hlavní, ať se vejde do 60s běhu.
-  // Záměrně samostatná od s.frenzy (běh je vlastní mini-engine) → „frenzy hřiště"
-  // pro early game, kde je build mělký (gear až 1000, mazlíčci 2000…).
+  // Záměrně samostatná od s.frenzy (běh je vlastní mini-engine), ale vizuálně i
+  // mechanicky stejná jako na hlavní obrazovce (klikáním nabíjíš, pak burst).
   frenzyMs: 6_000,
   frenzyClicksToFill: 22,
 
@@ -121,15 +119,13 @@ export function siraForRun(deepestFloor) {
 /* ----------------------------- 🔥 krám (bounded perky) -----------------------------
    Perky kupované za 🔥. ZÁMĚRNĚ BEZ dmgPct (gold/dust/luck = už plausibility-bounded
    výstupy) → mimo difficultyScale, žádná kontaminace ekonomiky (jako album/runy/cech).
-   Navíc dvě „run" páčky (start time, combo prodloužení) — ty hýbou jen lokálním
-   během (žádný server ladder ve fázi 1–3), takže nejsou cheat plocha.
-   stat = klíč; kind: 'combat' (fold přes hellShopStats) | 'run' (čte engine přímo). */
+   Žádné „run" páčky na čas/start — 60 s je pevných, takže by jen narušily
+   srovnatelnost hloubky napříč cechem. stat = klíč; kind: 'combat' (fold přes
+   hellShopStats). */
 export const HELL_SHOP = {
   toll:    { id: 'toll',    emoji: '🪙', name: 'Pekelná mýtnice', kind: 'combat', stat: 'goldPct',  per: 0.04, max: 5, baseCost: 30, growth: 1.6, desc: '+4 % zlata za stupeň' },
   mill:    { id: 'mill',    emoji: '💠', name: 'Struskový mlýn',  kind: 'combat', stat: 'dustFind', per: 0.04, max: 5, baseCost: 30, growth: 1.6, desc: '+4 % úlomků za stupeň' },
   fortune: { id: 'fortune', emoji: '🍀', name: 'Ďáblovo štěstí',  kind: 'combat', stat: 'luck',     per: 0.04, max: 5, baseCost: 36, growth: 1.6, desc: '+4 % štěstí za stupeň' },
-  winch:   { id: 'winch',   emoji: '⏱️', name: 'Naviják navíc',   kind: 'run',    stat: 'startMs',  per: 2_000, max: 5, baseCost: 45, growth: 1.7, desc: '+2 s na startu běhu za stupeň' },
-  flywheel:{ id: 'flywheel',emoji: '🔗', name: 'Setrvačník',      kind: 'run',    stat: 'comboMs',  per: 100,   max: 5, baseCost: 45, growth: 1.7, desc: '+0,1 s ke kombo-prodloužení za stupeň' },
 };
 export const HELL_SHOP_KEYS = Object.keys(HELL_SHOP);
 
@@ -155,17 +151,6 @@ export function hellShopStats(s) {
     if (tier > 0 && out[def.stat] != null) out[def.stat] += def.per * tier;
   }
   return out;
-}
-
-/* „Run" páčky (start time / combo prodloužení) — čte engine přímo při běhu. */
-export function hellRunPerk(s, statKey) {
-  const shop = (s && s.hellShop) || {};
-  let v = 0;
-  for (const id of HELL_SHOP_KEYS) {
-    const def = HELL_SHOP[id];
-    if (def.kind === 'run' && def.stat === statKey) v += def.per * (shop[id] || 0);
-  }
-  return v;
 }
 
 /* ----------------------------- prezentace ----------------------------- */

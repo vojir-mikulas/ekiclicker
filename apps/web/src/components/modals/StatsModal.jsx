@@ -55,14 +55,14 @@ const select = (s) => ({
 
 function Section({ title, rows }) {
   return (
-    <>
+    <div className="stats-section">
       <div className="profile-section-head"><h3>{title}</h3></div>
       <div className="profile-statcol">
         {rows.map(([label, value]) => (
           <div key={label} className="ps-row"><span>{label}</span><b>{value}</b></div>
         ))}
       </div>
-    </>
+    </div>
   );
 }
 
@@ -72,6 +72,7 @@ export default function StatsModal({ onClose }) {
   return (
     <Modal onClose={onClose} className="stats-modal">
       <h2>📊 Statistiky</h2>
+      <div className="stats-grid">
 
       <Section title="⚔️ Boj" rows={[
         ['Plný úder', fmt(v.click)],
@@ -131,6 +132,7 @@ export default function StatsModal({ onClose }) {
         ['Úspěchy', `${v.achievements} / ${ACHIEVEMENT_COUNT}`],
         ['Zbraně celkem', fmt(v.weapons)],
       ]} />
+      </div>
     </Modal>
   );
 }

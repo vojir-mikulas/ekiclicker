@@ -137,6 +137,8 @@ export default function RunesModal({ onClose }) {
     <Modal onClose={onClose} className="runes-modal">
       <h2>🔣 Runy <span className="inv-dust" title="Úlomky — kovárna run">💠 {fmt(dust)}</span></h2>
 
+      <div className="rune-layout">
+        <aside className="rune-side">
       <div className="rune-loadout">
         <span className="inv-summary-label">
           Sokety nasazené výbavy{selRune && <em className="rune-armed-hint"> — klepni soket pro vsazení {runeName(selRune)}</em>}
@@ -192,6 +194,9 @@ export default function RunesModal({ onClose }) {
         </div>
       </div>
 
+        </aside>
+
+        <section className="rune-main">
       <div className="rune-stash">
         <div className="rune-stash-head">
           <span className="inv-summary-label">Sklad tácků</span>
@@ -221,6 +226,8 @@ export default function RunesModal({ onClose }) {
       </div>
 
       <p className="pet-foot">Tap-to-socket: vyber tácek ve skladu, pak klepni prázdný soket. Klepnutí na vsazený tácek ho vrátí do skladu. Runy přežívají rebirth, mizí jen s koncem sezóny.</p>
+        </section>
+      </div>
     </Modal>
   );
 }

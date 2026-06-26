@@ -54,6 +54,7 @@ export function createStats() {
     maxCombo: 0,
     frenzies: 0,
     luckyClicks: 0,
+    trippedKills: 0, // 🍄 zabití Vyšlehaného Ekiho (tajná varianta → trip)
     playTimeMs: 0,
     peakDps: 0,
     itemsFound: 0,
@@ -113,8 +114,9 @@ export function createState() {
     // --- pozdní endgame: mistrovská mřížka 🔱 (odemyká se na MASTERY.unlockLevel = 4000) ---
     masteryUnlocked: false,       // jednou true → zůstává (přežívá rebirth)
     mastery: createMastery(),     // { points, nodes } — paragon strom (přežívá rebirth; resetRun ho nechá být)
-    // --- časový režim: Pekelný výtah 🛗 (odemyká se na HELLEVATOR.unlockLevel = 100) ---
-    hellevatorUnlocked: false,    // jednou true → zůstává (přežívá rebirth)
+    // --- sociální: Cech 🛡️ (odemyká se na GUILDS.foundLevel = 888) ---
+    guildUnlocked: false,         // jednou true → zůstává (přežívá rebirth; jen pro uvítací popup — bránu drží atestovaná highestLevel)
+    // --- cechovní časový režim: Pekelný výtah 🛗 (přístup gatuje členství v cechu) ---
     hell: { bestFloor: 0, passes: 0, passAt: 0, freeDay: '', lastRunDay: '' }, // rekord + žetony + denní 🔥 bonus (přežívá rebirth, mře sezónou)
     sira: 0,                      // 🔥 Síra — měna z výtahu (přežívá rebirth, mře sezónou)
     hellShop: {},                 // koupené bounded perky (id -> tier; přežívá rebirth)

@@ -6,8 +6,10 @@ import { useState, useEffect, useCallback } from 'react';
 import { GUILDS } from '@ekiclicker/shared';
 import { useGuild } from '../../hooks/useGuild.js';
 import { useAccount } from '../../hooks/useAccount.js';
-import { useEngineSelector } from '../../hooks/useEngine.js';
+import { useEngine, useEngineSelector, shallowEqual } from '../../hooks/useEngine.js';
+import { HELLEVATOR } from '../../game/data/hellevator.js';
 import { fmt } from '../../game/format.js';
+import GuildProfile from './GuildProfile.jsx';
 
 const selectLevel = (s) => s.highestLevel || 1;
 const pct = (x) => `${Math.round((x || 0) * 100)} %`;
@@ -37,7 +39,7 @@ function ago(at) {
   return h < 24 ? `${h} h` : `${Math.floor(h / 24)} d`;
 }
 
-export default function GuildView({ onJoin, onSelectPlayer, onFound }) {
+export default function GuildView({ onJoin, onSelectPlayer, onFound, onOpenHellevator }) {
   const guild = useGuild();
   const account = useAccount();
   const myLevel = useEngineSelector(selectLevel);
@@ -57,7 +59,7 @@ export default function GuildView({ onJoin, onSelectPlayer, onFound }) {
   return (
     <div className="guild-page">
       {guild.guild
-        ? <InGuild guild={guild} myLevel={myLevel} account={account} onSelectPlayer={onSelectPlayer} />
+        ? <InGuild guild={guild} myLevel={myLevel} account={account} onSelectPlayer={onSelectPlayer} onOpenHellevator={onOpenHellevator} />
         : <NoGuild guild={guild} myLevel={myLevel} onFound={onFound} onSelectPlayer={onSelectPlayer} />}
     </div>
   );
@@ -68,6 +70,7 @@ function NoGuild({ guild, myLevel, onFound, onSelectPlayer }) {
   const [list, setList] = useState(null);
   const [q, setQ] = useState('');
   const [requested, setRequested] = useState(() => new Set());
+  const [viewId, setViewId] = useState(null); // otevřený detail cechu
   const canJoin = myLevel >= GUILDS.joinLevel;
   const canFound = myLevel >= GUILDS.foundLevel;
 
@@ -89,7 +92,7 @@ function NoGuild({ guild, myLevel, onFound, onSelectPlayer }) {
       <div className="guild-hero">
         <div className="guild-hero-txt">
           <h2>🛡️ Cechy</h2>
-          <p>Spoj se s ostatními. Členové cechu sbírají bounded bonusy (zlato/úlomky/štěstí) a perou se o žebříček cechů.</p>
+          <p>Spoj se s ostatními. Členové cechu sbírají bounded bonusy (zlato/úlomky/štěstí), odemknou <b>🛗 Pekelný výtah</b> a perou se o žebříček cechů.</p>
         </div>
         <button className="primary-btn" onClick={onFound} disabled={!canFound}
           title={canFound ? 'Založit nový cech' : `Zakládat lze od úrovně ${fmt(GUILDS.foundLevel)}`}>
@@ -123,7 +126,7 @@ function NoGuild({ guild, myLevel, onFound, onSelectPlayer }) {
               <div className="guild-list">
                 {filtered.map((g) => (
                   <div key={g.id} className="guild-list-row">
-                    <button className="guild-list-name" onClick={() => onSelectPlayer && g.masterId ? onSelectPlayer(g.masterId) : undefined}>
+                    <button className="guild-list-name" onClick={() => setViewId(g.id)} title="Zobrazit cech a členy">
                       <span className="guild-tag">[{g.tag}]</span> {g.name}
                     </button>
                     <span className="guild-list-meta">⭐{g.level || 1} · {g.memberCount} 👥</span>
@@ -137,12 +140,22 @@ function NoGuild({ guild, myLevel, onFound, onSelectPlayer }) {
             )}
         {!canJoin && <p className="guild-foot">Vstoupit do cechu můžeš od úrovně <b>{fmt(GUILDS.joinLevel)}</b> (teď {fmt(myLevel)}).</p>}
       </div>
+
+      {viewId && (
+        <GuildProfile
+          id={viewId}
+          onClose={() => setViewId(null)}
+          onSelectPlayer={onSelectPlayer}
+          requested={requested.has(viewId)}
+          onRequest={() => doRequest(viewId)}
+        />
+      )}
     </>
   );
 }
 
 /* ---------- v cechu: hlavička + perky + MOTD + roster + žádosti ---------- */
-function InGuild({ guild, account, onSelectPlayer }) {
+function InGuild({ guild, account, onSelectPlayer, onOpenHellevator }) {
   const g = guild.guild;
   const perks = g.perks || { goldFind: 0, dustFind: 0, luck: 0, memberSlots: 0 };
   const [confirmDisband, setConfirmDisband] = useState(false);
@@ -165,6 +178,8 @@ function InGuild({ guild, account, onSelectPlayer }) {
 
       <div className="guild-cols">
         <div className="guild-col guild-col-main">
+          <GuildHellevator onOpen={onOpenHellevator} />
+
           <GuildMotd guild={guild} motd={g.motd} />
 
           <div className="guild-roster">
@@ -239,6 +254,43 @@ function InGuild({ guild, account, onSelectPlayer }) {
         </div>
       </div>
     </>
+  );
+}
+
+/* Pekelný výtah 🛗 — cechovní časový sprint. Vstup jen pro členy cechu (proto tady).
+   Klikáním + zbraněmi (stejná síla jako hlavní hra) na 60 s do co největší hloubky;
+   nejhlubší patro = příspěvek cechu. Stejná data jako lobby modalu (rekord/🔥/žetony). */
+const selHell = (s) => ({
+  best: s.hell?.bestFloor || 0,
+  sira: Math.floor(s.sira || 0),
+  passes: s.hell?.passes || 0,
+});
+
+function GuildHellevator({ onOpen }) {
+  const engine = useEngine();
+  const { best, sira, passes } = useEngineSelector(selHell, shallowEqual);
+
+  // dorovnej žetony (wall-clock regen), ať karta ukazuje aktuální počet
+  useEffect(() => {
+    engine.tickHellPasses();
+    const id = setInterval(() => engine.tickHellPasses(), 5000);
+    return () => clearInterval(id);
+  }, [engine]);
+
+  return (
+    <div className="guild-hell">
+      <div className="guild-section-head">🛗 Pekelný výtah</div>
+      <p className="guild-hell-tag">
+        Cechovní sprint do pekla. Máš <b>60 s</b> — klikej a zbraněmi se probij co
+        <b> nejhlouběji</b>. Tvoje nejhlubší patro je tvůj <b>příspěvek cechu</b>.
+      </p>
+      <div className="guild-hell-stats">
+        <div className="guild-hell-stat"><span className="lbl">Rekord</span><b>{best > 0 ? `${best}. patro` : '—'}</b></div>
+        <div className="guild-hell-stat"><span className="lbl">🔥 Síra</span><b>{fmt(sira)}</b></div>
+        <div className="guild-hell-stat"><span className="lbl">🎟️ Žetony</span><b>{passes}/{HELLEVATOR.passMax}</b></div>
+      </div>
+      <button className="primary-btn guild-hell-go" onClick={onOpen}>🔻 Sjet dolů do výtahu</button>
+    </div>
   );
 }
 

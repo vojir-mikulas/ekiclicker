@@ -86,6 +86,8 @@ export class FxManager {
     this._weaponTimers = {};
     for (const w of WEAPONS) this._weaponTimers[w.id] = 0;
     this._shadowTimer = 0; // časovač vizuálu Stínu pěsti (auto-úderů)
+    this._tripEl = null; // celoscénový psychedelický overlay (🍄 trip)
+    this._tripTimer = 0;
 
     // object-pooly FX prvků (recyklace místo alokace)
     this._proj = new DomPool('proj', CONFIG.maxProjectiles);
@@ -107,6 +109,9 @@ export class FxManager {
     this._coin.destroy();
     this._dmg.destroy();
     this._pow.destroy();
+    clearTimeout(this._tripTimer);
+    this._tripEl?.remove();
+    this._tripEl = null;
   }
 
   /* --- pomocné --- */
@@ -129,6 +134,11 @@ export class FxManager {
 
   /* --- reakce na eventy enginu --- */
   onEvent(type, payload) {
+    // Během pekelného běhu (fullscreen) jede hlavní hra na pozadí — její
+    // 'defeat'/'lucky'/'bossEscape' reakce by smetly fotku pekelného nepřítele.
+    // Pusť jen úder/zuřivost (ty pekelný běh emituje sám); projektily zbraní
+    // řeší dekorativní _loop zvlášť (pálí na fxRefs.photoWrap = pekelný nepřítel).
+    if (this.engine.state.hellRun?.phase === 'running' && type !== 'hit' && type !== 'frenzy') return;
     switch (type) {
       case 'hit':
         this.punchProjectile(payload);
@@ -157,9 +167,39 @@ export class FxManager {
           this.coinBurst(c.x, c.y, 18);
         }
         break;
+      case 'trip':
+        this.onTrip(payload);
+        break;
       default:
         break;
     }
+  }
+
+  /* 🍄 Vyšlehanej Eki poražen → celá scéna jde na „trip" + balík kořisti. */
+  onTrip({ gold, dust, doves }) {
+    const c = this.enemyCenter();
+    this.floatText('🍄 TRIP! +' + fmt(gold) + ' 🪙', '#ff5ed0', c.x, c.y - 44);
+    if (dust) this.floatText('💠 +' + fmt(dust), '#8be9ff', c.x - 54, c.y - 74);
+    if (doves) this.floatText('🕊 +' + doves, 'var(--dove)', c.x + 54, c.y - 96);
+    this.coinBurst(c.x, c.y, 34);
+    this.tripScreen();
+  }
+
+  /* Psychedelický overlay přes celou obrazovku po CONFIG.tripScreenMs. */
+  tripScreen() {
+    let el = this._tripEl;
+    if (!el) {
+      el = document.createElement('div');
+      el.className = 'trip-overlay';
+      document.body.appendChild(el);
+      this._tripEl = el;
+    }
+    el.style.setProperty('--trip-ms', CONFIG.tripScreenMs + 'ms');
+    el.classList.remove('on');
+    void el.offsetWidth; // reflow → restart animace i při řetězení tripů
+    el.classList.add('on');
+    clearTimeout(this._tripTimer);
+    this._tripTimer = setTimeout(() => el.classList.remove('on'), CONFIG.tripScreenMs);
   }
 
   onDefeat({ reward, boss, mega, ultra, archon, loot }) {

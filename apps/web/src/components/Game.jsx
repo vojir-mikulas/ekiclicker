@@ -42,6 +42,8 @@ const UnlockModal = lazy(() => import('./modals/UnlockModal.jsx'));
 // Obrazovky, které se otevírají jako vsazená stránka v obsahu (ne overlay).
 // Vše ostatní (nastavení, účet, potvrzení, ruleta…) zůstává klasický modal.
 const PAGE_IDS = ['daily', 'inventory', 'pets', 'runes', 'mastery', 'album', 'stats'];
+// Hlavní záložky (přepínají se přes setView, ne přes page/modal) — sem míří např. CTA uvítacího modalu cechu.
+const VIEW_IDS = ['game', 'boss', 'raid', 'guild', 'board'];
 
 export default function Game() {
   const engine = useEngine();
@@ -84,7 +86,8 @@ export default function Game() {
   // Otevři obrazovku podle id — stránku (PAGE_IDS) nebo overlay modal.
   const openScreen = useCallback((id) => {
     if (!id) return;
-    if (PAGE_IDS.includes(id)) { setModal(null); setPage(id); }
+    if (VIEW_IDS.includes(id)) { setPage(null); setModal(null); setView(id); }
+    else if (PAGE_IDS.includes(id)) { setModal(null); setPage(id); }
     else setModal(id);
   }, []);
   const closePage = useCallback(() => setPage(null), []);
@@ -115,7 +118,6 @@ export default function Game() {
           onOpenRunes={() => openScreen('runes')}
           onOpenMastery={() => openScreen('mastery')}
           onOpenAlbum={() => openScreen('album')}
-          onOpenHellevator={() => openScreen('hellevator')}
         />
 
         <div className={'app-body app-body--' + (page ? 'page' : view)}>
@@ -147,7 +149,7 @@ export default function Game() {
               </Suspense>
             ) : view === 'guild' ? (
               <Suspense fallback={<div className="board-loading">Načítám cech…</div>}>
-                <GuildView onJoin={() => setModal('join')} onSelectPlayer={setProfileId} onFound={() => setModal('foundGuild')} />
+                <GuildView onJoin={() => setModal('join')} onSelectPlayer={setProfileId} onFound={() => setModal('foundGuild')} onOpenHellevator={() => setModal('hellevator')} />
               </Suspense>
             ) : (
               <Suspense fallback={<div className="board-loading">Načítám žebříček…</div>}>

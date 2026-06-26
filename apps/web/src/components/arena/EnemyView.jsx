@@ -36,14 +36,17 @@ export default function EnemyView() {
   );
 
   const v = VARIANTS[variantId] || VARIANTS.normal;
-  const filter = v.filter || 'none';
+  // 🍄 Vyšlehanej Eki: nepřetržitá psychedelická animace (filtr řídí @keyframes,
+  // proto inline filter vynecháme — animace by ho stejně přebila).
+  const tripping = !!v.trip;
+  const filter = tripping ? undefined : v.filter || 'none';
 
   return (
     <>
       <div className="photo-glow" style={{ background: v.glow || '#444' }} />
       {imageMode ? (
         <img
-          className="photo"
+          className={'photo' + (tripping ? ' tripping' : '')}
           src={reactSrc || PLACEHOLDER}
           alt="Eki"
           style={{ filter }}
@@ -51,7 +54,7 @@ export default function EnemyView() {
           draggable={false}
         />
       ) : (
-        <div className="face-fallback" style={{ filter }}>
+        <div className={'face-fallback' + (tripping ? ' tripping' : '')} style={{ filter }}>
           {reactEmoji || '😠'}
         </div>
       )}

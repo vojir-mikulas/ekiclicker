@@ -1,6 +1,6 @@
 /* Pekelný krám — utrať 🔥 Síru: bounded perky (gold/dust/luck — BEZ dmgPct, mimo
-   difficulty), „run" páčky (start time / kombo prodloužení), dokup žetonů a směna
-   🔥 → 💠 (denní strop). Mirror ElixirList: řádky s tlačítkem nákupu. */
+   difficulty), dokup žetonů a směna 🔥 → 💠 (denní strop). Mirror ElixirList: řádky
+   s tlačítkem nákupu. Žádné perky na čas/start — 60 s je pevných. */
 import { useEffect } from 'react';
 import { useEngine, useEngineSelector, shallowEqual } from '../../hooks/useEngine.js';
 import { HELLEVATOR, HELL_SHOP, HELL_SHOP_KEYS, hellPerkCost } from '../../game/data/hellevator.js';
@@ -13,10 +13,9 @@ const sel = (s) => ({
   tiers: HELL_SHOP_KEYS.map((k) => s.hellShop?.[k] || 0).join(','),
 });
 
-/* Štítek hodnoty perku na daném stupni (% pro bojové, s pro run páčky). */
+/* Štítek hodnoty perku na daném stupni (bounded % — jen bojové perky). */
 function perkLabel(def, tier) {
   if (tier <= 0) return '—';
-  if (def.stat === 'startMs' || def.stat === 'comboMs') return `+${(def.per * tier / 1000).toFixed(1)} s`;
   return `+${Math.round(def.per * tier * 100)} %`;
 }
 

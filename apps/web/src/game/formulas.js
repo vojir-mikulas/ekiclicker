@@ -262,12 +262,19 @@ export function difficultyScale(s) {
 }
 
 /* ----------------------------- nepřítel ----------------------------- */
+// Strop HP — POJISTKA PROTI PŘETEČENÍ floatu. Geometrický harden v extrémní hloubce
+// (L ~ 34000+) by jinak přerostl Number.MAX_VALUE (~1,8e308) → HP = Infinity → „nekonečné"
+// číslo na liště A nepřítel se NIKDY nezabije (amount >= Infinity nikdy neplatí → softlock).
+// 1e300 je bezpečně pod stropem floatu, zůstává konečné/zobrazitelné a je to stejně dávno
+// za hratelnou zdí (legit hra walluje ~5000-6000, tam je HP ~1e75 → strop se nikdy nedotkne).
+const ENEMY_HP_CAP = 1e300;
 export function enemyMaxHp(level, variant, diff = 1) {
   // HP = baseHp × křivka (klesající růst → mírná dosažitelná střední hra) × varianta
   // × prestige-snapshot × HLUBOKÝ HARDEN (geometrický ocas od hardenFrom → 5000-10000
   // je TVRDÁ zeď, žádný coast/one-hit v endgame). Dvě nezávislé páky: křivka = střed,
-  // hardenScale = hloubka.
-  return Math.ceil(CONFIG.baseHp * hpCurve(level) * variant.hp * diff * hardenScale(level));
+  // hardenScale = hloubka. Výsledek je STROPOVANÝ (anti-overflow, viz výše).
+  const hp = CONFIG.baseHp * hpCurve(level) * variant.hp * diff * hardenScale(level);
+  return Math.min(ENEMY_HP_CAP, Math.ceil(hp));
 }
 export function enemyReward(level, variant, goldMultVal) {
   // Zlato roste po STEJNÉ křivce (goldCurve = mírnější verze hpCurve dle goldRatio),

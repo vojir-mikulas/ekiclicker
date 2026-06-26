@@ -39,6 +39,15 @@ export default function ToastHost() {
             title: payload.archon ? 'Poklad Eki Archóna!' : payload.ultra ? 'Poklad Eki Titána!' : 'Poklad Eki Krále!',
             sub: `+${payload.loot.forgiveness} 🕊 Odpuštění`,
           });
+        } else if (type === 'trip') {
+          const bits = [`+${fmt(payload.gold)} 🪙`];
+          if (payload.dust) bits.push(`+${fmt(payload.dust)} 💠`);
+          if (payload.doves) bits.push(`+${payload.doves} 🕊`);
+          push({
+            ico: '🍄',
+            title: 'Vyšlehanej Eki tě poslal na trip!',
+            sub: bits.join(' • ') + ' • 😡 ZUŘIVOST',
+          });
         } else if (type === 'chest' && payload.tier === 'archon') {
           push({
             ico: '👁️',

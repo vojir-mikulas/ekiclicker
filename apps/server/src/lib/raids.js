@@ -190,11 +190,23 @@ export async function resolveRaid(seasonId, attackerId, defenderId, attackerTact
     let bonus = { gold: 0, doves: 0, dust: 0 };
     let loot = { gold: 0, doves: 0, dust: 0 };
     let newStreak = attackerWon ? att.streak + 1 : 0;
+    let defShieldUntil = def.shield_until; // beze změny, dokud práh ztrát není dosažen
     if (attackerWon) {
       const defVault = { gold: Number(def.vault_gold), doves: def.vault_doves, dust: def.vault_dust };
       stolen = raidStolenLoot(defVault, attackerScore.peakDps);
       bonus = raidWinBonus(newStreak); // ražený bonus, ať i chudý terč potěší
       loot = { gold: stolen.gold + bonus.gold, doves: stolen.doves + bonus.doves, dust: stolen.dust + bonus.dust };
+      // štít naskočí, až když mě v okně vyloupí poněkolikáté (ne hned po 1. ztrátě).
+      // Řádek obránce držíme FOR UPDATE → souběžné přepady na něj serializují, takže
+      // tento count (minulá vyloupení) + 1 za tento přepad je vůči závodu bezpečný.
+      const looted = await client.query(
+        `select count(*)::int as n from raids
+          where season_id = $1 and defender_id = $2 and attacker_won = true and created_at > $3`,
+        [seasonId, defenderId, new Date(nowMs - RAIDS.shieldWindowMs)],
+      );
+      if ((looted.rows[0].n || 0) + 1 >= RAIDS.shieldLossThreshold) {
+        defShieldUntil = new Date(nowMs + RAIDS.shieldMs);
+      }
     }
     const bestStreak = Math.max(att.best_streak, newStreak);
 
@@ -212,7 +224,8 @@ export async function resolveRaid(seasonId, attackerId, defenderId, attackerTact
         new Date(nowMs), dailyCount + 1, dailyResetAt],
     );
 
-    // obránce: opačná změna ratingu; při vyloupení ubyde trezor + naskočí štít
+    // obránce: opačná změna ratingu; při vyloupení ubyde trezor; štít naskočí až
+    // po nasčítání ztrát (defShieldUntil), jinak zůstane stávající štít beze změny
     await client.query(
       `update raid_state set
          rating = greatest(0, rating + $3),
@@ -223,8 +236,7 @@ export async function resolveRaid(seasonId, attackerId, defenderId, attackerTact
          shield_until = $8, updated_at = now()
        where season_id = $1 and player_id = $2`,
       [seasonId, defenderId, -ratingDelta, attackerWon ? 1 : 0,
-        stolen.gold, stolen.doves, stolen.dust,
-        attackerWon ? new Date(nowMs + RAIDS.shieldMs) : def.shield_until],
+        stolen.gold, stolen.doves, stolen.dust, defShieldUntil],
     );
 
     await client.query(

@@ -3,20 +3,6 @@
    DOM/stav. `open` = id modalu, který otevře CTA tlačítko (null = jen zavřít);
    `level` slouží jen pro flavor v hlavičce (odpovídá *_CFG.unlockLevel v enginu). */
 export const FEATURE_UNLOCKS = {
-  hellevator: {
-    emoji: '🛗',
-    name: 'Pekelný výtah',
-    level: 100,
-    tagline: '60sekundový sprint do pekla',
-    desc: 'Naskoč do výtahu a sjížděj pekelná patra na čas. Čím hlouběji se dostaneš, tím lepší kořist — 🔥 Síra a pekelné propustky.',
-    perks: [
-      '⏱️ Časový sprint — zabíjej a prodlužuj si combo čas',
-      '👹 10 démonských eki + boss každé 10. patro',
-      '🔥 Síra do pekelného obchodu',
-    ],
-    cta: 'Otevřít výtah 🛗',
-    open: 'hellevator',
-  },
   inventory: {
     emoji: '🎒',
     name: 'Výbava & kořist',
@@ -86,6 +72,20 @@ export const FEATURE_UNLOCKS = {
     ],
     cta: 'Otevřít výbavu 🎒',
     open: 'inventory',
+  },
+  guild: {
+    emoji: '🛡️',
+    name: 'Cechy',
+    level: 888,
+    tagline: 'Založ si vlastní partu',
+    desc: 'Teď můžeš založit vlastní cech a stát se jeho Mistrem. Sbírejte společně bounded bonusy, perte se o žebříček cechů a držte spolu napříč sezónami. (Do cizího cechu můžeš vstoupit už od úrovně 100.)',
+    perks: [
+      '👑 Staň se Mistrem vlastního cechu',
+      '🎁 Bonusy pro členy (zlato/úlomky/štěstí)',
+      '🏆 Sezónní žebříček cechů + 🐲 boss společně',
+    ],
+    cta: 'Otevřít cechy 🛡️',
+    open: 'guild',
   },
   mastery: {
     emoji: '🔱',

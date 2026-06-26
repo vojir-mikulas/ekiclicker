@@ -66,13 +66,14 @@ export const CONFIG = {
   archonBossLootMult: 8, // Eki Archón: obří balík zlata…
   archonBossDoves: 5, // …a zaručeně 5 🕊 + jeden kus sady „Věčný" (rollSetItem)
 
-  // --- HLUBOKÝ HARDEN (druhá regimová páka: tvrdá zeď endgame) ---
-  // Nad hardenFrom dostane HP ČISTÝ geometrický ocas hardenRamp^(L-hardenFrom), který
-  // se přičte NAD mírnou křivku. Pod hardenFrom = ×1 (střední hra netknutá → obsah
-  // 1000-4000 dosažitelný, zbraně fungují). Nad ním HP prudce roste → 5000-10000 je
-  // skutečná zeď, silný build už nic neone-hitne. Laděno simulátorem (HFROM/HRAMP env).
-  hardenFrom: tune('HFROM', 3000), // odkud začíná tvrdý endgame ocas
-  hardenRamp: tune('HRAMP', 1.018), // +1,8 % HP/úroveň nad hardenFrom (kumulativně → strmé)
+  // --- HLUBOKÝ HARDEN (geometrický ocas obtížnosti) — VYPNUTO (ramp=1,0) ---
+  // POZN.: strmý harden (1,018) je NESLUČITELNÝ s cílem „hratelné do 200k" — jakýkoli
+  // růst dost strmý, aby zdil silný build, PŘETEČE float (Infinity) kolem L~34000.
+  // Pro 200k musí být vypnutý → hloubku tvaruje jen mírná polynomiální křivka (hpCurve
+  // dojede na ~1e95 @200k, konečné). Kdo chce zpět TVRDOU zeď místo dosahu na 200k:
+  // HRAMP=1.018 HFROM=3000 (ale pak hra walluje ~5000-34000, dál NE). Páka dosah⇄tvrdost.
+  hardenFrom: tune('HFROM', 3000),
+  hardenRamp: tune('HRAMP', 1.0), // 1,0 = vypnuto (×1 vždy). >1 = tvrdá zeď, ale rozbije 200k.
 
   // --- obtížnost škáluje s prestige silou (ANTI-BLITZ) ---
   // Problém: po rebirthu si neseš veškerou prestige sílu (hlavně Věčný hněv,
@@ -147,6 +148,19 @@ export const CONFIG = {
   luckySpawnChancePerSec: 0.018, // šance/s, že se objeví
   luckyLifetimeMs: 9000,
 
+  // --- Vyšlehanej Eki (🍄 tajná psychedelická varianta) ---
+  // Vzácně se objeví v aréně (jen v hloubce); zabití tě pošle na „trip": celá scéna
+  // se rozvlní + balík BOUNDED odměn (zlato/💠/🕊/zuřivost) → žádný dmgPct, žádný
+  // vliv na snapshot obtížnosti (drží anti-blitz filozofii jako Lucky/album/runy).
+  tripMinLevel: 2000,        // objeví se až od této úrovně (endgame překvapení)
+  tripSpawnChance: 0.01,     // ~1 % nebossových spawnů v hloubce
+  tripGoldDpsSeconds: 120,   // zlatý balík ≥ 120 s aktuálního DPS…
+  tripGoldRewardMult: 8,     // …nebo 8× vlastní odměna varianty (co je víc)
+  tripDustPerLevel: 0.5,     // 💠 úlomky = level × 0,5 × dustMult
+  tripDoves: 1,              // 🕊 Odpuštění z tripu (bounded)
+  tripFrenzyBonusMs: 6000,   // trip prodlouží spuštěnou zuřivost o tolik (euforie)
+  tripScreenMs: 9000,        // jak dlouho trvá psychedelický „trip" celé scény
+
   // --- Pekelný výtah (Hellevator) ---
   // Patro = jeden démon; HP každého patra = HP wall-Ekiho × hellBaseFrac × hellGrowth^(f-1).
   // hellBaseFrac stáhne PRVNÍ patro na malý zlomek wall-enemy (rychlý rozjezd), hellGrowth
@@ -168,8 +182,9 @@ export const hardenScale = (level) =>
    Bez uzavřené formy → předpočítáno do LUT při načtení modulu (O(1) čtení, sdílí
    ho hra, simulátor i cena zaklínání). hpCurve(L)=Π_{i<L} g(i) (jako dřív
    hpGrowth^(L-1)); goldCurve(L)=Π_{i<L} (1+goldRatio·(g(i)-1)). Nad CURVE_MAX se
-   drží konstantně (nikdo tam nedojde). */
-const CURVE_MAX = 12000;
+   drží konstantně. Strop 220k → křivka „žije" až do cílových 200k úrovní (jinak by se
+   nad 12k zploštila a hra by tam ztratila progresi). LUT ~3,5 MB, build ~pár ms 1×. */
+const CURVE_MAX = 220000;
 const HP_CURVE = new Float64Array(CURVE_MAX + 1);
 const GOLD_CURVE = new Float64Array(CURVE_MAX + 1);
 HP_CURVE[1] = 1;

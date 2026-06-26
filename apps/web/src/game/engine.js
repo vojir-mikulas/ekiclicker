@@ -27,7 +27,7 @@ import {
   hellFloorHp,
 } from './formulas.js';
 import {
-  HELLEVATOR, HELL_SHOP, hellPerkCost, hellRunPerk, siraForRun, isHellBossFloor,
+  HELLEVATOR, HELL_SHOP, hellPerkCost, siraForRun, isHellBossFloor,
 } from './data/hellevator.js';
 import {
   ITEMS, CHESTS, SLOT_IDS, itemScore, upgradeDelta,
@@ -42,6 +42,7 @@ import {
   ENCHANTS_CFG, canEnchant, rollEnchantOffers, applyOffer, rerollOffersCost,
 } from './data/enchants.js';
 import { MASTERY, NODE_BY_ID, TREE_BY_NODE, pointsInTree, masteryRemaining } from './data/mastery.js';
+import { GUILDS } from '@ekiclicker/shared';
 
 let nextEnemyId = 1;
 
@@ -91,6 +92,9 @@ export class Engine {
     if (level % CONFIG.ultraBossEvery === 0) return 'titan';
     if (level % CONFIG.megaBossEvery === 0) return 'king';
     if (level % CONFIG.bossEvery === 0) return 'gold';
+    // 🍄 tajný Vyšlehanej Eki — ~1 % nebossových spawnů v hloubce (před fondem,
+    // takže ho boss nikdy nepřebije; z fondu je vyřazen přes `trip` flag).
+    if (level >= CONFIG.tripMinLevel && Math.random() < CONFIG.tripSpawnChance) return 'tripeki';
     const pool = variantPool(level);
     const total = pool.reduce((s, p) => s + p.weight, 0);
     let r = Math.random() * total;
@@ -181,6 +185,7 @@ export class Engine {
         s.stats.lootDoves += loot.forgiveness;
       }
     }
+    if (v.trip) this.rollTrip(reward); // 🍄 Vyšlehanej Eki → trip (po základní odměně)
     this.emit('defeat', {
       reward, boss: !!v.boss, mega: !!v.mega, ultra: !!v.ultra, archon: !!v.archon,
       variantId: s.enemy.variantId, loot,
@@ -211,18 +216,23 @@ export class Engine {
     this.checkRunesUnlock();
     this.checkEnchantingUnlock();
     this.checkMasteryUnlock();
-    this.checkHellevatorUnlock();
+    this.checkGuildUnlock();
   }
 
-  /* Pekelný výtah 🛗 se odemkne po dosažení HELLEVATOR.unlockLevel (= 100, nejdřívější
-     „pokročilý" režim). Trvalý příznak — jako výbava/elixíry/mazlíčci. */
-  checkHellevatorUnlock() {
+  /* Cech 🛡️ se odemkne po DOSAŽENÍ GUILDS.foundLevel (atestovaná nejvyšší úroveň).
+     Příznak je trvalý → jednou odemčeno, zůstává (přežívá rebirth i sezónu). Samotnou
+     bránu pro založení drží highestLevel ≥ foundLevel (klient i server) — tohle jen
+     odpálí jednorázový uvítací popup. */
+  checkGuildUnlock() {
     const s = this.state;
-    if (!s.hellevatorUnlocked && s.highestLevel >= HELLEVATOR.unlockLevel) {
-      s.hellevatorUnlocked = true;
-      this.emit('unlock', { feature: 'hellevator' });
+    if (!s.guildUnlocked && s.highestLevel >= GUILDS.foundLevel) {
+      s.guildUnlocked = true;
+      this.emit('unlock', { feature: 'guild' });
     }
   }
+
+  /* Pekelný výtah 🛗 je CECHOVNÍ aktivita — přístup gatuje členství v cechu (UI),
+     ne level. Žádný samostatný unlock příznak/popup; vstup je z cechovní záložky. */
 
   /* Mistrovská mřížka 🔱 se odemkne po dosažení MASTERY.unlockLevel (nejvyšší úroveň).
      Trvalý příznak — stejně jako výbava/elixíry/mazlíčci/runy/zaklínání. */
@@ -945,6 +955,32 @@ export class Engine {
     this.emit('frenzy', { active: true });
   }
 
+  /* ---------- Vyšlehanej Eki (🍄 trip) ----------
+     Zabití tajné varianty → balík BOUNDED odměn navrch základní (zlato/💠/🕊) +
+     spuštěná & prodloužená zuřivost (euforie). Vše difficulty-neutral (žádný dmgPct
+     → žádný vliv na snapshot obtížnosti = drží anti-blitz filozofii jako Lucky). */
+  rollTrip(reward) {
+    const s = this.state;
+    s.stats.trippedKills = (s.stats.trippedKills || 0) + 1;
+    // zlatý balík: ≥ N s aktuálního DPS, nebo násobek vlastní odměny — co je víc
+    const gold = Math.max(
+      Math.floor(reward * CONFIG.tripGoldRewardMult),
+      Math.floor(totalDps(s) * CONFIG.tripGoldDpsSeconds)
+    );
+    s.gold += gold;
+    s.stats.totalGold += gold;
+    // 💠 úlomky (škálují s ⚒️ Klenotníkem) + 🕊 Odpuštění (bounded)
+    const dust = Math.max(1, Math.round(s.level * CONFIG.tripDustPerLevel * dustMult(s)));
+    s.dust = (s.dust || 0) + dust;
+    const doves = CONFIG.tripDoves;
+    s.prestige.forgiveness += doves;
+    s.stats.lootDoves += doves;
+    // euforie: spusť zuřivost a o kousek ji prodluž
+    this.startFrenzy(performance.now());
+    s.frenzy.until += CONFIG.tripFrenzyBonusMs;
+    this.emit('trip', { gold, dust, doves });
+  }
+
   /* ---------- Lucky Eki (zlatá sušenka) ---------- */
   maybeSpawnLucky(dt) {
     const s = this.state;
@@ -1082,22 +1118,20 @@ export class Engine {
     }
   }
 
-  /* Spotřebuj 1 žeton a spusť 60s běh (výtah na patře 1). Vrací true při úspěchu. */
+  /* Spotřebuj 1 žeton a spusť PEVNÝ 60s běh (výtah na patře 1). Vrací true při úspěchu. */
   startHellRun() {
     const s = this.state;
-    if (!s.hellevatorUnlocked) return false;
     if (s.hellRun && s.hellRun.phase === 'running') return false;
     this.tickHellPasses();
     if (s.hell.passes < 1) return false;
     s.hell.passes -= 1;
     if (!s.hell.passAt && s.hell.passes < HELLEVATOR.passMax) s.hell.passAt = Date.now() + HELLEVATOR.passRegenMs;
     const now = performance.now();
-    const runMs = HELLEVATOR.runMs + hellRunPerk(s, 'startMs');
     s.hellRun = {
-      phase: 'running', startedAt: now, endsAt: now + runMs,
-      floor: 1, cleared: 0, comboExt: 0, dealt: 0, clicks: 0,
+      phase: 'running', startedAt: now, endsAt: now + HELLEVATOR.runMs,
+      floor: 1, cleared: 0, dealt: 0, clicks: 0,
       hp: 0, maxHp: 0, floorStartedAt: now, isBossFloor: false,
-      frenzy: { charge: 0, until: 0 }, summary: null,
+      frenzy: { charge: 0, until: 0, on: false }, summary: null,
     };
     this._hellSpawn(1);
     save(s);
@@ -1118,20 +1152,9 @@ export class Engine {
     this.emit('hellSpawn', { floor, boss: r.isBossFloor });
   }
 
-  /* Referenční DPS pro „par time" = max(auto DPS, průměrný efektivní DPS běhu).
-     Self-kalibruje: kdo patro probil RYCHLEJI než svůj vlastní průměr (= burst),
-     dostane +čas. Roste/klesá s tím, jak se běh vyvíjí. */
-  _hellRefDps() {
-    const s = this.state;
-    const r = s.hellRun;
-    const elapsedSec = Math.max(0.05, (performance.now() - r.startedAt) / 1000);
-    const avg = r.dealt / elapsedSec;
-    return Math.max(totalDps(s), avg, 1);
-  }
-
   /* Ubrání HP patru; přebytek (overkill) se PŘELÉVÁ na další patro → silný burst
      řetězí zabití (geometrický růst HP řetěz sám utne). maxKillsPerTick = pojistka. */
-  _hellDamage(amount, now) {
+  _hellDamage(amount) {
     const r = this.state.hellRun;
     if (!r || r.phase !== 'running' || amount <= 0) return;
     let kills = 0;
@@ -1140,7 +1163,7 @@ export class Engine {
         amount -= r.hp;
         r.dealt += r.hp;
         r.hp = 0;
-        this._hellKill(now);
+        this._hellKill();
         kills++;
       } else {
         r.hp -= amount;
@@ -1150,24 +1173,18 @@ export class Engine {
     }
   }
 
-  _hellKill(now) {
-    const s = this.state;
-    const r = s.hellRun;
+  _hellKill() {
+    const r = this.state.hellRun;
     const killed = r.floor;
     r.cleared = killed;
-    // kombo-prodloužení času: zabití pod parFactor × par → +čas na hodinách
-    const killMs = now - r.floorStartedAt;
-    const parMs = (r.maxHp / this._hellRefDps()) * 1000;
-    if (killMs < parMs * HELLEVATOR.parFactor) {
-      r.endsAt += HELLEVATOR.comboBonusMs + hellRunPerk(s, 'comboMs');
-      r.comboExt++;
-      this.emit('hellExtend', { floor: killed });
-    }
+    // 60 s je PEVNÝCH — žádné prodlužování času. Zabití jen posune o patro níž.
     this.emit('hellKill', { floor: killed, boss: r.isBossFloor });
     this._hellSpawn(killed + 1);
   }
 
-  /* Manuální úder v běhu (klik hráče). Nabíjí hell-lokální zuřivost (burst-páka). */
+  /* Manuální úder v běhu = TÁŽ síla jako na hlavní obrazovce (clickDamage + krit).
+     Nabíjí hell-lokální zuřivost. Emituje 'hit'/'frenzy' jako hlavní hra → sdílený
+     FxManager hází úderový projektil a maluje záři (stejný pocit jako hlavní hra). */
   hellPunch() {
     const s = this.state;
     const r = s.hellRun;
@@ -1180,18 +1197,19 @@ export class Engine {
       if (r.frenzy.charge >= HELLEVATOR.frenzyClicksToFill) {
         r.frenzy.charge = 0;
         r.frenzy.until = now + HELLEVATOR.frenzyMs;
-        this.emit('hellFrenzy', { active: true });
+        r.frenzy.on = true;
+        this.emit('frenzy', { active: true });
       }
     }
     const isCrit = Math.random() < critChance(s);
     const mult = now < r.frenzy.until ? CONFIG.frenzyMult : 1;
     const dmg = clickDamage(s) * (isCrit ? critMult(s) : 1) * mult;
-    this._hellDamage(dmg, now);
-    this.emit('hellHit', { kind: isCrit ? 'crit' : 'click' });
+    this._hellDamage(dmg);
+    this.emit('hit', { amount: dmg, kind: isCrit ? 'crit' : 'click' });
     this.notify();
   }
 
-  /* Krok běhu — volá ho hlavní tick(). Spojité auto DPS + hodiny + konec běhu. */
+  /* Krok běhu — volá ho hlavní tick(). Spojité auto DPS (zbraně) + hodiny + konec. */
   hellTick(dt) {
     const s = this.state;
     const r = s.hellRun;
@@ -1200,9 +1218,14 @@ export class Engine {
     const auto = totalDps(s);
     if (auto > 0) {
       const mult = now < r.frenzy.until ? CONFIG.frenzyMult : 1;
-      this._hellDamage(auto * dt * mult, now);
+      this._hellDamage(auto * dt * mult);
     }
-    if (now >= r.endsAt || now - r.startedAt >= HELLEVATOR.maxRunMs) this.finishHellRun();
+    // konec zuřivosti → zhasni záři (FxManager poslouchá 'frenzy')
+    if (r.frenzy.on && now >= r.frenzy.until) {
+      r.frenzy.on = false;
+      this.emit('frenzy', { active: false });
+    }
+    if (now >= r.endsAt) this.finishHellRun();
   }
 
   /* Konec běhu: spočítej skóre, uděl 🔥, zapiš rekord. Výsledky ukáže UI. */
@@ -1211,11 +1234,12 @@ export class Engine {
     const r = s.hellRun;
     if (!r || r.phase !== 'running') return;
     r.phase = 'done';
+    if (r.frenzy.on) { r.frenzy.on = false; this.emit('frenzy', { active: false }); }
     // skóre = nejhlubší DOSAŽENÉ patro (= aktuální patro, na kterém doběhl čas) →
     // sedí s velkým počítadlem v běhu, žádný matoucí pokles o 1 na výsledkovce.
     const deepest = r.floor;
     const loot = this.grantHellLoot(deepest);
-    r.summary = { deepestFloor: deepest, comboExt: r.comboExt, clicks: r.clicks, ...loot };
+    r.summary = { deepestFloor: deepest, clicks: r.clicks, ...loot };
     save(s);
     this.notify();
     this.emit('hellEnd', r.summary);
@@ -1256,7 +1280,6 @@ export class Engine {
   /* ---------- Pekelný krám (🔥 sink) ---------- */
   buyHellPerk(id) {
     const s = this.state;
-    if (!s.hellevatorUnlocked) return;
     const def = HELL_SHOP[id];
     if (!def) return;
     const tier = s.hellShop[id] || 0;
@@ -1271,7 +1294,6 @@ export class Engine {
   /* Dokup 1 žeton za 🔥 (do stropu passMax). */
   buyHellPass() {
     const s = this.state;
-    if (!s.hellevatorUnlocked) return;
     this.tickHellPasses();
     if (s.hell.passes >= HELLEVATOR.passMax) return;
     const cost = HELLEVATOR.passBuyCostSira;
@@ -1286,7 +1308,6 @@ export class Engine {
   /* Směň 🔥 → 💠 (denní strop) → 🔥 má dno hodnoty i po vymaxování perků. */
   exchangeSira(count) {
     const s = this.state;
-    if (!s.hellevatorUnlocked) return 0;
     const today = dayStr();
     if (!s.hellExch || s.hellExch.day !== today) s.hellExch = { day: today, dust: 0 };
     const capLeft = HELLEVATOR.exchangeDailyCapDust - s.hellExch.dust;

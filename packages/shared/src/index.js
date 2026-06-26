@@ -181,7 +181,9 @@ export const RAIDS = {
   streakDoveEvery: 4,            // každá 4. výhra v sérii → +1 🕊 ražený bonus
   raidCooldownMs: 90_000,        // min. prodleva mezi tvými přepady
   targetCooldownMs: 45 * 60_000, // stejnou oběť nemůžeš hned zas (anti-farma)
-  shieldMs: 8 * 3600_000,        // po vyloupení 8 h imunita
+  shieldMs: 1 * 3600_000,        // štít = 1 h imunita (naskočí až po nasčítání ztrát)
+  shieldLossThreshold: 3,        // štít naskočí až po 3. vyloupení v okně (ne hned po 1.)
+  shieldWindowMs: 60 * 60_000,   // okno, ve kterém se vyloupení sčítají k prahu štítu
   newbieShieldLevel: 60,         // hráče pod touto úrovní nelze přepadnout (ani útočit)
   dailyRaidCap: 30,              // max. přepadů za den
 };
@@ -350,7 +352,7 @@ export function checkPlausibility(prev, next, nowMs) {
    Měnové sinky (zakládací poplatek) jsou KLIENTSKÉ jako celá ekonomika (gold/💠/🕊
    žijí v lokálním save); server gateuje jen ATESTOVANOU úroveň. ======================= */
 export const GUILDS = {
-  foundLevel: 1000,        // gate pro založení (atestovaná highestLevel — první „endgame" brána)
+  foundLevel: 888,         // gate pro založení (atestovaná highestLevel — odemkne se po DOSAŽENÍ, příznak je trvalý)
   joinLevel: 100,          // gate pro vstup (sjednoceno s Hellevator unlockem)
   foundFeeDust: 500,       // jednorázový sink 💠 při založení (KLIENTSKÝ — lokální ekonomika)
   baseMemberCap: 20,       // základní strop členů (zvyšují perky úrovně cechu)

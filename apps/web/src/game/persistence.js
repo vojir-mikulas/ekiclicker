@@ -71,9 +71,8 @@ export function buildSnapshot(state) {
     // mistrovská mřížka 🔱: nevyutracené body + ranky uzlů (aditivní — starý save = prázdná)
     masteryUnlocked: state.masteryUnlocked,
     mastery: state.mastery,
-    // Pekelný výtah 🛗: odemčení + rekord/žetony + 🔥 Síra + koupené perky (aditivní;
+    // Pekelný výtah 🛗: rekord/žetony + 🔥 Síra + koupené perky (aditivní;
     // hellRun je PŘECHODNÝ → ZÁMĚRNĚ se neukládá, jako pendingOpen)
-    hellevatorUnlocked: state.hellevatorUnlocked,
     hell: state.hell,
     sira: state.sira,
     hellShop: state.hellShop,
@@ -150,7 +149,6 @@ export function hydrateState(d) {
     ? { points: d.mastery.points || 0, nodes: { ...d.mastery.nodes } }
     : createMastery();
   // Pekelný výtah 🛗 (starý save → prázdné). hellRun je přechodný → po reloadu null.
-  state.hellevatorUnlocked = !!d.hellevatorUnlocked;
   state.hell = (d.hell && typeof d.hell === 'object')
     ? { bestFloor: d.hell.bestFloor || 0, passes: d.hell.passes || 0, passAt: d.hell.passAt || 0, freeDay: d.hell.freeDay || '', lastRunDay: d.hell.lastRunDay || '' }
     : { bestFloor: 0, passes: 0, passAt: 0, freeDay: '', lastRunDay: '' };
