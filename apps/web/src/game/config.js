@@ -29,13 +29,11 @@ export const CONFIG = {
   baseHp: 10,
   baseGold: 14,
   curveG0: tune('G0', 1.16),    // počáteční růst HP/úroveň (≈ původní hpGrowth)
-  curveFloor: tune('FLOOR', 1.049), // asymptota růstu HP/úroveň. Efekt SE SČÍTÁ S HLOUBKOU
-  // (kumulativní součin), takže páčka se chová jako „strmost coastu PO startu": brzká/landing
-  // zóna se skoro nehne, ale každá úroveň nad kolenem je čím dál tvrdší. 1,0 = stará mírná
-  // (whale coastoval na ~1500 / r260-prestiž na ~5000); 1,012 utahuje pozdní climb VÝRAZNĚ
-  // (whale coast ~850, r260 ~2300) — hluboká prestiž pořád PLYNULE stoupá k branám
-  // (r400→~3800, r550→~4900, r700→~6300, žádný strop), jen vyžaduje víc grindu. Vyšší = tvrdší
-  // (1,016 stlačí žebřík až k landing zóně). Tvrdost endgame STROPU řeší zvlášť harden níž.
+  curveFloor: tune('FLOOR', 1.0), // asymptota růstu HP/úroveň. POZOR: tahle páčka NEZASTAVÍ
+  // „buy→blitz" — silný/ascended účet protne i strmou křivku za pár minut (sim: i @1,049 blitz
+  // na ~700-2000). Navíc >1,02 rozjede HP geometricky → přeteče float / 30000 NEDOSAŽITELNÉ.
+  // Drž ji na 1,0 (mírná střední hra, dosažitelnost). Tvrdost coastu/endgame řeš HARDENem (níž)
+  // + difficultyExp; blitz ASCENDED účtů umí utlumit JEN strop meta-síly (cosmicWrath/rage) — viz exp.
   curveKnee: tune('KNEE', 200),   // „koleno": L, kde růst klesne na půl cesty mezi G0 a floor
   // Zlato je svázané se STEJNOU křivkou: goldGrowth(L) = 1 + goldRatio×(g(L)-1).
   // goldRatio<1 → mírná, ale TRVALÁ brzda (odměna/HP pomalu klesá → zeď existuje
@@ -79,8 +77,11 @@ export const CONFIG = {
   // pokračuje DONEKONEČNA, žádná cihlová zeď). Bezpečný proti přetečení: 1,001 drží
   // HP konečné do ~L450k (a ENEMY_HP_CAP=1e300 chrání i dál → vždy zabitelné). Strmější
   // harden (1,018) přeteče float kolem L~34000 — proto JEN mírný. Páka „tvrdost endgame".
-  hardenFrom: tune('HFROM', 3000),
-  hardenRamp: tune('HRAMP', 1.001), // 1,0 = vypnuto. 1,001 = mírný endgame strop ~5000 (viz výš).
+  hardenFrom: tune('HFROM', 1000),
+  hardenRamp: tune('HRAMP', 1.003), // 1,0 = vypnuto. Zostřeno 3000/1,001 → 1000/1,003: harden teď začíná
+  // u L1000 a roste +0,3 %/úr. ODMĚNA SE NEHARDÍ (jen HP) → nad L1000 padá odměna/HP geometricky →
+  // ekonomika UŠKRTÍ blitz (nedá se ufinancovat skok) A každý hlubší level trvá geometricky dýl = grind
+  // na DNY. Bezpečné proti přetečení: HP@30000 ≈ 1e90 (cap 1e300 chrání i dál). Páka „tvrdost coastu+endgame".
 
   // --- obtížnost škáluje s prestige silou (ANTI-BLITZ) ---
   // Problém: po rebirthu si neseš veškerou prestige sílu (hlavně Věčný hněv,
@@ -107,7 +108,7 @@ export const CONFIG = {
   // žebřík. Páruje se s goldRatio (výš): goldRatio = základní zeď, exp = rozpětí.
   // (Dřív 0,95 — to ale bylo s goldRatio0,62, kde volná ekonomika „utíkala" na 5000;
   // při utažené 0,58 zeď saturuje, takže nižší exp už neutíká → koherentní spolu-laděno.)
-  difficultyExp: tune('DEXP', 0.78),
+  difficultyExp: tune('DEXP', 0.90),
 
   // --- souboj ---
   critChance: 0.1,

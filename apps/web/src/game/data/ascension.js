@@ -15,7 +15,9 @@
    - Ostatní bonusy jsou ekonomické/QoL (zlato/🕊/💠/štěstí/náskok) → NEvstupují
      do obtížnosti, žádný nový level-scaling exponenciál, žádný runaway. */
 export const ASCENSION = {
-  unlockLevel: 30000,           // dosažená NEJVYŠŠÍ úroveň pro odemčení + každou další absoluci
+  unlockLevel: 10000,           // dosažená NEJVYŠŠÍ úroveň pro odemčení + každou další absoluci
+  // (sníženo z 30000: při TVRDÉ obtížnosti + ohraničené meta-síle bylo 30000 nedosažitelné v řádu
+  // dnů; 10000 dělá z „pár absolucí" cíl na DNY grindu, ne týdny. Zvyš zpět, když má být víc aspirační.)
   emoji: '😇',
   currencyName: 'Svatozář',
 };
@@ -25,8 +27,11 @@ export const ASCENSION = {
    × growth^level (ascensionCost ve formulas.js). */
 export const ASCENSION_UPGRADES = {
   cosmicWrath: {
-    name: 'Boží hněv', emoji: '⚡', baseCost: 3, growth: 1.55, mult: 1.40,
-    desc: '×1,40 poškození (vše) — násobí se! Počítá se do obtížnosti (dosah, ne blitz).',
+    name: 'Boží hněv', emoji: '⚡', baseCost: 3, growth: 1.55, mult: 1.22,
+    desc: '×1,22 poškození (vše) — násobí se! Počítá se do obtížnosti (dosah, ne blitz).',
+    // mult sníženo 1,40→1,22: ROOT-FIX proti „ascended účet blitzne čerstvý běh". cosmicWrath se
+    // násobí PŘES všechny absoluce → ×1,40/lvl udělalo z meta-síly tak velký balík, že protla i strmou
+    // křivku za pár minut (žádná HP-páčka to nezastaví). ×1,22 drží absoluci smysluplnou, ale ohraničenou.
   },
   stardustGreed: {
     name: 'Nebeská štědrost', emoji: '💫', baseCost: 2, growth: 1.5, per: 0.6,
