@@ -29,7 +29,7 @@ export const CONFIG = {
   baseHp: 10,
   baseGold: 14,
   curveG0: tune('G0', 1.16),    // počáteční růst HP/úroveň (≈ původní hpGrowth)
-  curveFloor: tune('FLOOR', 1.0), // asymptota růstu HP/úroveň. POZOR: tahle páčka NEZASTAVÍ
+  curveFloor: tune('FLOOR', 1.7), // asymptota růstu HP/úroveň. POZOR: tahle páčka NEZASTAVÍ
   // „buy→blitz" — silný/ascended účet protne i strmou křivku za pár minut (sim: i @1,049 blitz
   // na ~700-2000). Navíc >1,02 rozjede HP geometricky → přeteče float / 30000 NEDOSAŽITELNÉ.
   // Drž ji na 1,0 (mírná střední hra, dosažitelnost). Tvrdost coastu/endgame řeš HARDENem (níž)
