@@ -11,14 +11,22 @@
      takže projektily jsou jen efekt a hra neseká ani při obřím DPS.
    ========================================================================= */
 export const CONFIG = {
-  // --- nepřítel ---
+  // --- nepřítel: KŘIVKA OBTÍŽNOSTI (klesající růst / decaying growth) ---
+  // Růst HP za úroveň NENÍ konstantní — klesá z curveG0 k curveFloor podle
+  // „kolena" curveKnee:  g(L) = curveFloor + (curveG0 - curveFloor)/(1 + L/curveKnee).
+  // Brzká hra je strmá (×~1,14/úr → tvrdý výstup, motivace k rebirthu), pozdní hra
+  // mírná (×~1,02/úr) → úroveň 3000–5000 je DOSAŽITELNÁ pro hlubokou prestiž a
+  // magnitudy zůstanou zvládnutelné (zbraně i zlato drží krok). Nahrazuje původní
+  // konstantní hpGrowth=1,155, kvůli kterému měl L3000 ~1e188 HP a zbraně „nic".
   baseHp: 10,
-  hpGrowth: 1.155, // HP za úroveň. Cíl: dlouhá hra (level 1000+ je endgame).
   baseGold: 14,
-  // KLÍČOVÉ pro anti-runaway: zlato roste ZNATELNĚ pomaleji než HP. Tím poměr
-  // odměna/HP klesá s úrovní → reinvestice (která jinak žene DPS² explozi) se
-  // sama dusí a běh se přirozeně zpomalí do "zdi" → motivace k rebirthu.
-  goldGrowth: 1.09,
+  curveG0: 1.16,    // počáteční růst HP/úroveň (≈ původní hpGrowth)
+  curveFloor: 1.0,  // asymptota růstu v pozdní hře (×1 → HP přestane prudce růst)
+  curveKnee: 200,   // „koleno": L, kde růst klesne na půl cesty mezi G0 a floor
+  // Zlato je svázané se STEJNOU křivkou: goldGrowth(L) = 1 + goldRatio×(g(L)-1).
+  // goldRatio<1 → mírná, ale TRVALÁ brzda (odměna/HP pomalu klesá → zeď existuje
+  // v každé hloubce, žádný coast-to-∞). HLAVNÍ ladicí páka obtížnosti („mid").
+  goldRatio: 0.62,
   bossEvery: 5, // každá 5. úroveň = boss (Golden Eki)
   megaBossEvery: 25, // každá 25. = mega boss (Eki Král)
   ultraBossEvery: 100, // každá 100. = ultra boss (Eki Titán) — endgame milník
@@ -104,9 +112,30 @@ export const CONFIG = {
   luckyLifetimeMs: 9000,
 };
 
-/* Zrychlující obtížnost v pozdní hře */
+/* Zrychlující obtížnost v pozdní hře (PONECHÁNO pro zpětnou kompatibilitu, ale
+   křivka obtížnosti ho už NEPOUŽÍVÁ — klesající růst dělá tvarování sám; geometrický
+   harden by nad křivku zase přimíchal exponenciál a rozbil magnitudy). */
 export const hardenScale = (level) =>
   Math.pow(CONFIG.hardenRamp, Math.max(0, level - CONFIG.hardenFrom));
+
+/* KŘIVKA OBTÍŽNOSTI — kumulativní součin klesajícího růstu g(i).
+   Bez uzavřené formy → předpočítáno do LUT při načtení modulu (O(1) čtení, sdílí
+   ho hra, simulátor i cena zaklínání). hpCurve(L)=Π_{i<L} g(i) (jako dřív
+   hpGrowth^(L-1)); goldCurve(L)=Π_{i<L} (1+goldRatio·(g(i)-1)). Nad CURVE_MAX se
+   drží konstantně (nikdo tam nedojde). */
+const CURVE_MAX = 12000;
+const HP_CURVE = new Float64Array(CURVE_MAX + 1);
+const GOLD_CURVE = new Float64Array(CURVE_MAX + 1);
+HP_CURVE[1] = 1;
+GOLD_CURVE[1] = 1;
+for (let L = 2; L <= CURVE_MAX; L++) {
+  const g = CONFIG.curveFloor + (CONFIG.curveG0 - CONFIG.curveFloor) / (1 + (L - 1) / CONFIG.curveKnee);
+  HP_CURVE[L] = HP_CURVE[L - 1] * g;
+  GOLD_CURVE[L] = GOLD_CURVE[L - 1] * (1 + CONFIG.goldRatio * (g - 1));
+}
+const clampLevel = (level) => Math.min(CURVE_MAX, Math.max(1, Math.floor(level)));
+export const hpCurve = (level) => HP_CURVE[clampLevel(level)];
+export const goldCurve = (level) => GOLD_CURVE[clampLevel(level)];
 
 /* Multiplikátory (exponenciální "motor" růstu) */
 export const MULT = {

@@ -231,7 +231,7 @@ function measureBlitz(prestige, exp) {
   let blitz = 0;
   let blitzOpen = true;
   let wall = null;
-  for (s.level = 1; s.level <= 2000; s.level++) {
+  for (s.level = 1; s.level <= 6000; s.level++) {
     const variant = variantForLevel(s.level);
     const hp = enemyMaxHp(s.level, variant, difficultyScale(s));
     spend(s); // koupí, co si může dovolit, než zaútočí
@@ -256,11 +256,13 @@ function measureBlitz(prestige, exp) {
 
 if (process.argv.includes('--blitz')) {
   const LOADOUTS = {
-    'modest  (rage25)': { rage: 25, fist: 12, factory: 10, crit: 8, greed: 12 },
-    'strong  (rage45)': { rage: 45, fist: 25, factory: 18, crit: 15, greed: 20, shadow: 10 },
-    'deep    (rage70)': { rage: 70, fist: 35, factory: 25, crit: 20, greed: 30, shadow: 15 },
+    'fresh   (rage0)  ': { rage: 0 },
+    'modest  (rage40) ': { rage: 40, fist: 20, factory: 12, crit: 10, greed: 18 },
+    'strong  (rage90) ': { rage: 90, fist: 40, factory: 20, crit: 18, greed: 30, shadow: 12 },
+    'deep    (rage160)': { rage: 160, fist: 70, factory: 28, crit: 25, greed: 45, shadow: 20 },
+    'whale   (rage260)': { rage: 260, fist: 110, factory: 32, crit: 30, greed: 60, shadow: 30 },
   };
-  const EXPS = [0, 0.5, 0.65, 0.78, 0.9, 1.0];
+  const EXPS = process.env.EXPS ? process.env.EXPS.split(',').map(Number) : [0, 0.5, 0.65, 0.78, 0.9, 1.0];
   console.log('=== EKI CLICKER — blitz sim (délka post-rebirth instakill úseku) ===\n');
   console.log('Aktuální CONFIG.difficultyExp =', CONFIG.difficultyExp, '\n');
   console.log('prestige loadout  |', EXPS.map((e) => `exp${e}`.padStart(8)).join(' '));

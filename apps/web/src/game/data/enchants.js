@@ -18,7 +18,7 @@
    - Bonus se SNAPSHOTuje do obtížnosti (přes gearPower → runGearPower), stejně
      jako afixy → posouvá zeď dál, ale blitz zůstává omezený.
    ========================================================================= */
-import { CONFIG } from '../config.js';
+import { CONFIG, goldCurve } from '../config.js';
 import { ITEMS, RARITIES, AFFIXES } from './items.js';
 
 export const ENCHANTS_CFG = {
@@ -81,7 +81,7 @@ export function runeWord() {
 export function enchantCost(item, tierIndex) {
   if (!item) return Infinity;
   const tier = TIERS[tierIndex] || TIERS[0];
-  const ilvlMult = Math.pow(CONFIG.goldGrowth, Math.max(0, item.ilvl || 0));
+  const ilvlMult = goldCurve(Math.max(1, item.ilvl || 1)); // kopíruje růst příjmu (nová křivka zlata)
   const rarityMult = RARITIES[item.rarity]?.mult || 1;
   const lvlMult = Math.pow(ENCHANTS_CFG.costLevelGrowth, enchantTotalLvl(item));
   return Math.ceil(ENCHANTS_CFG.costBase * ilvlMult * rarityMult * tier.costMult * lvlMult);

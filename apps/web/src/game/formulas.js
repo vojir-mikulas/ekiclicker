@@ -2,7 +2,7 @@
    FORMULAS — čistá matematika hry (žádný stav, žádné DOM).
    Vše odvozené z herního stavu. Testovatelné, sdílené simulátorem i enginem.
    ========================================================================= */
-import { CONFIG, MULT, CAPS, hardenScale } from './config.js';
+import { CONFIG, MULT, CAPS, hpCurve, goldCurve } from './config.js';
 import { WEAPONS } from './data/weapons.js';
 import { UPGRADES } from './data/upgrades.js';
 import { PRESTIGE_ALL } from './data/prestige.js';
@@ -244,19 +244,12 @@ export function difficultyScale(s) {
 
 /* ----------------------------- nepřítel ----------------------------- */
 export function enemyMaxHp(level, variant, diff = 1) {
-  return Math.ceil(
-    CONFIG.baseHp *
-      Math.pow(CONFIG.hpGrowth, level - 1) *
-      variant.hp *
-      hardenScale(level) *
-      diff
-  );
+  // HP = baseHp × křivka obtížnosti (klesající růst) × varianta × prestige-snapshot.
+  // hpCurve nahrazuje původní hpGrowth^(L-1) × hardenScale — tvar dělá křivka sama.
+  return Math.ceil(CONFIG.baseHp * hpCurve(level) * variant.hp * diff);
 }
 export function enemyReward(level, variant, goldMultVal) {
-  return Math.ceil(
-    CONFIG.baseGold *
-      Math.pow(CONFIG.goldGrowth, level - 1) *
-      variant.gold *
-      goldMultVal
-  );
+  // Zlato roste po STEJNÉ křivce (goldCurve = mírnější verze hpCurve dle goldRatio),
+  // takže odměna/HP klesá jen pozvolna → ekonomika drží krok i v pozdní hře.
+  return Math.ceil(CONFIG.baseGold * goldCurve(level) * variant.gold * goldMultVal);
 }
