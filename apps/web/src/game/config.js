@@ -108,7 +108,7 @@ export const CONFIG = {
   // žebřík. Páruje se s goldRatio (výš): goldRatio = základní zeď, exp = rozpětí.
   // (Dřív 0,95 — to ale bylo s goldRatio0,62, kde volná ekonomika „utíkala" na 5000;
   // při utažené 0,58 zeď saturuje, takže nižší exp už neutíká → koherentní spolu-laděno.)
-  difficultyExp: tune('DEXP', 0.63),
+  difficultyExp: tune('DEXP', 0.59),
 
   // --- souboj ---
   critChance: 0.1,
@@ -160,6 +160,17 @@ export const CONFIG = {
   // --- Lucky Eki (zlatá sušenka) ---
   luckySpawnChancePerSec: 0.018, // šance/s, že se objeví
   luckyLifetimeMs: 9000,
+
+  // --- Boxovací kruh (⭕) — reflexní klikací prsten → dočasný KRIT „knockout" ---
+  // Občas se objeví prázdný kruh; cvaknutí spustí knockout — dočasně mohutně zvedne
+  // šanci na krit i krit násobič. Je to BURST jako zuřivost/elixír (žádný dmgPct,
+  // mimo difficultyScale → nulový anti-blitz dopad). Strana spawnu (levá/pravá půlka
+  // arény) řídí vtipnou hlášku (levej/pravej hák…).
+  comboRingSpawnChancePerSec: 0.012, // šance/s (vzácnější než Lucky)
+  comboRingLifetimeMs: 5000,         // jak dlouho prsten visí, než zmizí (reflex)
+  comboRingDurationMs: 12000,        // jak dlouho drží krit buff po cvaknutí
+  comboRingCritChanceBonus: 0.4,     // +40 pp ke krit šanci (cap 0,9 drží formulka)
+  comboRingCritMultBonus: 6,         // +6 ke krit násobiči během buffu
 
   // --- Vyšlehanej Eki (🍄 tajná psychedelická varianta) ---
   // Vzácně se objeví v aréně (jen v hloubce); zabití tě pošle na „trip": celá scéna

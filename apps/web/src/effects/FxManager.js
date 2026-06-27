@@ -167,6 +167,15 @@ export class FxManager {
           this.coinBurst(c.x, c.y, 18);
         }
         break;
+      case 'comboRing':
+        if (payload.catch) {
+          const c = this.enemyCenter();
+          // velká vtipná červená hláška podle strany (levej/pravej hák…) + náraz
+          this.floatPunch(payload.phrase, c.x + (payload.side === 'left' ? -40 : 40), c.y - 30);
+          this.screenShake();
+          this.coinBurst(c.x, c.y, 6);
+        }
+        break;
       case 'trip':
         this.onTrip(payload);
         break;
@@ -409,6 +418,19 @@ export class FxManager {
     el.style.top = y + 'px';
     this._restartAnim(el);
     setTimeout(() => this._dmg.release(el, token), 800);
+  }
+
+  /* ⭕ boxovací hláška — velká, červená, „úderná" (vlastní @keyframes punchText). */
+  floatPunch(text, x, y) {
+    const el = this._dmg.acquire();
+    const token = el._token;
+    el.className = 'dmg punch-text';
+    el.textContent = text;
+    el.style.left = x + 'px';
+    el.style.top = y + 'px';
+    el.style.color = '';
+    this._restartAnim(el);
+    setTimeout(() => this._dmg.release(el, token), 1100);
   }
 
   /* Restartuje CSS @keyframes animaci na recyklovaném prvku

@@ -61,6 +61,7 @@ export function createStats() {
     maxCombo: 0,
     frenzies: 0,
     luckyClicks: 0,
+    comboRingHits: 0, // ⭕ cvaknuté boxovací kruhy (→ knockout krit buff)
     trippedKills: 0, // 🍄 zabití Vyšlehaného Ekiho (tajná varianta → trip)
     playTimeMs: 0,
     peakDps: 0,
@@ -93,6 +94,10 @@ export function createState() {
     enemy: null,
     combo: { count: 0, lastClickAt: 0 },
     frenzy: { active: false, until: 0, charge: 0 },
+    // ⭕ boxovací kruh: přechodný prsten v aréně (jako lucky) + běžící krit „knockout"
+    // buff (mirror zuřivosti — `active` čte critChance/critMult, engine ho v ticku zháší).
+    comboRing: null,
+    critBuff: { active: false, until: 0 },
     // elixíry: jeden aktivní buff naráz (until = Date.now epoch ms → přežije reload se zbytkem)
     // + sklad koupených (přežívá rebirth jako bedny/vejce). Odemčou se na úrovni 1500.
     elixir: { active: null, until: 0 },
@@ -167,6 +172,8 @@ export function resetRun(state, startLevel) {
   // bojové rituály: běžící buffy + cooldowny rebirth nepřežijí (koupené LEVELY ano)
   if (state.abilities) { state.abilities.active = {}; state.abilities.cooldowns = {}; }
   state.lucky = null;
+  state.comboRing = null; // ⭕ přechodný prsten rebirth nepřežije
+  state.critBuff = { active: false, until: 0 }; // běžící knockout buff rebirth nepřežije
   state.enemy = null;
   state.pendingOpen = null; // přechodná ruleta — rebirth ji nenese
   state.pendingEgg = null;  // přechodné líhnutí — rebirth ho nenese

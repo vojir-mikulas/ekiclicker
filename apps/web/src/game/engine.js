@@ -10,7 +10,7 @@
 import { CONFIG } from './config.js';
 import { WEAPONS } from './data/weapons.js';
 import { UPGRADES } from './data/upgrades.js';
-import { VARIANTS, variantPool } from './data/variants.js';
+import { VARIANTS, variantPool, COMBO_RING } from './data/variants.js';
 import { ACHIEVEMENTS } from './data/achievements.js';
 import { CAPSTONES } from './data/prestige.js';
 import { createState, resetRun, createPrestige } from './initialState.js';
@@ -1168,6 +1168,45 @@ export class Engine {
     this.notify();
   }
 
+  /* ---------- Boxovací kruh (⭕ knockout) ----------
+     Občas se objeví prázdný prsten (levá/pravá půlka arény). Cvaknutí = knockout:
+     dočasný KRIT buff (kritChance + kritMult navrch). Je to BURST jako zuřivost/elixír
+     → žádný dmgPct, mimo difficultyScale = nulový anti-blitz dopad. Strana spawnu řídí
+     vtipnou hlášku („levej hák" vs „pravej hák"…). */
+  maybeSpawnComboRing(dt) {
+    const s = this.state;
+    if (s.comboRing) return;
+    const chance = CONFIG.comboRingSpawnChancePerSec * luckSpawnMult(s) * dt; // sdílí škálování štěstí s Lucky
+    if (Math.random() < chance) {
+      const left = Math.random() < 0.5;
+      s.comboRing = {
+        id: nextEnemyId++,
+        until: performance.now() + CONFIG.comboRingLifetimeMs,
+        side: left ? 'left' : 'right',
+        // levá / pravá půlka arény (drží odstup od kraje) → řídí hlášku
+        x: left ? 10 + Math.random() * 28 : 62 + Math.random() * 28,
+        y: 16 + Math.random() * 40,
+      };
+      this.emit('comboRing', { spawn: true });
+    }
+  }
+  catchComboRing() {
+    const s = this.state;
+    if (!s.comboRing) return;
+    const side = s.comboRing.side || (s.comboRing.x < 50 ? 'left' : 'right');
+    s.comboRing = null;
+    s.stats.comboRingHits = (s.stats.comboRingHits || 0) + 1;
+    // knockout: spusť / obnov krit buff (mirror zuřivosti — flag čtou crit formulky)
+    if (!s.critBuff) s.critBuff = { active: false, until: 0 };
+    s.critBuff.active = true;
+    s.critBuff.until = performance.now() + CONFIG.comboRingDurationMs;
+    const pool = COMBO_RING[side];
+    const phrase = pool[Math.floor(Math.random() * pool.length)];
+    this.emit('comboRing', { catch: true, phrase, side });
+    this.checkAchievements();
+    this.notify();
+  }
+
   /* ---------- nákupy ---------- */
   buyUpgrade(key) {
     const s = this.state;
@@ -2071,6 +2110,12 @@ export class Engine {
       s.frenzy.charge = Math.max(0, s.frenzy.charge - CONFIG.frenzyDecayPerSec * dt);
     }
 
+    // ⭕ boxovací kruh: krit „knockout" buff vyprší (mirror zuřivosti)
+    if (s.critBuff && s.critBuff.active && performance.now() >= s.critBuff.until) {
+      s.critBuff.active = false;
+      this.emit('comboRing', { buffEnd: true });
+    }
+
     // elixír: vyprší (wall-clock, ať odpočet sedí i po reloadu)
     if (s.elixir.active && Date.now() >= s.elixir.until) {
       s.elixir.active = null;
@@ -2110,6 +2155,13 @@ export class Engine {
       this.emit('lucky', { expire: true });
     }
     this.maybeSpawnLucky(dt);
+
+    // ⭕ boxovací kruh: vyprší (nestihl jsi cvaknout) / může se objevit
+    if (s.comboRing && performance.now() >= s.comboRing.until) {
+      s.comboRing = null;
+      this.emit('comboRing', { ringExpire: true });
+    }
+    this.maybeSpawnComboRing(dt);
 
     // achievementy (kontroluj ~4×/s, ne každý tick)
     this._achTimer += dt;

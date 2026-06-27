@@ -1,6 +1,6 @@
 /* Rychlý headless smoke test herního enginu (bez DOM/Reactu). */
 import { Engine } from '../src/game/engine.js';
-import { totalDps } from '../src/game/formulas.js';
+import { totalDps, critMult, critChance } from '../src/game/formulas.js';
 import { questDef } from '../src/game/data/quests.js';
 
 let fail = 0;
@@ -59,6 +59,19 @@ const g2 = e.state.gold;
 e.catchLucky();
 assert(e.state.gold > g2, 'lucky eki dal zlato');
 assert(e.state.lucky === null, 'lucky eki po chycení zmizel');
+
+// ⭕ boxovací kruh → knockout krit buff
+const cm0 = critMult(e.state), cc0 = critChance(e.state);
+e.state.comboRing = { id: 2, until: performance.now() + 5000, side: 'left', x: 20, y: 30 };
+e.catchComboRing();
+assert(e.state.comboRing === null, 'boxovací kruh po cvaknutí zmizel');
+assert(e.state.critBuff.active === true, 'knockout krit buff je aktivní');
+assert(critMult(e.state) > cm0, 'knockout zvýšil krit násobič');
+assert(critChance(e.state) >= cc0, 'knockout zvýšil/držel krit šanci');
+e.state.critBuff.until = performance.now() - 1; // dotuž vypršení
+e.tick(0.1);
+assert(e.state.critBuff.active === false, 'knockout krit buff vypršel v ticku');
+assert(critMult(e.state) === cm0, 'po vypršení je krit násobič zpět na základu');
 
 // denní úkoly
 assert(e.state.daily && e.state.daily.quests.length === 3, `narolovaly se denní úkoly (${e.state.daily?.quests.length})`);

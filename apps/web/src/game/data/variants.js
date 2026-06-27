@@ -51,6 +51,16 @@ export const VARIANTS = {
 /* Lucky Eki (zlatá sušenka) — neobjevuje se v aréně, je to klikací bonus. */
 export const LUCKY = { emoji: '🍀', name: 'Lucky Eki', glow: '#46e08a' };
 
+/* Boxovací kruh (⭕) — prázdný prsten; cvaknutí = knockout krit buff. Není to
+   varianta Ekiho, ale klikací bonus (jako Lucky). Hlášky se vybírají podle strany
+   spawnu — levá půlka arény = rány „zleva", pravá = „zprava". */
+export const COMBO_RING = {
+  name: 'Boxovací kruh',
+  glow: '#ff3b47',
+  left: ['LEVEJ HÁK! 🥊', 'LOKET! 💢', 'ZLEVA NA BRADU! 🥊'],
+  right: ['PRAVEJ HÁK! 🥊', 'TU MÁŠ KOLÍNKO! 🦵', 'ZPRAVA PŘÍMÝ! 👊'],
+};
+
 /* Přístupná barva nadpisu z varianty: vezme `glow` (signaturní odstín varianty)
    a podrží jeho ODSTÍN, ale ukotví jas/sytost tak, aby text byl čitelný na tmavém
    navy pozadí — i u tmavých variant (Void, Abyss…) a zároveň ne oslnivě bílý.

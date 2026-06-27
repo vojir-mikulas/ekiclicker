@@ -10,6 +10,7 @@ import BossTimer from './BossTimer.jsx';
 import ComboMeter from './ComboMeter.jsx';
 import FrenzyBar from './FrenzyBar.jsx';
 import LuckyEki from './LuckyEki.jsx';
+import ComboRing from './ComboRing.jsx';
 import AbilityBar from './AbilityBar.jsx';
 
 const selectGain = (s) => forgivenessGain(s.highestLevel);
@@ -59,6 +60,7 @@ export default function Arena({ onOpenRebirth, onOpenAscension }) {
       </div>
 
       <LuckyEki />
+      <ComboRing />
 
       <AbilityBar />
 
