@@ -1092,7 +1092,7 @@ export class Engine {
       if (s.frenzy.charge >= CONFIG.frenzyClicksToFill) this.startFrenzy(now);
     }
 
-    const isCrit = Math.random() < critChance(s);
+    const isCrit = (s.critBuff && s.critBuff.active) || Math.random() < critChance(s); // ⭕ knockout = zaručený krit
     const comboBonus = 1 + Math.min(s.combo.count, comboCap(s)) * comboPerHit(s); // 🔗 Mistr comba zvyšuje strop
     const dmg = clickDamage(s) * comboBonus * (isCrit ? critMult(s) : 1);
     this.applyDamage(dmg, 'punch');
@@ -1200,9 +1200,17 @@ export class Engine {
     if (!s.critBuff) s.critBuff = { active: false, until: 0 };
     s.critBuff.active = true;
     s.critBuff.until = performance.now() + CONFIG.comboRingDurationMs;
+    // okamžitý KNOCKOUT úder — skutečné poškození, škáluje s buildem (clickDamage ×
+    // posílený krit. násobič × punch mult). critBuff je už aktivní → critMult je ×factor.
+    let knockout = 0;
+    if (s.enemy) {
+      knockout = clickDamage(s) * critMult(s) * CONFIG.comboRingPunchMult;
+      this.applyDamage(knockout, 'punch');
+      this.emit('hit', { amount: knockout, kind: 'crit' });
+    }
     const pool = COMBO_RING[side];
     const phrase = pool[Math.floor(Math.random() * pool.length)];
-    this.emit('comboRing', { catch: true, phrase, side });
+    this.emit('comboRing', { catch: true, phrase, side, knockout });
     this.checkAchievements();
     this.notify();
   }

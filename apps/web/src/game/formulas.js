@@ -126,10 +126,12 @@ export function critChance(s) {
   const knockout = s.critBuff && s.critBuff.active ? CONFIG.comboRingCritChanceBonus : 0; // ⭕ boxovací kruh (burst, mimo obtížnost — jako zuřivost)
   return Math.min(0.9, CONFIG.critChance + s.prestige.crit * MULT.critPerLevel + combatStats(s).critChance + elixirMods(s).critChance + abilityMods(s).critChance + knockout); // 🐂 elixír + 👁️ Vševidoucí oko
 }
-/* Krit násobič — základ z CONFIG + gold upgrade "Tvrdý dopad" + vybavení + ⭕ knockout. */
+/* Krit násobič — základ z CONFIG + gold upgrade "Tvrdý dopad" + vybavení.
+   ⭕ knockout buff je MULTIPLIKATIVNÍ (×factor) → škáluje s celým krit. buildem
+   (burst, jen krit, mimo obtížnost). */
 export function critMult(s) {
-  const knockout = s.critBuff && s.critBuff.active ? CONFIG.comboRingCritMultBonus : 0; // ⭕ boxovací kruh (burst, mimo obtížnost)
-  return CONFIG.critMult + (s.upgrades.critdmg || 0) * MULT.critDmgPerLevel + combatStats(s).critMult + knockout;
+  const base = CONFIG.critMult + (s.upgrades.critdmg || 0) * MULT.critDmgPerLevel + combatStats(s).critMult;
+  return s.critBuff && s.critBuff.active ? base * CONFIG.comboRingCritMultFactor : base;
 }
 export function critFactor(s) {
   return 1 + critChance(s) * (critMult(s) - 1);
