@@ -1,4 +1,6 @@
+import { useSyncExternalStore } from 'react';
 import { useEngineSelector, shallowEqual } from '../hooks/useEngine.js';
+import { soundStore } from '../effects/sound.js';
 import { useAccount } from '../hooks/useAccount.js';
 import { useWorldBoss } from '../hooks/useWorldBoss.js';
 import { useRaid } from '../hooks/useRaid.js';
@@ -42,6 +44,7 @@ export default function TopBar({ view, page, onView, onOpenSettings, onOpenJoin,
   const rd = useRaid();
   const gd = useGuild();
   const mb = useMailbox();
+  const muted = useSyncExternalStore(soundStore.subscribe, soundStore.isMuted, soundStore.isMuted);
 
   return (
     <div className="topbar">
@@ -143,6 +146,13 @@ export default function TopBar({ view, page, onView, onOpenSettings, onOpenJoin,
             </button>
           )}
           <button className={'topbar-btn' + (page === 'stats' ? ' active' : '')} onClick={onOpenStats} title="Statistiky" aria-label="Statistiky">📊</button>
+          <button
+            className={'topbar-btn' + (muted ? ' muted' : '')}
+            onClick={soundStore.toggle}
+            title={muted ? 'Zapnout zvuk' : 'Ztlumit zvuk'}
+            aria-label={muted ? 'Zapnout zvuk' : 'Ztlumit zvuk'}
+            aria-pressed={muted}
+          >{muted ? '🔇' : '🔊'}</button>
           <button className="topbar-btn" onClick={onOpenSettings} title="Nastavení" aria-label="Nastavení">⚙️</button>
         </div>
       </div>

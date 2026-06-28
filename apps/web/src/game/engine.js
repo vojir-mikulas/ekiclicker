@@ -1886,6 +1886,7 @@ export class Engine {
     resetRun(s, this.startLevel());
     this.spawnEnemy();
     this.checkAchievements();
+    this.emit('rebirth', { rebirths: s.prestige.rebirths, gain });
     save(s);
     this.notify();
     return true;
