@@ -177,6 +177,10 @@ export const CONFIG = {
   // zbraně). Floor drží úder smysluplný i u čerstvého hráče (jako Lucky max()).
   comboRingNukeDpsSeconds: 15,       // knockout úder ≥ totalDps × tolik sekund
   comboRingNukePunchFloor: 10,       // …a zároveň ≥ clickDamage × krit. násobič × tohle
+  // KASKÁDA: úder prorazí ŘADOU Ekiů (přebytek po zabití přeteče na dalšího), aby bylo
+  // škálování z buildu VIDĚT — na jednom Ekim ho strop HP schová (1 zásah = 1 kill).
+  // Strop killů = anti-blitz mez (silný build jinak skočí o moc úrovní z jednoho kruhu).
+  comboRingMaxKills: 12,             // nejvíc tolik Ekiů srazí jeden knockout
 
   // --- Vyšlehanej Eki (🍄 tajná psychedelická varianta) ---
   // Vzácně se objeví v aréně (jen v hloubce); zabití tě pošle na „trip": celá scéna

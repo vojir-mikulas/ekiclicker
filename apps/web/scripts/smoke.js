@@ -61,8 +61,8 @@ e.catchLucky();
 assert(e.state.gold > g2, 'lucky eki dal zlato');
 assert(e.state.lucky === null, 'lucky eki po chycení zmizel');
 
-// ⭕ boxovací kruh → JEDEN velký knockout úder = totalDps × N s (škáluje z buildu, žádný buff)
-const enemyBefore = e.state.enemy, hpBefore = enemyBefore.hp;
+// ⭕ boxovací kruh → velký knockout úder (max(totalDps×N, úder×krit×floor)), kaskáduje
+const lvlBefore = e.state.level;
 const expectedNuke = Math.max(
   totalDps(e.state) * CONFIG.comboRingNukeDpsSeconds,
   clickDamage(e.state) * critMult(e.state) * CONFIG.comboRingNukePunchFloor
@@ -71,11 +71,10 @@ e.state.comboRing = { id: 2, until: performance.now() + 5000, side: 'left', x: 2
 e.catchComboRing();
 assert(e.state.comboRing === null, 'boxovací kruh po cvaknutí zmizel');
 assert(e.state.critBuff === undefined, 'žádný knockout buff (jen úder)');
-const killed = e.state.enemy !== enemyBefore;
-const dealt = killed ? hpBefore : hpBefore - e.state.enemy.hp;
-assert(dealt > 0, 'knockout úder ubral HP');
-assert(expectedNuke >= hpBefore || Math.abs(dealt - expectedNuke) < 1, 'knockout úder = totalDps × nukeDpsSeconds');
-assert(expectedNuke > clickDamage(e.state), 'knockout úder >> holý úder (škáluje z totalDps)');
+const kills = e.state.level - lvlBefore;
+assert(kills >= 1, `knockout srazil aspoň 1 Ekiho (${kills})`);
+assert(kills <= CONFIG.comboRingMaxKills, 'kaskáda nepřekročí strop killů');
+assert(expectedNuke > clickDamage(e.state), 'knockout úder >> holý úder (škáluje z buildu)');
 
 // denní úkoly
 assert(e.state.daily && e.state.daily.quests.length === 3, `narolovaly se denní úkoly (${e.state.daily?.quests.length})`);

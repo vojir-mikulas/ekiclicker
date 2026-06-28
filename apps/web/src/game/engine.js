@@ -1197,10 +1197,9 @@ export class Engine {
     s.stats.comboRingHits = (s.stats.comboRingHits || 0) + 1;
     // jeden velký KNOCKOUT úder = max(totalDps × N s, clickDamage × krit × floor) — bere
     // VĚTŠÍ z obou zdrojů síly: DPS (zbraňový build) nebo úder×krit (punch build / než máš
-    // zbraně). Oboje škáluje z celého buildu (power/rage/fist/gear), floor drží úder
-    // smysluplný i čerstvý (totalDps po rebirthu bez zbraní = 0). ZÁMĚRNĚ mimo _recordDmg
-    // (jako nuke rituálů / Pekelný výtah) → nenafoukne atestovaný peakDps. Jeden zásah
-    // zabije max 1 Ekiho (applyDamage nepřelévá), proti bossovi ubere balík HP úměrný DPS.
+    // zbraně). Oboje škáluje z CELÉHO buildu: totalDps i clickDamage čtou combatStats →
+    // tj. zbraně, Stín, power/rage/fist, VYBAVENÍ, MAZLÍČEK, runy, mřížka, deník, cech…
+    // Floor drží úder smysluplný i čerstvý (totalDps po rebirthu bez zbraní = 0).
     let nuke = 0;
     const e = s.enemy;
     if (e) {
@@ -1208,8 +1207,19 @@ export class Engine {
         totalDps(s) * CONFIG.comboRingNukeDpsSeconds,
         clickDamage(s) * critMult(s) * CONFIG.comboRingNukePunchFloor
       );
-      if (nuke >= e.hp) { e.hp = 0; this.defeat(); } else e.hp -= nuke;
       this.emit('hit', { amount: nuke, kind: 'crit' });
+      // KASKÁDA: přebytek prorazí na dalšího Ekiho → silnější build srazí VÍC Ekiů =
+      // škálování je vidět (na jednom by ho strop HP schoval). Strop killů = anti-blitz
+      // mez. Vše mimo _recordDmg (defeat nezaznamenává dmg) → peakDps-safe jako nuke.
+      let remaining = nuke;
+      let kills = 0;
+      while (s.enemy && kills < CONFIG.comboRingMaxKills && remaining >= s.enemy.hp) {
+        remaining -= s.enemy.hp;
+        this.defeat(); // zabije aktuálního, naroluje dalšího (+1 level)
+        kills++;
+      }
+      // zbytek, co nestačí na další kill → částečně ubliž aktuálnímu (nezabije ho)
+      if (s.enemy && remaining > 0 && remaining < s.enemy.hp) s.enemy.hp -= remaining;
     }
     const pool = COMBO_RING[side];
     const phrase = pool[Math.floor(Math.random() * pool.length)];
