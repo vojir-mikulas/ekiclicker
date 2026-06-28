@@ -108,7 +108,7 @@ export const CONFIG = {
   // žebřík. Páruje se s goldRatio (výš): goldRatio = základní zeď, exp = rozpětí.
   // (Dřív 0,95 — to ale bylo s goldRatio0,62, kde volná ekonomika „utíkala" na 5000;
   // při utažené 0,58 zeď saturuje, takže nižší exp už neutíká → koherentní spolu-laděno.)
-  difficultyExp: tune('DEXP', 0.59),
+  difficultyExp: tune('DEXP', 0.35),
 
   // --- souboj ---
   critChance: 0.1,
@@ -162,15 +162,21 @@ export const CONFIG = {
   luckyLifetimeMs: 9000,
 
   // --- Boxovací kruh (⭕) — reflexní klikací prsten → jeden velký KNOCKOUT úder ---
-  // Cvaknutí sejme JEDEN velký zásah = clickDamage × krit. násobič × comboRingNukeMult.
-  // Škáluje z CELÉHO buildu (clickDamage nese power/rage/fist/gear/zbraně, × krit). Je
-  // to čistý burst zásah BEZ buffu (zuřivost už dává čtyřlístek/Lucky — nezdvojujeme).
-  // Záměrně mimo _recordDmg (jako nuke rituálů/výtah) → nenafoukne atestovaný peakDps
-  // (anti-cheat raidů/žebříčku/světového bosse). Jeden zásah zabije max 1 Ekiho
-  // (applyDamage nepřelévá), proti bossovi ubere úměrný balík HP. Strana spawnu = hláška.
+  // Cvaknutí sejme JEDEN velký zásah = totalDps × comboRingNukeDpsSeconds (= „N sekund
+  // tvého plného DPS v jednom úderu", stejný základ jako nuke rituál „Bouřka" i zlatý
+  // balík Lucky). totalDps nese CELÝ build (zbraně + Stín pěsti + power/rage/fist/gear),
+  // takže škáluje pro KAŽDÝ build — ne jen punch (clickDamage je u zbraňového buildu
+  // titěrný → dřív byl nuke slabší než vlastní auto-DPS). Bez buffu (zuřivost dává
+  // čtyřlístek/Lucky). Záměrně mimo _recordDmg (jako nuke rituálů/výtah) → nenafoukne
+  // atestovaný peakDps. Jeden zásah zabije max 1 Ekiho (applyDamage nepřelévá), proti
+  // bossovi ubere balík HP úměrný DPS. Strana spawnu = hláška.
   comboRingSpawnChancePerSec: 0.012, // šance/s (vzácnější než Lucky)
   comboRingLifetimeMs: 5000,         // jak dlouho prsten visí, než zmizí (reflex)
-  comboRingNukeMult: 10,             // knockout úder = clickDamage × krit. násobič × tohle
+  // úder = max(totalDps × dpsSeconds, clickDamage × krit × punchFloor) — bere VĚTŠÍ
+  // z obou zdrojů síly: DPS (zbraňový build) nebo úder×krit (punch build / než máš
+  // zbraně). Floor drží úder smysluplný i u čerstvého hráče (jako Lucky max()).
+  comboRingNukeDpsSeconds: 15,       // knockout úder ≥ totalDps × tolik sekund
+  comboRingNukePunchFloor: 10,       // …a zároveň ≥ clickDamage × krit. násobič × tohle
 
   // --- Vyšlehanej Eki (🍄 tajná psychedelická varianta) ---
   // Vzácně se objeví v aréně (jen v hloubce); zabití tě pošle na „trip": celá scéna

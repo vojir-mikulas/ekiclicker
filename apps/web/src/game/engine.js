@@ -1195,14 +1195,19 @@ export class Engine {
     const side = s.comboRing.side || (s.comboRing.x < 50 ? 'left' : 'right');
     s.comboRing = null;
     s.stats.comboRingHits = (s.stats.comboRingHits || 0) + 1;
-    // jeden velký KNOCKOUT úder — škáluje z CELÉHO buildu: clickDamage (power/rage/fist/
-    // gear/zbraně) × krit. násobič × nukeMult. ZÁMĚRNĚ mimo _recordDmg (jako nuke rituálů
-    // / Pekelný výtah) → nenafoukne atestovaný peakDps. Jeden zásah zabije max 1 Ekiho
-    // (applyDamage nepřelévá), proti bossovi ubere úměrný balík HP.
+    // jeden velký KNOCKOUT úder = max(totalDps × N s, clickDamage × krit × floor) — bere
+    // VĚTŠÍ z obou zdrojů síly: DPS (zbraňový build) nebo úder×krit (punch build / než máš
+    // zbraně). Oboje škáluje z celého buildu (power/rage/fist/gear), floor drží úder
+    // smysluplný i čerstvý (totalDps po rebirthu bez zbraní = 0). ZÁMĚRNĚ mimo _recordDmg
+    // (jako nuke rituálů / Pekelný výtah) → nenafoukne atestovaný peakDps. Jeden zásah
+    // zabije max 1 Ekiho (applyDamage nepřelévá), proti bossovi ubere balík HP úměrný DPS.
     let nuke = 0;
     const e = s.enemy;
     if (e) {
-      nuke = clickDamage(s) * critMult(s) * CONFIG.comboRingNukeMult;
+      nuke = Math.max(
+        totalDps(s) * CONFIG.comboRingNukeDpsSeconds,
+        clickDamage(s) * critMult(s) * CONFIG.comboRingNukePunchFloor
+      );
       if (nuke >= e.hp) { e.hp = 0; this.defeat(); } else e.hp -= nuke;
       this.emit('hit', { amount: nuke, kind: 'crit' });
     }
