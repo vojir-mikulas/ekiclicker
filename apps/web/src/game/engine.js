@@ -2088,6 +2088,15 @@ export class Engine {
     this._running = false;
     cancelAnimationFrame(this._raf);
   }
+  /* Dočasné zmrazení simulace (např. během oslavné fanfáry po znovuzrození), aby
+     auto-zbraně nezabíjely a nepřebíjely zvuk. resume() restartuje smyčku a díky
+     start() se i resetují simulační hodiny → žádný nárazový damage po odmrazení. */
+  pause() {
+    this.stop();
+  }
+  resume() {
+    this.start();
+  }
   frame(t) {
     let elapsed = t - this._lastFrame;
     this._lastFrame = t;

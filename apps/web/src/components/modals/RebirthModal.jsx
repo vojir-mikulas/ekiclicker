@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useEngine } from '../../hooks/useEngine.js';
 import { fmt } from '../../game/format.js';
 import { difficultyScale } from '../../game/formulas.js';
@@ -13,9 +13,19 @@ export default function RebirthModal({ onClose }) {
   const diff = difficultyScale(engine.state);
 
   const confirm = () => {
-    if (engine.rebirth()) setStep('done');
-    else onClose();
+    if (engine.rebirth()) {
+      // zmraz hru, ať oslavná fanfára zazní načisto (auto-zbraně jinak hned
+      // zabíjejí nové Eky → úderový zvuk by celebraci přebil); odmrazí se při
+      // zavření okna (cleanup efektu níže).
+      engine.pause();
+      setStep('done');
+    } else {
+      onClose();
+    }
   };
+
+  // pojistka: ať se hra rozmrazí i při zavření přes pozadí / Esc / odmount
+  useEffect(() => () => engine.resume(), [engine]);
 
   return (
     <Modal onClose={onClose}>
