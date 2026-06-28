@@ -60,16 +60,19 @@ e.catchLucky();
 assert(e.state.gold > g2, 'lucky eki dal zlato');
 assert(e.state.lucky === null, 'lucky eki po chycení zmizel');
 
-// ⭕ boxovací kruh → okamžitý knockout úder + krit buff
+// ⭕ boxovací kruh → krit „knockout" buff (BEZ okamžitého úderu — hodnota z klikání)
 const cm0 = critMult(e.state), cc0 = critChance(e.state);
 const enemyBefore = e.state.enemy, hpBefore = enemyBefore.hp;
 e.state.comboRing = { id: 2, until: performance.now() + 5000, side: 'left', x: 20, y: 30 };
 e.catchComboRing();
 assert(e.state.comboRing === null, 'boxovací kruh po cvaknutí zmizel');
 assert(e.state.critBuff.active === true, 'knockout krit buff je aktivní');
-assert(e.state.enemy !== enemyBefore || e.state.enemy.hp < hpBefore, 'knockout úder ubral HP (nebo zabil)');
-assert(critMult(e.state) > cm0, 'knockout znásobil krit násobič');
+assert(e.state.enemy === enemyBefore && e.state.enemy.hp === hpBefore, 'cvaknutí samo NEubralo HP (žádný instant nuke)');
+assert(critMult(e.state) > cm0 * 2, 'knockout znásobil krit. násobič (×factor)');
 assert(critChance(e.state) >= cc0, 'knockout zvýšil/držel krit šanci');
+// úder během buffu = zaručený krit (force-crit) → ubere HP odpovídající kritu
+e.punch();
+assert(e.state.enemy !== enemyBefore || e.state.enemy.hp < hpBefore, 'úder během knockoutu ubral HP (zaručený krit)');
 e.state.critBuff.until = performance.now() - 1; // dotuž vypršení
 e.tick(0.1);
 assert(e.state.critBuff.active === false, 'knockout krit buff vypršel v ticku');

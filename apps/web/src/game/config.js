@@ -162,18 +162,18 @@ export const CONFIG = {
   luckyLifetimeMs: 9000,
 
   // --- Boxovací kruh (⭕) — reflexní klikací prsten → dočasný KRIT „knockout" ---
-  // Cvaknutí (a) sejme okamžitý KNOCKOUT úder (clickDamage × krit. násobič × punch
-  // mult — škáluje s celým buildem) a (b) zapne 12s knockout: po dobu buffu KAŽDÝ
-  // úder zaručeně kritne a krit. násobič je ×comboRingCritMultFactor (MULTIPLIKATIVNÍ
-  // → roste s tvým krit. buildem, na rozdíl od dřívějšího plochého +6). Je to BURST
-  // jako zuřivost/elixír (žádný dmgPct, mimo difficultyScale → nulový anti-blitz dopad;
-  // jen krit — nevstupuje do snapshotu obtížnosti). Strana spawnu řídí hlášku.
+  // Cvaknutí zapne 12s knockout BUFF (žádný okamžitý úder — viz catchComboRing: jeden
+  // zásah zabije max 1 Ekiho, takže instant nuke = jen přebití bez škálování). Po dobu
+  // buffu KAŽDÝ úder zaručeně kritne a krit. násobič je ×comboRingCritMultFactor
+  // (MULTIPLIKATIVNÍ → roste s tvým krit. buildem). Hodnota plyne z KLIKÁNÍ během okna,
+  // takže škáluje s celým buildem A respektuje křivku obtížnosti (omezeno tempem kliků
+  // → žádný blitz). BURST jako zuřivost/elixír (jen krit, žádný dmgPct, mimo
+  // difficultyScale → nevstupuje do snapshotu). Strana spawnu řídí hlášku.
   comboRingSpawnChancePerSec: 0.012, // šance/s (vzácnější než Lucky)
   comboRingLifetimeMs: 5000,         // jak dlouho prsten visí, než zmizí (reflex)
   comboRingDurationMs: 12000,        // jak dlouho drží knockout buff po cvaknutí
   comboRingCritChanceBonus: 0.4,     // +40 pp ke krit šanci (zlepší i auto-krit Stínu; cap 0,9)
   comboRingCritMultFactor: 2.2,      // ×2,2 krit. násobič během buffu (škáluje s buildem)
-  comboRingPunchMult: 4,             // okamžitý knockout úder = clickDamage × krit × tohle
 
   // --- Vyšlehanej Eki (🍄 tajná psychedelická varianta) ---
   // Vzácně se objeví v aréně (jen v hloubce); zabití tě pošle na „trip": celá scéna
