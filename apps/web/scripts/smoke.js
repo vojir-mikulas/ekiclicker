@@ -1,6 +1,7 @@
 /* Rychlý headless smoke test herního enginu (bez DOM/Reactu). */
 import { Engine } from '../src/game/engine.js';
-import { totalDps, critMult, critChance } from '../src/game/formulas.js';
+import { totalDps, critMult, clickDamage } from '../src/game/formulas.js';
+import { CONFIG } from '../src/game/config.js';
 import { questDef } from '../src/game/data/quests.js';
 
 let fail = 0;
@@ -60,23 +61,19 @@ e.catchLucky();
 assert(e.state.gold > g2, 'lucky eki dal zlato');
 assert(e.state.lucky === null, 'lucky eki po chycení zmizel');
 
-// ⭕ boxovací kruh → krit „knockout" buff (BEZ okamžitého úderu — hodnota z klikání)
-const cm0 = critMult(e.state), cc0 = critChance(e.state);
+// ⭕ boxovací kruh → JEDEN velký knockout úder (škáluje z buildu, žádný buff)
 const enemyBefore = e.state.enemy, hpBefore = enemyBefore.hp;
+const expectedNuke = clickDamage(e.state) * critMult(e.state) * CONFIG.comboRingNukeMult;
 e.state.comboRing = { id: 2, until: performance.now() + 5000, side: 'left', x: 20, y: 30 };
 e.catchComboRing();
 assert(e.state.comboRing === null, 'boxovací kruh po cvaknutí zmizel');
-assert(e.state.critBuff.active === true, 'knockout krit buff je aktivní');
-assert(e.state.enemy === enemyBefore && e.state.enemy.hp === hpBefore, 'cvaknutí samo NEubralo HP (žádný instant nuke)');
-assert(critMult(e.state) > cm0 * 2, 'knockout znásobil krit. násobič (×factor)');
-assert(critChance(e.state) >= cc0, 'knockout zvýšil/držel krit šanci');
-// úder během buffu = zaručený krit (force-crit) → ubere HP odpovídající kritu
-e.punch();
-assert(e.state.enemy !== enemyBefore || e.state.enemy.hp < hpBefore, 'úder během knockoutu ubral HP (zaručený krit)');
-e.state.critBuff.until = performance.now() - 1; // dotuž vypršení
-e.tick(0.1);
-assert(e.state.critBuff.active === false, 'knockout krit buff vypršel v ticku');
-assert(critMult(e.state) === cm0, 'po vypršení je krit násobič zpět na základu');
+assert(e.state.critBuff === undefined, 'žádný knockout buff (jen úder)');
+// úder ubral HP (nebo zabil, když přesáhl HP) a je řádově = clickDamage × krit × mult
+const killed = e.state.enemy !== enemyBefore;
+const dealt = killed ? hpBefore : hpBefore - e.state.enemy.hp;
+assert(dealt > 0, 'knockout úder ubral HP');
+assert(expectedNuke >= hpBefore || Math.abs(dealt - expectedNuke) < 1, 'knockout úder = clickDamage × krit × nukeMult');
+assert(expectedNuke > clickDamage(e.state), 'knockout úder je větší než holý clickDamage (škáluje)');
 
 // denní úkoly
 assert(e.state.daily && e.state.daily.quests.length === 3, `narolovaly se denní úkoly (${e.state.daily?.quests.length})`);

@@ -161,19 +161,16 @@ export const CONFIG = {
   luckySpawnChancePerSec: 0.018, // šance/s, že se objeví
   luckyLifetimeMs: 9000,
 
-  // --- Boxovací kruh (⭕) — reflexní klikací prsten → dočasný KRIT „knockout" ---
-  // Cvaknutí zapne 12s knockout BUFF (žádný okamžitý úder — viz catchComboRing: jeden
-  // zásah zabije max 1 Ekiho, takže instant nuke = jen přebití bez škálování). Po dobu
-  // buffu KAŽDÝ úder zaručeně kritne a krit. násobič je ×comboRingCritMultFactor
-  // (MULTIPLIKATIVNÍ → roste s tvým krit. buildem). Hodnota plyne z KLIKÁNÍ během okna,
-  // takže škáluje s celým buildem A respektuje křivku obtížnosti (omezeno tempem kliků
-  // → žádný blitz). BURST jako zuřivost/elixír (jen krit, žádný dmgPct, mimo
-  // difficultyScale → nevstupuje do snapshotu). Strana spawnu řídí hlášku.
+  // --- Boxovací kruh (⭕) — reflexní klikací prsten → jeden velký KNOCKOUT úder ---
+  // Cvaknutí sejme JEDEN velký zásah = clickDamage × krit. násobič × comboRingNukeMult.
+  // Škáluje z CELÉHO buildu (clickDamage nese power/rage/fist/gear/zbraně, × krit). Je
+  // to čistý burst zásah BEZ buffu (zuřivost už dává čtyřlístek/Lucky — nezdvojujeme).
+  // Záměrně mimo _recordDmg (jako nuke rituálů/výtah) → nenafoukne atestovaný peakDps
+  // (anti-cheat raidů/žebříčku/světového bosse). Jeden zásah zabije max 1 Ekiho
+  // (applyDamage nepřelévá), proti bossovi ubere úměrný balík HP. Strana spawnu = hláška.
   comboRingSpawnChancePerSec: 0.012, // šance/s (vzácnější než Lucky)
   comboRingLifetimeMs: 5000,         // jak dlouho prsten visí, než zmizí (reflex)
-  comboRingDurationMs: 12000,        // jak dlouho drží knockout buff po cvaknutí
-  comboRingCritChanceBonus: 0.4,     // +40 pp ke krit šanci (zlepší i auto-krit Stínu; cap 0,9)
-  comboRingCritMultFactor: 2.2,      // ×2,2 krit. násobič během buffu (škáluje s buildem)
+  comboRingNukeMult: 10,             // knockout úder = clickDamage × krit. násobič × tohle
 
   // --- Vyšlehanej Eki (🍄 tajná psychedelická varianta) ---
   // Vzácně se objeví v aréně (jen v hloubce); zabití tě pošle na „trip": celá scéna

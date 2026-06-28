@@ -1092,7 +1092,7 @@ export class Engine {
       if (s.frenzy.charge >= CONFIG.frenzyClicksToFill) this.startFrenzy(now);
     }
 
-    const isCrit = (s.critBuff && s.critBuff.active) || Math.random() < critChance(s); // ⭕ knockout = zaručený krit
+    const isCrit = Math.random() < critChance(s);
     const comboBonus = 1 + Math.min(s.combo.count, comboCap(s)) * comboPerHit(s); // 🔗 Mistr comba zvyšuje strop
     const dmg = clickDamage(s) * comboBonus * (isCrit ? critMult(s) : 1);
     this.applyDamage(dmg, 'punch');
@@ -1169,10 +1169,9 @@ export class Engine {
   }
 
   /* ---------- Boxovací kruh (⭕ knockout) ----------
-     Občas se objeví prázdný prsten (levá/pravá půlka arény). Cvaknutí = knockout:
-     dočasný KRIT buff (kritChance + kritMult navrch). Je to BURST jako zuřivost/elixír
-     → žádný dmgPct, mimo difficultyScale = nulový anti-blitz dopad. Strana spawnu řídí
-     vtipnou hlášku („levej hák" vs „pravej hák"…). */
+     Občas se objeví prázdný prsten (levá/pravá půlka arény). Cvaknutí sejme JEDEN velký
+     knockout úder, který škáluje z celého buildu (clickDamage × krit. násobič × mult).
+     Žádný buff (zuřivost už dává čtyřlístek/Lucky). Strana spawnu řídí vtipnou hlášku. */
   maybeSpawnComboRing(dt) {
     const s = this.state;
     if (s.comboRing) return;
@@ -1196,18 +1195,20 @@ export class Engine {
     const side = s.comboRing.side || (s.comboRing.x < 50 ? 'left' : 'right');
     s.comboRing = null;
     s.stats.comboRingHits = (s.stats.comboRingHits || 0) + 1;
-    // knockout: spusť / obnov krit buff (mirror zuřivosti — flag čtou crit formulky).
-    // ZÁMĚRNĚ BEZ okamžitého úderu: jeden zásah umí zabít max 1 Ekiho (applyDamage
-    // nepřelévá přebytek), takže instant nuke by jen masivně přebil 1 Ekiho = +1 level
-    // bez ohledu na build → „moc damage, ale neškáluje". Hodnota knockoutu plyne z
-    // KLIKÁNÍ během okna: po dobu buffu je každý úder zaručený krit s ×factor násobičem
-    // (škáluje s celým buildem, omezeno tempem kliků + křivkou obtížnosti = žádný blitz).
-    if (!s.critBuff) s.critBuff = { active: false, until: 0 };
-    s.critBuff.active = true;
-    s.critBuff.until = performance.now() + CONFIG.comboRingDurationMs;
+    // jeden velký KNOCKOUT úder — škáluje z CELÉHO buildu: clickDamage (power/rage/fist/
+    // gear/zbraně) × krit. násobič × nukeMult. ZÁMĚRNĚ mimo _recordDmg (jako nuke rituálů
+    // / Pekelný výtah) → nenafoukne atestovaný peakDps. Jeden zásah zabije max 1 Ekiho
+    // (applyDamage nepřelévá), proti bossovi ubere úměrný balík HP.
+    let nuke = 0;
+    const e = s.enemy;
+    if (e) {
+      nuke = clickDamage(s) * critMult(s) * CONFIG.comboRingNukeMult;
+      if (nuke >= e.hp) { e.hp = 0; this.defeat(); } else e.hp -= nuke;
+      this.emit('hit', { amount: nuke, kind: 'crit' });
+    }
     const pool = COMBO_RING[side];
     const phrase = pool[Math.floor(Math.random() * pool.length)];
-    this.emit('comboRing', { catch: true, phrase, side });
+    this.emit('comboRing', { catch: true, phrase, side, nuke });
     this.checkAchievements();
     this.notify();
   }
@@ -2113,12 +2114,6 @@ export class Engine {
       this.emit('frenzy', { active: false });
     } else if (!s.frenzy.active && s.frenzy.charge > 0) {
       s.frenzy.charge = Math.max(0, s.frenzy.charge - CONFIG.frenzyDecayPerSec * dt);
-    }
-
-    // ⭕ boxovací kruh: krit „knockout" buff vyprší (mirror zuřivosti)
-    if (s.critBuff && s.critBuff.active && performance.now() >= s.critBuff.until) {
-      s.critBuff.active = false;
-      this.emit('comboRing', { buffEnd: true });
     }
 
     // elixír: vyprší (wall-clock, ať odpočet sedí i po reloadu)
