@@ -29,7 +29,7 @@ export const CONFIG = {
   baseHp: 10,
   baseGold: 14,
   curveG0: tune('G0', 1.16),    // počáteční růst HP/úroveň (≈ původní hpGrowth)
-  curveFloor: tune('FLOOR', 1.4), // asymptota růstu HP/úroveň. POZOR: tahle páčka NEZASTAVÍ
+  curveFloor: tune('FLOOR', 1.3), // asymptota růstu HP/úroveň. POZOR: tahle páčka NEZASTAVÍ
   // „buy→blitz" — silný/ascended účet protne i strmou křivku za pár minut (sim: i @1,049 blitz
   // na ~700-2000). Navíc >1,02 rozjede HP geometricky → přeteče float / 30000 NEDOSAŽITELNÉ.
   // Drž ji na 1,0 (mírná střední hra, dosažitelnost). Tvrdost coastu/endgame řeš HARDENem (níž)
@@ -43,7 +43,7 @@ export const CONFIG = {
   // 0,60→693, 0,62→1289), ale zeď SATURUJE — i +400 % zlata (album/cech/peklo/sezóna)
   // posune čerstvou zeď jen 298→~880, NE zpět na 1200 → bezpečně drží „žádný 1→1200".
   // Páruje se s difficultyExp (níž): goldRatio = základní zeď, exp = rozpětí prestiže.
-  goldRatio: tune('RATIO', 0.70),
+  goldRatio: tune('RATIO', 0.62),
   bossEvery: 5, // každá 5. úroveň = boss (Golden Eki)
   megaBossEvery: 25, // každá 25. = mega boss (Eki Král)
   ultraBossEvery: 100, // každá 100. = ultra boss (Eki Titán) — endgame milník
