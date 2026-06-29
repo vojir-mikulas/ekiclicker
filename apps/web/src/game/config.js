@@ -243,17 +243,22 @@ export const MULT = {
   shadowPerLevel: 1, // prestige "Stín pěsti": +1 auto-úder/s za level
   luckPerLevel: 0.15, // prestige "Štěstí": +15 % šance na Lucky Eki
   critPerLevel: 0.02, // prestige "Přesnost": +2 % crit šance
-  weaponMilestone: 25, // každých 25 kusů zbraně = ×2 jejímu poškození
+  weaponMilestone: 20, // každých 20 kusů zbraně = milník (×weaponMilestoneMult poškození + tier synergie)
+  weaponMilestoneMult: 1.4, // ×1,4 poškození zbraně za milník (dřív ×2 — plynulejší růst, méně skoková)
   // ARZENÁLOVÁ SYNERGIE — drží rané/střední zbraně „za nákup" i v endgame.
-  // Rané zbraně mají oproti špičce ŘÁDOVĚ nižší baseDmg (×7/tier) → jako PŘÍMÝ zdroj
-  // DPS pozdní hru nikdy nedohoní. Místo toho každý milník (každých weaponMilestone
-  // kusů) JAKÉKOLIV zbraně dá malý GLOBÁLNÍ bonus ke VŠEM zbraním → dotlačit i levnou
-  // ranou zbraň na další milník posílí celý arzenál. Strop tierů NA ZBRAŇ nutí kupovat
-  // NAPŘÍČ arzenálem (ne mega-stackovat jednu nejlevnější) a drží to BOUNDED (max
-  // = #zbraní × cap × perTier) → žádný nový exponenciál; NEvstupuje do difficultyScale
-  // (jako weaponPct/milník) → anti-blitz/anti-runaway beze změny.
-  arsenalSynergyPerTier: 0.02, // +2 % všem zbraním za každý započítaný milník
-  arsenalSynergyTierCap: 5,    // max milníků na zbraň, co se počítá do synergie (= 125 kusů)
+  // Rané zbraně mají oproti špičce ŘÁDOVĚ nižší baseDmg → jako PŘÍMÝ zdroj DPS pozdní
+  // hru nikdy nedohoní. Místo toho každý milník (každých weaponMilestone kusů) JAKÉKOLIV
+  // zbraně dá malý GLOBÁLNÍ bonus ke VŠEM zbraním → dotlačit i levnou ranou zbraň na další
+  // milník posílí celý arzenál. BOUNDED + NEvstupuje do difficultyScale (jako weaponPct/
+  // milník) → anti-blitz/anti-runaway beze změny.
+  // ODSTROPOVÁNO (2026-06-29): místo tvrdého stropu 5/zbraň teď DIMINISHING-UNCAP —
+  // prvních arsenalSynergyTierFull milníků/zbraň se počítá plně, každý další jen
+  // arsenalSynergyFalloff^k (klesající řada → asymptota) → mega-stack jedné zbraně
+  // (buy-1000×) se VYPLATÍ, ale výnos rychle klesá (drží napříč-nákup smysl) a celá
+  // synergie zůstává malá (strop ζ ≈ 1/3 pěsti — viz docs/plans/weapons-overhaul.md).
+  arsenalSynergyPerTier: 0.02,  // +2 % všem zbraním za každý započítaný milník
+  arsenalSynergyTierFull: 5,    // prvních N milníků/zbraň plně (= 100 kusů)
+  arsenalSynergyFalloff: 0.7,   // každý další milník přispěje 0,7^k (klesající → asymptota ≈ +full/(1-falloff)/zbraň)
   clickFromDpsPerLevel: 0.01, // gold "Údernost": úder + 1 % DPS za level
   punchStep: 3, // gold "Síla pěsti": +3 základ úderu za level
   critDmgPerLevel: 0.5, // gold "Tvrdý dopad": +0,5 ke krit násobiči za level

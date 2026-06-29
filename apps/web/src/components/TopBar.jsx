@@ -37,7 +37,7 @@ const select = (s) => ({
   albumNew: s.album?.new || 0,
 });
 
-export default function TopBar({ view, page, onView, onOpenSettings, onOpenJoin, onOpenAccount, onOpenStats, onOpenDaily, onOpenInventory, onOpenPets, onOpenRunes, onOpenAbilities, onOpenMastery, onOpenAscension, onOpenAlbum, onOpenMailbox }) {
+export default function TopBar({ view, page, onView, onOpenSettings, onOpenJoin, onOpenAccount, onOpenStats, onOpenDaily, onOpenInventory, onOpenPets, onOpenRunes, onOpenAbilities, onOpenMastery, onOpenAscension, onOpenAlbum, onOpenMailbox, onOpenShop }) {
   const { gold, forgiveness, dust, level, click, daily, invUnlocked, chestCount, petsUnlocked, eggCount, equippedPet, petLevel, petEvo, runesUnlocked, runeCount, abilitiesUnlocked, masteryUnlocked, masteryPoints, ascensionUnlocked, stardust, albumNew } = useEngineSelector(select, shallowEqual);
   const account = useAccount();
   const wb = useWorldBoss();
@@ -145,6 +145,7 @@ export default function TopBar({ view, page, onView, onOpenSettings, onOpenJoin,
               📬{mb?.badge > 0 && <span className="topbar-badge alert">{mb.badge > 9 ? '9+' : mb.badge}</span>}
             </button>
           )}
+          <button className="topbar-btn shop-btn" onClick={onOpenShop} title="Obchod s předměty" aria-label="Obchod s předměty">🛒</button>
           <button className={'topbar-btn' + (page === 'stats' ? ' active' : '')} onClick={onOpenStats} title="Statistiky" aria-label="Statistiky">📊</button>
           <button
             className={'topbar-btn' + (muted ? ' muted' : '')}

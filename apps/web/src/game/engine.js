@@ -50,6 +50,7 @@ import {
 } from './data/enchants.js';
 import { MASTERY, NODE_BY_ID, TREE_BY_NODE, pointsInTree, masteryRemaining } from './data/mastery.js';
 import { MATEJSKA, pickWheelSegment } from './data/matejska.js';
+import { HOSPODA, pourTier, dartsMaxScore } from './data/hospoda.js';
 import { GUILDS } from '@ekiclicker/shared';
 
 let nextEnemyId = 1;
@@ -1867,6 +1868,118 @@ export class Engine {
     this.notify();
   }
   dismissDuckRun() { this.state.fairRun = null; this.notify(); }
+
+  /* ========================================================================
+     HOSPODA U EKIHO 🍺 — sezónní atrakce (jen téma „kalba"). Dvě hospodské
+     hry sdílí 🍻 rundy (regen v čase + denní dorovnání jako pouťové lístky).
+     Odměny jsou BOUNDED a difficulty-neutral (zlato = násobek DPS-sekund jako
+     Lucky/pouť; žádný dmgPct) → nulový dopad na anti-blitz. Brána je klientská
+     (seasonTheme.id === 'kalba') — gating řeší UI; engine jen počítá a CLAMPuje
+     vstupy (pozice čepování 0..1, skóre šipek na strop). Sdílí _fairGold. */
+  /* Je hospoda právě otevřená? (aktivní téma sezóny = Kalba) */
+  pubAvailable() {
+    return this.state.seasonTheme?.id === HOSPODA.themeId;
+  }
+
+  /* Dorovnej 🍻 rundy: denní free + regen v čase (mirror tickFairTickets). */
+  tickPubTokens(now = Date.now()) {
+    const p = this.state.pub;
+    if (!p) return;
+    const today = dayStr();
+    if (p.freeDay !== today) {
+      p.freeDay = today;
+      if (p.tokens < HOSPODA.freeDaily) p.tokens = HOSPODA.freeDaily;
+    }
+    if (p.tokens < HOSPODA.tokenMax) {
+      if (!p.tokenAt) p.tokenAt = now + HOSPODA.tokenRegenMs;
+      let guard = 0;
+      while (p.tokens < HOSPODA.tokenMax && now >= p.tokenAt && guard++ < 1000) {
+        p.tokens++;
+        p.tokenAt += HOSPODA.tokenRegenMs;
+      }
+      if (p.tokens >= HOSPODA.tokenMax) p.tokenAt = 0;
+    } else {
+      p.tokenAt = 0;
+    }
+  }
+
+  /* Spotřebuj 1 rundu (rozjede regen, pokud stála na stropu). Vrací true při úspěchu. */
+  _spendPubToken() {
+    const p = this.state.pub;
+    this.tickPubTokens();
+    if (!this.pubAvailable() || p.tokens < 1) return false;
+    p.tokens -= 1;
+    if (!p.tokenAt && p.tokens < HOSPODA.tokenMax) p.tokenAt = Date.now() + HOSPODA.tokenRegenMs;
+    return true;
+  }
+
+  /* 🍺 Načepuj pivo. Spotřebuje rundu, z `rawPos` (∈[0,1], kde ukazatel zastavil)
+     spočítá pásmo kvality, PŘIPÍŠE bounded odměnu a uloží přechodný výsledek do
+     s.pubPour. Vrací výsledek nebo null (nejde / chybí runda). */
+  pourBeer(rawPos = 0.5) {
+    const s = this.state;
+    if (!this._spendPubToken()) return null;
+    const { dev, tier } = pourTier(rawPos);
+    const out = { tierId: tier.id, label: tier.label, emoji: tier.emoji, dev, jackpot: !!tier.jackpot };
+    if (tier.kind === 'gold') {
+      const gold = this._fairGold(tier.dpsSeconds, tier.rewardMult);
+      s.gold += gold; s.stats.totalGold += gold; out.gold = gold;
+      if (tier.dust) {
+        const dust = Math.max(1, Math.round(s.level * tier.dust * dustMult(s)));
+        s.dust = (s.dust || 0) + dust; out.dust = dust;
+      }
+      if (tier.dove && Math.random() < HOSPODA.pour.doveChance) {
+        s.prestige.forgiveness += 1; s.stats.lootDoves += 1; out.doves = 1;
+      }
+    }
+    s.stats.pubPlays = (s.stats.pubPlays || 0) + 1;
+    s.pubPour = { phase: 'done', ...out, at: Date.now() };
+    save(s);
+    this.emit('pubPour', { tier: tier.id, ...out });
+    this.checkAchievements();
+    this.notify();
+    return out;
+  }
+  dismissPour() { this.state.pubPour = null; this.notify(); }
+
+  /* 🎯 Spusť kolo šipek. Spotřebuje rundu, nastaví přechodný běh (UI řídí
+     zaměřovač i klikání; engine jen hlídá dvojí útratu a strop skóre). */
+  startDartsRound() {
+    const s = this.state;
+    if (s.pubDarts && s.pubDarts.phase === 'running') return false;
+    if (!this._spendPubToken()) return false;
+    const now = performance.now();
+    s.pubDarts = { phase: 'running', startedAt: now, endsAt: now + HOSPODA.darts.durationMs, throws: 0, score: 0, summary: null };
+    s.stats.pubPlays = (s.stats.pubPlays || 0) + 1;
+    save(s);
+    this.emit('dartsStart', {});
+    this.notify();
+    return true;
+  }
+
+  /* Ukonči šipky se skóre `rawScore` (UI). Skóre se CLAMPne na strop →
+     i podvržený výsledek je shora omezen. Připíše bounded odměnu. */
+  finishDartsRound(rawScore = 0, rawThrows = 0) {
+    const s = this.state;
+    const r = s.pubDarts;
+    if (!r || r.phase !== 'running') return;
+    const d = HOSPODA.darts;
+    const score = Math.max(0, Math.min(dartsMaxScore(), Math.floor(rawScore) || 0));
+    const gold = Math.floor(totalDps(s) * score * d.goldDpsPerScore);
+    const dust = Math.max(0, Math.round((score * s.level * d.dustPerScore / 100) * dustMult(s)));
+    const doves = Math.floor(score / d.doveEvery);
+    if (gold > 0) { s.gold += gold; s.stats.totalGold += gold; }
+    if (dust > 0) s.dust = (s.dust || 0) + dust;
+    if (doves > 0) { s.prestige.forgiveness += doves; s.stats.lootDoves += doves; }
+    r.phase = 'done';
+    r.score = score;
+    r.summary = { score, throws: Math.max(0, Math.floor(rawThrows) || 0), gold, dust, doves };
+    save(s);
+    this.emit('dartsDone', r.summary);
+    this.checkAchievements();
+    this.notify();
+  }
+  dismissDartsRound() { this.state.pubDarts = null; this.notify(); }
 
   /* ---------- rebirth ---------- */
   forgivenessGain() {

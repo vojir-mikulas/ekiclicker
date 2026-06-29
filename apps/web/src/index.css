@@ -2280,6 +2280,40 @@ body::after{
 .mat-give:hover{ color:var(--red-line); border-color:var(--red-dark); }
 .duck-res-burst{ font-size:42px; text-align:center; }
 .duck-res-score{ font-family:var(--font-display); font-weight:800; font-size:20px; color:#ffd28a; text-align:center; margin:4px 0 12px; }
+.duck-res-score small{ font-family:var(--font-base); font-weight:600; font-size:12px; color:var(--muted-2); }
+
+/* =================== 🍺 HOSPODA U EKIHO (téma Kalba) — sdílí mat- a duck- třídy ===================
+   Pivní/jantarová varianta pouti. Vlastní jen: vstupní karta, lišta čepování,
+   terč šipek. Zbytek (lobby, tlačítka, výsledky) recykluje pouťové třídy. */
+.mat-entry.pub-entry{ border-color:#caa23a; background:linear-gradient(135deg,#3a2c0e,#160f06); }
+.mat-entry.pub-entry .mat-entry-txt b{ color:#ffe39a; }
+.mat-entry.pub-entry .mat-entry-go{ color:#ffd166; }
+.popup-content.pub-modal{ max-width:440px; background:linear-gradient(170deg,#1d160a,#0a0f18); border-color:#7a5a22; }
+.mat-tickets.pub-tokens .mat-tk-ico{ font-size:22px; }
+.mat-screen.pour, .mat-screen.darts-screen{ text-align:center; }
+
+/* 🍺 Čepování piva — vodorovná lišta pásem + přejíždějící ukazatel */
+.pour-bar{ position:relative; height:54px; margin:10px 0 8px; border-radius:var(--r-panel); overflow:hidden;
+  border:1px solid #7a5a22; box-shadow:inset 0 0 18px rgba(0,0,0,.5), 0 6px 18px rgba(0,0,0,.4); user-select:none; touch-action:none; }
+.pour-fill{ position:absolute; inset:0; opacity:.82; }
+.pour-center{ position:absolute; top:0; bottom:0; left:50%; width:2px; transform:translateX(-50%); background:rgba(255,255,255,.55); box-shadow:0 0 8px rgba(255,255,255,.6); }
+.pour-marker{ position:absolute; top:-3px; bottom:-3px; width:5px; transform:translateX(-50%); border-radius:3px;
+  background:linear-gradient(180deg,#fff,#ffcf7a); box-shadow:0 0 10px rgba(255,220,140,.9), 0 0 2px #000; z-index:3; }
+.pour-marker.stopped{ background:linear-gradient(180deg,#fff,#ff6b4a); box-shadow:0 0 12px rgba(255,120,80,.9); }
+.pour-glass{ position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-size:26px; pointer-events:none; opacity:.9; filter:drop-shadow(0 2px 3px rgba(0,0,0,.6)); z-index:2; }
+
+/* 🎯 Hospodské šipky — kruhový terč s kmitajícím zaměřovačem */
+.darts-preview{ font-size:40px; text-align:center; margin:8px 0 4px; }
+.darts-run{ display:flex; flex-direction:column; gap:10px; }
+.darts-throws{ color:#ffd28a; font-size:15px; }
+.darts-board{ position:relative; width:260px; max-width:80vw; aspect-ratio:1; margin:4px auto 2px; border-radius:50%; cursor:crosshair; touch-action:none; }
+.darts-rings{ position:absolute; inset:0; border-radius:50%;
+  background:radial-gradient(circle closest-side,
+    #ffd700 0 9%, #b8341f 9% 20%, #f0a93b 20% 34%, #1a3a5a 34% 52%, #c9a24b 52% 78%, #2a1a0c 78% 100%);
+  box-shadow:inset 0 0 0 3px #7a4e22, inset 0 0 30px rgba(0,0,0,.5), 0 10px 30px rgba(0,0,0,.6); }
+.darts-reticle{ position:absolute; transform:translate(-50%,-50%); font-size:26px; line-height:1; color:#fff; pointer-events:none; z-index:4;
+  text-shadow:0 0 6px rgba(255,255,255,.9), 0 0 2px #000; }
+.dart-stuck{ position:absolute; transform:translate(-50%,-60%); font-size:18px; pointer-events:none; z-index:3; filter:drop-shadow(0 2px 2px rgba(0,0,0,.6)); }
 
 /* =================== VZESTUP 🌌 (meta-prestige) — kosmické flashy téma ===================
    Animovaný duhový/galaktický přeliv. ✦ Hvězdný prach má vlastní zářivou barvu. */
@@ -2348,3 +2382,98 @@ body::after{
 .vz-shop-head{ font-family:var(--font-display); color:var(--purple); font-size:14px; letter-spacing:.04em; margin:6px 0 8px; }
 .vz-shop{ display:flex; flex-direction:column; gap:8px; }
 .vz-foot{ margin-top:14px; color:var(--muted); font-size:12px; line-height:1.5; }
+
+/* ======================= 🛒 Obchod s předměty (recese) ======================= */
+.topbar-btn.shop-btn:hover{ color:var(--gold); border-color:var(--gold); box-shadow:0 0 12px rgba(255,210,63,.3); }
+
+.itemshop.popup-content{ max-width:760px; width:96%; }
+
+.shop-head{ text-align:center; margin-bottom:14px; }
+.shop-title{ display:block; font-family:var(--font-display); font-size:22px; letter-spacing:.04em; color:var(--gold); }
+.shop-sub{ display:block; font-size:12px; color:var(--muted); margin-top:4px; }
+
+.shop-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(168px,1fr)); gap:10px; }
+.shop-card{ position:relative; display:flex; flex-direction:column; align-items:center; text-align:center; gap:6px;
+  padding:14px 12px 12px; border:1px solid var(--line); border-radius:var(--r-panel); background:var(--panel-grad-2); }
+.shop-card:hover{ border-color:var(--line-hi); }
+.shop-tag{ position:absolute; top:-8px; right:8px; font-size:9px; font-weight:800; letter-spacing:.08em; padding:2px 6px;
+  border-radius:var(--r-panel); background:linear-gradient(90deg,#ffae00,#ff5e62); color:#1a0f00; box-shadow:0 1px 6px rgba(255,120,0,.4); }
+.shop-card-emoji{ font-size:38px; line-height:1; filter:drop-shadow(0 2px 4px rgba(0,0,0,.5)); }
+.shop-card-name{ font-family:var(--font-display); font-size:15px; color:var(--text); letter-spacing:.02em; }
+.shop-card-desc{ font-size:11px; color:var(--muted); line-height:1.4; flex:1; }
+.shop-buy{ margin-top:4px; width:100%; cursor:pointer; font-family:var(--font-num); font-weight:800; font-size:15px; color:#1a0f00;
+  border:none; border-radius:var(--r-panel); padding:8px; background:linear-gradient(180deg,#ffe27a,var(--gold)); }
+.shop-buy:hover{ filter:brightness(1.08); }
+.shop-buy small{ font-size:10px; font-weight:600; opacity:.7; margin-left:2px; }
+.shop-foot{ margin-top:14px; text-align:center; font-size:12px; color:var(--muted); line-height:1.5; }
+
+/* ---- pokladna ---- */
+.shop-back{ background:none; border:none; color:var(--muted); cursor:pointer; font-size:13px; padding:0 0 8px; }
+.shop-back:hover{ color:var(--blue); }
+.co-summary{ display:flex; align-items:center; gap:12px; padding:12px; border:1px solid var(--line); border-radius:var(--r-panel);
+  background:var(--panel-2); margin-bottom:16px; }
+.co-emoji{ font-size:34px; }
+.co-sum-txt{ flex:1; display:flex; flex-direction:column; gap:2px; }
+.co-sum-txt b{ font-family:var(--font-display); font-size:15px; color:var(--text); }
+.co-sum-txt small{ font-size:11px; color:var(--muted); }
+.co-price{ font-family:var(--font-num); font-weight:800; font-size:18px; color:var(--gold); white-space:nowrap; }
+.co-price small{ font-size:10px; opacity:.7; }
+
+/* živá kreditní karta */
+.cc-card{ position:relative; width:300px; max-width:100%; aspect-ratio:1.586; margin:0 auto 18px; perspective:1000px; }
+.cc-face{ position:absolute; inset:0; border-radius:12px; padding:16px 18px; backface-visibility:hidden;
+  transition:transform .5s; box-shadow:0 10px 30px rgba(0,0,0,.5); color:#fff;
+  background:linear-gradient(135deg,#2b3a55,#16203a); border:1px solid rgba(255,255,255,.12); }
+.cc-card.visa .cc-front{ background:linear-gradient(135deg,#1a1f71,#2b50c8); }
+.cc-card.mc .cc-front{ background:linear-gradient(135deg,#3a1c00,#cc3a2b); }
+.cc-card.amex .cc-front{ background:linear-gradient(135deg,#0a6b8a,#16c0d8); }
+.cc-card.disc .cc-front{ background:linear-gradient(135deg,#5a3a00,#ff8a00); }
+.cc-front{ display:flex; flex-direction:column; justify-content:space-between; }
+.cc-back{ transform:rotateY(180deg); background:linear-gradient(135deg,#1c2538,#0e1422); }
+.cc-card.flipped .cc-front{ transform:rotateY(180deg); }
+.cc-card.flipped .cc-back{ transform:rotateY(360deg); }
+.cc-row1{ display:flex; justify-content:space-between; align-items:center; }
+.cc-chip{ font-size:24px; color:#f6d36b; line-height:1; }
+.cc-brand{ font-family:var(--font-display); font-weight:800; font-size:15px; letter-spacing:.06em; opacity:.95; }
+.cc-number{ font-family:'Courier New', monospace; font-size:20px; letter-spacing:.06em; text-shadow:0 1px 2px rgba(0,0,0,.6); }
+.cc-row3{ display:flex; justify-content:space-between; align-items:flex-end; font-family:'Courier New', monospace; }
+.cc-holder{ font-size:12px; letter-spacing:.04em; max-width:65%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.cc-exp{ font-size:13px; }
+.cc-stripe{ position:absolute; left:0; right:0; top:22px; height:38px; background:#000; }
+.cc-cvc-band{ position:absolute; left:18px; right:18px; top:74px; height:30px; background:#e8e8e8; border-radius:4px;
+  display:flex; align-items:center; justify-content:flex-end; padding:0 10px; }
+.cc-cvc-band span{ font-family:'Courier New', monospace; color:#111; font-size:15px; letter-spacing:.12em; }
+
+.cc-form{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.cc-field{ display:flex; flex-direction:column; gap:5px; }
+.cc-field--full{ grid-column:1 / -1; }
+.cc-field span{ font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); }
+.cc-field input{ background:var(--panel-3); border:1px solid var(--line); border-radius:var(--r-panel); color:var(--text);
+  padding:10px 12px; font-family:var(--font-num); font-size:15px; letter-spacing:.04em; }
+.cc-field input:focus{ outline:none; border-color:var(--line-hi); box-shadow:0 0 0 2px rgba(70,111,163,.25); }
+.cc-pay{ grid-column:1 / -1; cursor:pointer; font-family:var(--font-num); font-weight:800; font-size:16px; color:#1a0f00;
+  border:none; border-radius:var(--r-panel); padding:12px; background:linear-gradient(180deg,#ffe27a,var(--gold));
+  display:flex; align-items:center; justify-content:center; gap:8px; }
+.cc-pay:hover:not(:disabled){ filter:brightness(1.08); }
+.cc-pay:disabled{ opacity:.5; cursor:not-allowed; }
+.cc-spin{ width:15px; height:15px; border-radius:50%; border:2px solid rgba(26,15,0,.3); border-top-color:#1a0f00;
+  animation:cc-spin .7s linear infinite; }
+@keyframes cc-spin{ to{ transform:rotate(360deg); } }
+.cc-secure{ grid-column:1 / -1; text-align:center; font-size:11px; color:var(--muted); margin:0; }
+
+.co-declined{ text-align:center; padding:18px 12px; border:1px solid #7a2b2b; border-radius:var(--r-panel);
+  background:linear-gradient(180deg,rgba(120,30,30,.18),rgba(120,30,30,.05)); }
+.co-decl-ico{ font-size:46px; line-height:1; margin-bottom:6px; }
+.co-declined b{ display:block; font-family:var(--font-display); font-size:18px; color:#ff8a8a; }
+.co-declined p{ font-size:13px; color:var(--text-2); margin:8px 0; line-height:1.5; }
+.co-declined code{ font-family:'Courier New', monospace; font-size:12px; color:#ffb3b3; background:rgba(0,0,0,.3); padding:1px 5px; border-radius:3px; }
+.co-declined small{ display:block; font-size:12px; color:var(--muted); margin-bottom:12px; }
+.co-decl-actions{ display:flex; gap:10px; justify-content:center; }
+.co-decl-actions .shop-buy{ width:auto; padding:8px 18px; }
+.co-cancel{ background:none; border:1px solid var(--line); color:var(--muted); border-radius:var(--r-panel); padding:8px 18px; cursor:pointer; }
+.co-cancel:hover{ color:var(--text); border-color:var(--line-hi); }
+
+@media (max-width:480px){
+  .cc-form{ grid-template-columns:1fr 1fr; }
+  .shop-grid{ grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); }
+}

@@ -177,16 +177,27 @@ export function weaponInterval(s, w) {
 }
 
 export const milestoneMult = (count) =>
-  Math.pow(2, Math.floor(count / MULT.weaponMilestone));
+  Math.pow(MULT.weaponMilestoneMult, Math.floor(count / MULT.weaponMilestone));
 
-/* 🔗 Arzenálová synergie — počet započítaných milníků napříč CELÝM arzenálem.
-   Každá zbraň přispěje min(cap, ⌊počet/milník⌋) tiery (strop na zbraň → nutí
-   kupovat napříč, ne mega-stackovat jednu; drží to bounded). Knoby viz MULT. */
+/* Diminishing-uncap: kolik tierů synergie dá zbraň s `m` milníky.
+   Prvních arsenalSynergyTierFull plně, každý další jen falloff^k (klesající
+   geometrická řada → asymptota full + falloff/(1−falloff)). → mega-stack se vyplatí,
+   ale rychle klesá (drží napříč-nákup smysl) a celek zůstává malý/bounded. */
+export function synergyTiersForMilestones(m) {
+  if (m <= 0) return 0;
+  const full = MULT.arsenalSynergyTierFull;
+  if (m <= full) return m;
+  const f = MULT.arsenalSynergyFalloff;
+  return full + (f * (1 - Math.pow(f, m - full))) / (1 - f);
+}
+
+/* 🔗 Arzenálová synergie — součet započítaných (diminishing) milníků napříč CELÝM
+   arzenálem. Bounded (asymptota na zbraň) + NEvstupuje do difficultyScale. Knoby viz MULT. */
 export function arsenalSynergyTiers(s) {
   let tiers = 0;
   for (const w of WEAPONS) {
     const c = s.weapons[w.id] || 0;
-    if (c >= MULT.weaponMilestone) tiers += Math.min(MULT.arsenalSynergyTierCap, Math.floor(c / MULT.weaponMilestone));
+    if (c >= MULT.weaponMilestone) tiers += synergyTiersForMilestones(Math.floor(c / MULT.weaponMilestone));
   }
   return tiers;
 }

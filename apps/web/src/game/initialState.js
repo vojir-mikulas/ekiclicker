@@ -150,6 +150,10 @@ export function createState() {
     fair: { tickets: 0, ticketAt: 0, freeDay: '' }, // 🎟️ lístky + regen + denní dorovnání (přežívá rebirth, mře sezónou)
     fairWheel: null,              // PŘECHODNÝ výsledek točení kola (neukládá se — jako pendingOpen)
     fairRun: null,                // PŘECHODNÝ stav střelnice (neukládá se)
+    // --- Hospoda U Ekiho 🍺 (sezónní atrakce tématu „kalba"; gatuje seasonTheme) ---
+    pub: { tokens: 0, tokenAt: 0, freeDay: '' }, // 🍻 rundy + regen + denní dorovnání (přežívá rebirth, mře sezónou)
+    pubPour: null,                // PŘECHODNÝ výsledek čepování piva (neukládá se)
+    pubDarts: null,               // PŘECHODNÝ stav šipek (neukládá se)
     // --- téma sezóny (server-derived z čísla sezóny; NEUKLÁDÁ se do save ani skóre) ---
     seasonTheme: null,            // { id, mods } aktivní sezóny | null — bounded buff bez dmgPct (viz data/seasonThemes.js)
     buyAmount: 1,
@@ -181,6 +185,8 @@ export function resetRun(state, startLevel) {
   state.hellRun = null;     // přechodný běh výtahu — rebirth ho nenese (hell/sira/hellShop ANO)
   state.fairWheel = null;   // přechodné točení kola — rebirth ho nenese (fair lístky ANO)
   state.fairRun = null;     // přechodná střelnice — rebirth ji nenese
+  state.pubPour = null;     // přechodné čepování — rebirth ho nenese (pub rundy ANO)
+  state.pubDarts = null;    // přechodné šipky — rebirth je nenese
   // vybavení/inventář/bedny/úlomky/MAZLÍČCI se NEresetují (jako prestige) → snapshot síly
   // do obtížnosti (vybavení + nasazený mazlíček, viz formulas.difficultyScale)
   state.runGearPower = gearPower(state.equipment) * petPower(state);

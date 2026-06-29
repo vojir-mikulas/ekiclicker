@@ -89,6 +89,9 @@ export function buildSnapshot(state) {
     // Matějská pouť 🎡: pouťové lístky + regen + denní dorovnání (přežívá rebirth,
     // mře sezónou; fairWheel/fairRun jsou PŘECHODNÉ → ZÁMĚRNĚ se neukládají)
     fair: state.fair,
+    // Hospoda U Ekiho 🍺: rundy + regen + denní dorovnání (přežívá rebirth,
+    // mře sezónou; pubPour/pubDarts jsou PŘECHODNÉ → ZÁMĚRNĚ se neukládají)
+    pub: state.pub,
     runGearPower: state.runGearPower,
     // elixíry: aktivní buff (until = epoch ms) + sklad (aditivní — starý save bez nich = prázdný)
     elixir: state.elixir,
@@ -189,6 +192,12 @@ export function hydrateState(d) {
     : { tickets: 0, ticketAt: 0, freeDay: '' };
   state.fairWheel = null;
   state.fairRun = null;
+  // Hospoda U Ekiho 🍺: rundy přežijí; pubPour/pubDarts jsou přechodné → null
+  state.pub = (d.pub && typeof d.pub === 'object')
+    ? { tokens: d.pub.tokens || 0, tokenAt: d.pub.tokenAt || 0, freeDay: d.pub.freeDay || '' }
+    : { tokens: 0, tokenAt: 0, freeDay: '' };
+  state.pubPour = null;
+  state.pubDarts = null;
   state.runGearPower = d.runGearPower || gearPower(state.equipment) * petPower(state);
   // elixíry: sklad (aditivní) + běžící buff jen pokud ještě nevypršel (jinak zahodit)
   state.elixirStock = (d.elixirStock && typeof d.elixirStock === 'object') ? d.elixirStock : {};

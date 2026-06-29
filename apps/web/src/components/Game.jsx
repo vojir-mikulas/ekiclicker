@@ -43,7 +43,9 @@ const FoundGuildModal = lazy(() => import('./modals/FoundGuildModal.jsx'));
 const MailboxModal = lazy(() => import('./modals/MailboxModal.jsx'));
 const HellevatorModal = lazy(() => import('./hell/HellevatorModal.jsx'));
 const MatejskaModal = lazy(() => import('./matejska/MatejskaModal.jsx'));
+const HospodaModal = lazy(() => import('./hospoda/HospodaModal.jsx'));
 const UnlockModal = lazy(() => import('./modals/UnlockModal.jsx'));
+const ItemShopModal = lazy(() => import('./modals/ItemShopModal.jsx'));
 
 // Obrazovky, které se otevírají jako vsazená stránka v obsahu (ne overlay).
 // Vše ostatní (nastavení, účet, potvrzení, ruleta…) zůstává klasický modal.
@@ -65,6 +67,7 @@ export default function Game() {
   const pendingEggId = useEngineSelector((s) => s.pendingEgg?.id || null); // běžící líhnutí vejce
   const enchantOn = useEngineSelector((s) => !!s.pendingEnchant); // otevřený zaklínací stůl
   const matejskaOn = useEngineSelector((s) => s.seasonTheme?.id === 'matejska'); // 🎡 pouť jen v sezóně Matějská
+  const kalbaOn = useEngineSelector((s) => s.seasonTheme?.id === 'kalba'); // 🍺 hospoda jen v sezóně Kalba
 
   // jednorázové připsání offline výdělku po načtení
   useEffect(() => {
@@ -128,6 +131,7 @@ export default function Game() {
           onOpenAscension={() => openScreen('ascension')}
           onOpenAlbum={() => openScreen('album')}
           onOpenMailbox={() => openScreen('mailbox')}
+          onOpenShop={() => openScreen('itemshop')}
         />
 
         <div className={'app-body app-body--' + (page ? 'page' : view)}>
@@ -155,6 +159,16 @@ export default function Game() {
                     <span className="mat-entry-txt">
                       <b>Matějská pouť</b>
                       <small>Kolo štěstí · střelnice — pouťové výhry sezóny</small>
+                    </span>
+                    <span className="mat-entry-go">Vstoupit →</span>
+                  </button>
+                )}
+                {kalbaOn && (
+                  <button className="mat-entry pub-entry" onClick={() => setModal('hospoda')}>
+                    <span className="mat-entry-ico">🍺</span>
+                    <span className="mat-entry-txt">
+                      <b>Hospoda U Ekiho</b>
+                      <small>Čepování piva · šipky — hospodské výhry sezóny</small>
                     </span>
                     <span className="mat-entry-go">Vstoupit →</span>
                   </button>
@@ -202,6 +216,8 @@ export default function Game() {
         {modal === 'foundGuild' && <FoundGuildModal onClose={() => setModal(null)} />}
         {modal === 'hellevator' && <HellevatorModal onClose={() => setModal(null)} />}
         {modal === 'matejska' && <MatejskaModal onClose={() => setModal(null)} />}
+        {modal === 'hospoda' && <HospodaModal onClose={() => setModal(null)} />}
+        {modal === 'itemshop' && <ItemShopModal onClose={() => setModal(null)} />}
         {pendingEggId && <PetRevealModal key={pendingEggId} />}
         {offline && <OfflineModal offline={offline} onClose={() => setOffline(null)} />}
         {gift && <GiftModal gift={gift} onClose={() => setGift(null)} />}

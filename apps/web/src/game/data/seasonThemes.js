@@ -16,9 +16,12 @@ export const SEASON_THEMES = [
     id: 'kalba',
     label: 'Kalba',
     emoji: '🍺',
-    blurb: 'Runda na účet podniku — víc zlata, víc úlomků.',
-    perks: ['+10 % zlato', '+8 % 💠 úlomků'],
+    blurb: 'Runda na účet podniku — víc zlata, víc úlomků a otevřená Hospoda U Ekiho (čepování piva + hospodské šipky).',
+    perks: ['+10 % zlato', '+8 % 💠 úlomků', '🍺 Hospoda U Ekiho'],
     mods: { goldPct: 0.1, dustPct: 0.08 },
+    // 🍺 Speciální atrakce tohoto tématu: data/hospoda.js + components/hospoda/.
+    // UI ji gatuje na seasonTheme.id === 'kalba' (engine.pubAvailable()).
+    pub: true,
   },
   {
     id: 'lov',
@@ -52,6 +55,11 @@ export function themeForSeason(number) {
 /* Je v dané sezóně otevřená Matějská pouť? (téma s atrakcemi) */
 export function isMatejskaSeason(number) {
   return themeForSeason(number)?.id === 'matejska';
+}
+
+/* Je v dané sezóně otevřená Hospoda U Ekiho? (téma Kalba s atrakcemi) */
+export function isKalbaSeason(number) {
+  return themeForSeason(number)?.id === 'kalba';
 }
 
 /* Bounded příspěvky aktivního tématu ve sdíleném tvaru afixových klíčů, který

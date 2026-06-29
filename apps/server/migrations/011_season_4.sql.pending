@@ -1,0 +1,14 @@
+-- =========================================================================
+-- 011_season_4 — otevření Sezóny 4 (🍺 KALBA).
+--   Jednořádková release migrace: uzavře aktivní Sezónu 3, spočítá odměny za
+--   umístění (season_rewards) a otevře Sezónu 4. Žebříčky odměn i celá logika
+--   žijí v rotate_season() (definice z 002, rozšířená o cechy v 007). Hráči při
+--   dalším syncu projdou gate → klient spustí reset (server-wide rebirth) a
+--   claimne odměnu.
+--
+--   Sezóna 4 je dle deterministické rotace témat (klient: themeForSeason(4) →
+--   (4-1)%3 = 0) explicitně KALBA 🍺 → automaticky se zpřístupní Hospoda U Ekiho
+--   (čepování piva + hospodské šipky). Server nic dalšího posílat nemusí; téma
+--   i hospodu si klient odvodí z čísla aktivní sezóny.
+-- =========================================================================
+select rotate_season();
