@@ -14,7 +14,7 @@ import ComboRing from './ComboRing.jsx';
 import AbilityBar from './AbilityBar.jsx';
 
 const selectGain = (s) => forgivenessGain(s.highestLevel);
-// Vzestup 🌌 — odemčení + ✦ prach za vzestup (jen když odemčeno, viz lvl 30000)
+// Vzestup 🌌 — odemčení + ✦ prach za vzestup (jen když odemčeno, viz lvl 10000)
 const selectAsc = (s) => ({ unlocked: s.ascensionUnlocked, gain: stardustGain(s.highestLevel) });
 // Obtížnost (HP Ekiů) i prestige síla jsou v rámci běhu konstantní — mění se až
 // po rebirthu — ale čteme je selektorem, ať se chip překreslí po návratu z rebirthu.

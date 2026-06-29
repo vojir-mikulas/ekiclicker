@@ -1,4 +1,4 @@
-/* ABSOLUCE 😇 — meta-prestige nad rebirthem (odemyká se na úrovni 30000).
+/* ABSOLUCE 😇 — meta-prestige nad rebirthem (odemyká se na úrovni 10000).
    Vyšší stupeň ODPUŠTĚNÍ: rebirth Tomášovi „jen" odpouští (Odpuštění 🕊), ABSOLUCE
    ho zprostí úplně všeho. Jednou za běh můžeš dát Ekimu absoluci — to SMETE celou
    věž prestiže (Věčný hněv, pěst, … i nasbírané Odpuštění 🕊) a místo toho ti dá

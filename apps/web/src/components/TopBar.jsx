@@ -35,10 +35,12 @@ const select = (s) => ({
   ascensionUnlocked: s.ascensionUnlocked,
   stardust: Math.floor(s.stardust || 0),
   albumNew: s.album?.new || 0,
+  cardUnlocked: s.cardUnlocked,
+  cardBalance: Math.floor(s.card?.balance || 0),
 });
 
 export default function TopBar({ view, page, onView, onOpenSettings, onOpenJoin, onOpenAccount, onOpenStats, onOpenDaily, onOpenInventory, onOpenPets, onOpenRunes, onOpenAbilities, onOpenMastery, onOpenAscension, onOpenAlbum, onOpenMailbox, onOpenShop }) {
-  const { gold, forgiveness, dust, level, click, daily, invUnlocked, chestCount, petsUnlocked, eggCount, equippedPet, petLevel, petEvo, runesUnlocked, runeCount, abilitiesUnlocked, masteryUnlocked, masteryPoints, ascensionUnlocked, stardust, albumNew } = useEngineSelector(select, shallowEqual);
+  const { gold, forgiveness, dust, level, click, daily, invUnlocked, chestCount, petsUnlocked, eggCount, equippedPet, petLevel, petEvo, runesUnlocked, runeCount, abilitiesUnlocked, masteryUnlocked, masteryPoints, ascensionUnlocked, stardust, albumNew, cardUnlocked, cardBalance } = useEngineSelector(select, shallowEqual);
   const account = useAccount();
   const wb = useWorldBoss();
   const rd = useRaid();
@@ -197,6 +199,16 @@ export default function TopBar({ view, page, onView, onOpenSettings, onOpenJoin,
             <span className="txt">
               <span className="label">Svatozář</span>
               <span className="value">{fmt(stardust)}</span>
+            </span>
+          </button>
+        )}
+
+        {cardUnlocked && (
+          <button className="currency card-credit" onClick={onOpenShop} title="💳 Kredit z cashbacku — utrať ho v Obchodě s předměty 🛒">
+            <span className="icon">💳</span>
+            <span className="txt">
+              <span className="label">Kredit</span>
+              <span className="value">{fmt(cardBalance)} €</span>
             </span>
           </button>
         )}

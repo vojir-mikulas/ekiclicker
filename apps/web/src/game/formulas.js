@@ -17,6 +17,7 @@ import { elixirMods } from './data/elixirs.js';
 import { abilityMods } from './data/abilities.js';
 import { hellEnemyAt, hellShopStats } from './data/hellevator.js';
 import { seasonThemeStats } from './data/seasonThemes.js';
+import { cardStats } from './data/itemshop.js';
 
 /* Součet afixů z nasazeného vybavení — sdílí ho všechny bojové formulky.
    Čistá funkce nad stavem; vybavení přidává jen BOUNDED % (žádný nový exponenciál). */
@@ -77,6 +78,12 @@ function _combatStats(s) {
   const season = seasonThemeStats(s.seasonTheme);
   out.goldPct = (out.goldPct || 0) + (season.goldPct || 0);
   out.luck = (out.luck || 0) + (season.luck || 0);
+  // 💳 prémiové karty z Obchodu s předměty (kupované za € cashback): bounded goldPct +
+  // luck, BEZ dmgPct → mimo difficultyScale. dustFind/dropChance/bossGold/comboCap/
+  // bossTime jedou zvlášť přes své helpery.
+  const card = cardStats(s);
+  out.goldPct = (out.goldPct || 0) + card.goldPct;
+  out.luck = (out.luck || 0) + card.luck;
   return out;
 }
 
@@ -157,13 +164,13 @@ export const forgivenessMult = (s) => (1 + capLevel(s, 'eternalForgiveness') * C
 /* Capstone-helpery navíc sčítají bounded bonusy z 🔱 mistrovské mřížky (speciální
    klíče comboCap/bossTime/bossGold/dustPct/dropChance — afixové klíče jedou přes combatStats). */
 /* 🔗 Mistr comba — strop comba (základ + capstone + mřížka 🥁 Rytmus). */
-export const comboCap = (s) => CONFIG.comboMax + capLevel(s, 'comboMaster') * CAPS.comboCapPerLevel + (masteryStats(s).comboCap || 0) + (seasonThemeStats(s.seasonTheme).comboCap || 0);
+export const comboCap = (s) => CONFIG.comboMax + capLevel(s, 'comboMaster') * CAPS.comboCapPerLevel + (masteryStats(s).comboCap || 0) + (seasonThemeStats(s.seasonTheme).comboCap || 0) + (cardStats(s).comboCap || 0); // 🥁 VIP lóže
 /* 🏹 Lovec bossů — víc času na bosse a víc jejich zlata (+ mřížka ⏳/👑/💰). */
-export const bossTimeMult = (s) => 1 + capLevel(s, 'bossHunter') * CAPS.bossTimePerLevel + (masteryStats(s).bossTime || 0) + (seasonThemeStats(s.seasonTheme).bossTime || 0);
-export const bossGoldMult = (s) => 1 + capLevel(s, 'bossHunter') * CAPS.bossGoldPerLevel + (masteryStats(s).bossGold || 0) + (seasonThemeStats(s.seasonTheme).bossGold || 0) + (hellShopStats(s).bossGold || 0); // 👑 Ďáblův desátek
+export const bossTimeMult = (s) => 1 + capLevel(s, 'bossHunter') * CAPS.bossTimePerLevel + (masteryStats(s).bossTime || 0) + (seasonThemeStats(s.seasonTheme).bossTime || 0) + (cardStats(s).bossTime || 0); // 🏹 Prémiové pojištění
+export const bossGoldMult = (s) => 1 + capLevel(s, 'bossHunter') * CAPS.bossGoldPerLevel + (masteryStats(s).bossGold || 0) + (seasonThemeStats(s.seasonTheme).bossGold || 0) + (hellShopStats(s).bossGold || 0) + (cardStats(s).bossGold || 0); // 👑 Ďáblův desátek / Concierge
 /* ⚒️ Klenotník — víc úlomků a vyšší šance na drop (+ mřížka ⚒️ Kovář / 🌟 / 🎯 / 👑). */
-export const dustMult = (s) => 1 + capLevel(s, 'jeweler') * CAPS.dustPerLevel + (masteryStats(s).dustPct || 0) + ((s.guildPerks && s.guildPerks.dustFind) || 0) + hellShopStats(s).dustFind + (seasonThemeStats(s.seasonTheme).dustPct || 0) + ascensionDustBonus(s); // + 💠 Prachová bouře (vzestup)
-export const dropChanceBonus = (s) => capLevel(s, 'jeweler') * CAPS.dropChancePerLevel + (masteryStats(s).dropChance || 0) + (seasonThemeStats(s.seasonTheme).dropChance || 0) + (hellShopStats(s).dropChance || 0); // 🎁 Pekelná truhla
+export const dustMult = (s) => 1 + capLevel(s, 'jeweler') * CAPS.dustPerLevel + (masteryStats(s).dustPct || 0) + ((s.guildPerks && s.guildPerks.dustFind) || 0) + hellShopStats(s).dustFind + (seasonThemeStats(s.seasonTheme).dustPct || 0) + ascensionDustBonus(s) + (cardStats(s).dustFind || 0); // + 💠 Prachová bouře (vzestup) / Diamantová karta
+export const dropChanceBonus = (s) => capLevel(s, 'jeweler') * CAPS.dropChancePerLevel + (masteryStats(s).dropChance || 0) + (seasonThemeStats(s.seasonTheme).dropChance || 0) + (hellShopStats(s).dropChance || 0) + (cardStats(s).dropChance || 0); // 🎁 Pekelná truhla / 🖤 Černá karta
 
 export function speedMult(s) {
   const raw =

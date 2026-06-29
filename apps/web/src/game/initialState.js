@@ -23,7 +23,7 @@ export function createPrestige() {
   return p;
 }
 
-/* VZESTUP 🌌 — meta-prestige (odemyká se na lvl 30000). `levels` = id bonusu -> level,
+/* VZESTUP 🌌 — meta-prestige (odemyká se na lvl 10000). `levels` = id bonusu -> level,
    `ascends` = počet vzestupů (lifetime; rebirths se vzestupem nuluje). PŘEŽÍVÁ rebirth
    I vzestup (trvalé kosmické bonusy); mizí jen sezónou/hard resetem jako prestige. */
 export function createAscension() {
@@ -83,7 +83,7 @@ export function createState() {
     upgrades: createUpgrades(),
     weapons: createWeapons(),
     prestige: createPrestige(),
-    // --- VZESTUP 🌌 (meta-prestige; odemyká se na úrovni 30000) ---
+    // --- VZESTUP 🌌 (meta-prestige; odemyká se na úrovni 10000) ---
     // ✦ Hvězdný prach + koupené kosmické bonusy. Přežívá rebirth I vzestup (trvalé).
     ascensionUnlocked: false, // jednou true → zůstává (přežívá rebirth)
     stardust: 0,              // ✦ Hvězdný prach 🌌 — měna vzestupu
@@ -154,6 +154,11 @@ export function createState() {
     pub: { tokens: 0, tokenAt: 0, freeDay: '' }, // 🍻 rundy + regen + denní dorovnání (přežívá rebirth, mře sezónou)
     pubPour: null,                // PŘECHODNÝ výsledek čepování piva (neukládá se)
     pubDarts: null,               // PŘECHODNÝ stav šipek (neukládá se)
+    // --- 💳 Obchod s předměty / Tomášova karta (odemyká se na CARD.unlockLevel = 12000) ---
+    // Z killů chodí € cashback na kreditku; za kredit kupuješ prémiové „karty" (bounded,
+    // bez dmgPct → mimo difficultyScale). Přežívá rebirth, mře sezónou (jako hellShop/mastery).
+    cardUnlocked: false,          // jednou true → zůstává (přežívá rebirth) — obchod je ale přístupný od začátku
+    card: { balance: 0, tier: 0, info: null, saved: false }, // € zůstatek + tier (0=bez karty,1..8) + vystavené údaje {number,name,exp,cvc} + uložená-na-účet
     // --- téma sezóny (server-derived z čísla sezóny; NEUKLÁDÁ se do save ani skóre) ---
     seasonTheme: null,            // { id, mods } aktivní sezóny | null — bounded buff bez dmgPct (viz data/seasonThemes.js)
     buyAmount: 1,

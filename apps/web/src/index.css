@@ -2477,3 +2477,95 @@ body::after{
   .cc-form{ grid-template-columns:1fr 1fr; }
   .shop-grid{ grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); }
 }
+
+/* --- 💳 Obchod jako feature: kredit, vlastněné karty, výsledky --- */
+.currency.card-credit{ border-color:#2e6b4f; cursor:pointer; }
+.currency.card-credit .value{ color:#7ee0a8; }
+.currency.card-credit:hover{ border-color:#3fa873; box-shadow:0 0 12px rgba(63,168,115,.25); }
+
+.shop-balance{ display:inline-flex; align-items:center; gap:8px; margin-top:10px; padding:6px 14px;
+  border:1px solid #2e6b4f; border-radius:var(--r-panel); background:rgba(46,107,79,.12); }
+.shop-balance .icon{ font-size:18px; }
+.shop-balance-val{ font-family:var(--font-num); font-weight:800; font-size:18px; color:#7ee0a8; }
+.shop-balance-lbl{ font-size:11px; color:var(--muted); }
+
+.shop-card.owned{ opacity:.7; border-color:#2e6b4f; background:rgba(46,107,79,.08); }
+.shop-tag.owned-tag{ background:linear-gradient(90deg,#2e9b6b,#7ee0a8); color:#04140c; box-shadow:none; }
+.shop-owned{ margin-top:4px; width:100%; text-align:center; font-size:12px; font-weight:700; color:#7ee0a8; padding:8px 0; }
+.shop-buy.poor{ background:linear-gradient(180deg,#5a4a2a,#3a2f1a); color:#caa86b; }
+
+.co-balance-row{ display:flex; justify-content:space-between; align-items:center; font-size:13px; color:var(--text-2);
+  margin-bottom:14px; padding:8px 12px; border:1px solid var(--line-dim); border-radius:var(--r-panel); background:var(--panel-3); }
+.co-balance-row b{ color:#7ee0a8; }
+.co-ok{ color:#7ee0a8; font-weight:700; }
+.co-low{ color:#ff9a9a; font-weight:700; }
+
+.co-success{ text-align:center; padding:24px 14px; border:1px solid #2e6b4f; border-radius:var(--r-panel);
+  background:linear-gradient(180deg,rgba(46,155,107,.16),rgba(46,155,107,.04)); }
+.co-succ-ico{ font-size:54px; line-height:1; margin-bottom:8px; animation:cc-pop .4s ease; }
+@keyframes cc-pop{ from{ transform:scale(.4); opacity:0; } to{ transform:scale(1); opacity:1; } }
+.co-success b{ display:block; font-family:var(--font-display); font-size:20px; color:#7ee0a8; }
+.co-success p{ font-size:14px; color:var(--text-2); margin:8px 0; }
+.co-success small{ display:block; font-size:12px; color:var(--muted); margin-bottom:14px; }
+.co-success .shop-buy{ width:auto; padding:9px 22px; }
+
+.cc-saved{ display:flex; flex-direction:column; gap:12px; }
+.cc-saved-row{ display:flex; justify-content:space-between; align-items:center; padding:10px 12px;
+  border:1px solid var(--line); border-radius:var(--r-panel); background:var(--panel-3); font-size:14px; color:var(--text); }
+.cc-other{ background:none; border:none; color:var(--blue); cursor:pointer; font-size:12px; }
+.cc-other:hover{ text-decoration:underline; }
+.cc-remember{ flex-direction:row; align-items:center; gap:8px; font-size:13px; color:var(--text-2); cursor:pointer; }
+.cc-remember input{ width:16px; height:16px; accent-color:var(--gold); cursor:pointer; }
+
+/* --- 💳 Karta jako upgradovatelný tier (přehled + tier gradienty) --- */
+.cc-card.cc-display{ margin-top:4px; }
+.cc-card.cc-display .cc-front{ position:relative; }
+
+/* tier gradienty (1..8) — karta se „zušlechťuje" s tierem */
+.cc-card.cc-tier-1 .cc-front{ background:linear-gradient(135deg,#3a4860,#222d44); }
+.cc-card.cc-tier-2 .cc-front{ background:linear-gradient(135deg,#6b7585,#aab4c4); color:#10151f; }
+.cc-card.cc-tier-3 .cc-front{ background:linear-gradient(135deg,#9a6a1e,#f0c64e); color:#1a1206; }
+.cc-card.cc-tier-4 .cc-front{ background:linear-gradient(135deg,#516072,#cfd8e3); color:#10151f; }
+.cc-card.cc-tier-5 .cc-front{ background:linear-gradient(135deg,#0a0d14,#2a2f3a); }
+.cc-card.cc-tier-6 .cc-front{ background:linear-gradient(135deg,#1b6f7a,#7fe7e0); color:#04201f; }
+.cc-card.cc-tier-7 .cc-front{ background:linear-gradient(135deg,#4a2a78,#b070e0); }
+.cc-card.cc-tier-8 .cc-front{ background:linear-gradient(135deg,#7b2ff7,#e23bd6 40%,#3b9bff 80%); }
+.cc-card.cc-tier-2 .cc-number, .cc-card.cc-tier-3 .cc-number, .cc-card.cc-tier-4 .cc-number, .cc-card.cc-tier-6 .cc-number{ text-shadow:none; }
+
+.card-bonuses{ margin:14px 0; padding:12px 14px; border:1px solid var(--line); border-radius:var(--r-panel); background:var(--panel-2); }
+.cb-head{ display:block; font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); margin-bottom:8px; }
+.card-bonuses ul{ list-style:none; margin:0; padding:0; display:grid; grid-template-columns:1fr 1fr; gap:4px 14px; }
+.card-bonuses li{ font-size:13px; color:#7ee0a8; }
+.cb-empty{ font-size:13px; color:var(--muted); margin:0; }
+
+.card-upgrade{ padding:14px; border:1px solid var(--line-hi); border-radius:var(--r-panel);
+  background:linear-gradient(180deg,rgba(70,111,163,.12),rgba(70,111,163,.03)); }
+.cu-head{ display:flex; justify-content:space-between; align-items:baseline; gap:10px; font-size:14px; color:var(--text-2); margin-bottom:8px; }
+.cu-head b{ color:var(--text); font-family:var(--font-display); }
+.cu-price{ font-family:var(--font-num); font-weight:800; font-size:17px; color:var(--gold); white-space:nowrap; }
+.cu-bonuses{ list-style:none; margin:0 0 12px; padding:0; display:grid; grid-template-columns:1fr 1fr; gap:4px 14px; }
+.cu-bonuses li{ font-size:12px; color:var(--text-2); }
+.card-upgrade .shop-buy{ width:100%; }
+.card-maxed{ text-align:center; padding:16px; border:1px dashed var(--purple-line); border-radius:var(--r-panel);
+  color:var(--stardust); font-family:var(--font-display); font-size:15px; }
+
+@media (max-width:480px){
+  .card-bonuses ul, .cu-bonuses{ grid-template-columns:1fr; }
+}
+
+/* --- 💳 vystavená karta / bez karty / uložená --- */
+.card-none{ text-align:center; padding:22px 14px; border:1px dashed var(--line); border-radius:var(--r-panel); background:var(--panel-2); }
+.card-none-ico{ font-size:42px; line-height:1; margin-bottom:8px; }
+.card-none b{ display:block; font-family:var(--font-display); font-size:17px; color:var(--text); }
+.card-none p{ font-size:13px; color:var(--muted); line-height:1.5; margin:8px auto 0; max-width:420px; }
+.card-none b{ color:var(--text); }
+
+.card-issued{ display:flex; flex-direction:column; align-items:center; gap:8px; margin:6px 0 14px; }
+.ci-label{ font-size:11px; letter-spacing:.04em; color:var(--muted); }
+.ci-cvc{ font-size:13px; color:var(--text-2); }
+.ci-cvc b{ font-family:'Courier New', monospace; color:#7ee0a8; letter-spacing:.1em; }
+.card-issued .cc-number{ user-select:all; } /* ať jde snadno označit a opsat */
+
+.cc-use-saved{ background:none; border:1px dashed var(--line-hi); color:var(--blue); border-radius:var(--r-panel);
+  padding:8px; cursor:pointer; font-size:13px; }
+.cc-use-saved:hover{ background:rgba(70,111,163,.1); }

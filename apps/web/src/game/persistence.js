@@ -103,6 +103,10 @@ export function buildSnapshot(state) {
     abilitiesUnlocked: state.abilitiesUnlocked,
     // cech 🛡️: klientská brána založení + jednorázový uvítací popup (přežívá rebirth)
     guildUnlocked: state.guildUnlocked,
+    // 💳 Obchod s předměty: odemčení + € zůstatek + vlastněné karty + uložená karta
+    // (aditivní — starý save bez nich = zamčený/prázdný; přežívá rebirth, mře sezónou)
+    cardUnlocked: state.cardUnlocked,
+    card: state.card,
     buyAmount: state.buyAmount,
     t: Date.now(),
   };
@@ -214,6 +218,19 @@ export function hydrateState(d) {
   state.guildUnlocked = d.guildUnlocked === undefined
     ? state.highestLevel >= GUILDS.foundLevel
     : !!d.guildUnlocked;
+  // 💳 Obchod s předměty (starý save → zamčený/prázdný). Přežívá rebirth, mře sezónou.
+  state.cardUnlocked = !!d.cardUnlocked;
+  const ci = d.card && typeof d.card === 'object' ? d.card.info : null;
+  state.card = (d.card && typeof d.card === 'object')
+    ? {
+        balance: d.card.balance || 0,
+        tier: d.card.tier || 0,
+        info: (ci && ci.number && ci.cvc) ? { number: ci.number, name: ci.name || '', exp: ci.exp || '', cvc: ci.cvc } : null,
+        saved: !!d.card.saved,
+      }
+    : { balance: 0, tier: 0, info: null, saved: false };
+  // (žádné dovystavení tieru — tier 0 je platný stav „karta vystavená, ještě nic nekoupeno";
+  //  engine.checkCardUnlock dovystaví chybějící info u starších savů při dalším killu)
   if (d.abilities && typeof d.abilities === 'object') {
     state.abilities.levels = (d.abilities.levels && typeof d.abilities.levels === 'object') ? { ...d.abilities.levels } : {};
     state.abilities.cooldowns = (d.abilities.cooldowns && typeof d.abilities.cooldowns === 'object') ? { ...d.abilities.cooldowns } : {};

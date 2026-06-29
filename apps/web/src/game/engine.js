@@ -28,6 +28,7 @@ import {
   stardustGain, ascensionCost, ascensionHeadstart,
 } from './formulas.js';
 import { ASCENSION, ASCENSION_UPGRADES } from './data/ascension.js';
+import { CARD, nextCardTierDef, cashbackBaseFor, generateCardInfo, cardMatches } from './data/itemshop.js';
 import {
   HELLEVATOR, HELL_SHOP, hellPerkCost, siraForRun, isHellBossFloor,
   HELL_FORGE, hellForgeCost, HELL_CURSES, hellRunMods,
@@ -198,6 +199,7 @@ export class Engine {
       }
     }
     if (v.trip) this.rollTrip(reward); // 🍄 Vyšlehanej Eki → trip (po základní odměně)
+    if (s.cardUnlocked) this.maybeCashback(v); // 💳 € cashback na Tomášovu kreditku
     this.emit('defeat', {
       reward, boss: !!v.boss, mega: !!v.mega, ultra: !!v.ultra, archon: !!v.archon,
       variantId: s.enemy.variantId, loot,
@@ -232,6 +234,26 @@ export class Engine {
     this.checkMasteryUnlock();
     this.checkAscensionUnlock();
     this.checkGuildUnlock();
+    this.checkCardUnlock();
+  }
+
+  /* 💳 Platební karta se VYSTAVÍ po dosažení CARD.unlockLevel (nejvyšší úroveň).
+     Obchod 🛒 je přístupný od začátku, ale bez karty se nedá platit. Při odemčení
+     Tomáš dostane SKUTEČNÉ údaje karty (s.card.info) + základní tier 1 zdarma.
+     Příznak je trvalý (přežívá rebirth, mře sezónou). Idempotentní guard zároveň
+     dovystaví kartu i u starších savů, které ji ještě nemají. */
+  checkCardUnlock() {
+    const s = this.state;
+    if (s.highestLevel < CARD.unlockLevel) return;
+    if (!s.card) s.card = { balance: 0, tier: 0, info: null, saved: false };
+    const firstTime = !s.cardUnlocked;
+    s.cardUnlocked = true;
+    if (!s.card.info) {
+      s.card.info = generateCardInfo();       // vystav SKUTEČNÉ údaje karty (hráč si je opíše do pokladny)
+      s.card.balance += CARD.welcomeBalance;  // + uvítací zůstatek na první nákup
+      // tier zůstává 0 — první tier si koupíš v obchodě (žádný zdarma)
+    }
+    if (firstTime) this.emit('unlock', { feature: 'card' });
   }
 
   /* Vzestup 🌌 se odemkne po dosažení ASCENSION.unlockLevel (nejvyšší úroveň).
@@ -332,6 +354,46 @@ export class Engine {
     s.chests[tier] = (s.chests[tier] || 0) + 1;
     s.stats.chestsFound = (s.stats.chestsFound || 0) + 1;
     this.emit('chest', { tier });
+  }
+
+  /* 💳 € CASHBACK na Tomášovu kreditku po zabití nepřítele. Bossové připíší vždy
+     (a víc), běžní nepřátelé jen s šancí. Částka = bounded base (škáluje mírně s
+     úrovní + skokově s typem bosse) × jitter. Kredit je SAMOSTATNÁ měna (NE zlato →
+     nenafoukne ekonomiku ani žebříček); utratí se v Obchodě s předměty. */
+  maybeCashback(v) {
+    const s = this.state;
+    const guaranteed = !!(v && v.boss);
+    if (!guaranteed && Math.random() >= CARD.cashbackChance) return;
+    const base = cashbackBaseFor(s.level, v);
+    const jit = 1 - CARD.jitter + Math.random() * 2 * CARD.jitter;
+    const amt = Math.max(1, Math.ceil(base * jit));
+    if (!s.card) s.card = { balance: 0, tier: 0, info: null, saved: false };
+    s.card.balance += amt;
+    this.emit('cashback', { amount: amt, boss: guaranteed });
+  }
+
+  /* Upgraduj kartu o JEDEN tier — zaplať vyplněnými údaji karty. `entered` =
+     { number, name, exp, cvc } z pokladny; `useSaved` = platba uloženou kartou
+     (přeskočí zadávání). Vrací { ok, reason }:
+       nocard → ještě nemáš vystavenou kartu (obchod je sice otevřený)
+       card   → vyplněné údaje nesouhlasí s vystavenou kartou
+       funds  → nedostatečný zůstatek
+       maxed  → už máš nejvyšší tier
+     Po prvním úspěchu se karta ULOŽÍ (s.card.saved=true) → příště stačí jeden klik.
+     Bounded bonus vyššího tieru se foldí přes formulky (bez dmgPct → mimo difficulty). */
+  upgradeCard(entered, useSaved = false) {
+    const s = this.state;
+    if (!s.cardUnlocked || !s.card || !s.card.info) return { ok: false, reason: 'nocard' };
+    const next = nextCardTierDef(s.card.tier || 0);
+    if (!next) return { ok: false, reason: 'maxed' };
+    if (!(useSaved && s.card.saved) && !cardMatches(s.card.info, entered)) return { ok: false, reason: 'card' };
+    if ((s.card.balance || 0) < next.price) return { ok: false, reason: 'funds' };
+    s.card.balance -= next.price;
+    s.card.tier = next.tier;
+    s.card.saved = true; // karta uložena pro příští nákupy
+    this.emit('cardUpgrade', { tier: next.tier });
+    this.afterBuy(); // checkAchievements + save + notify (clearStatCache → bonus hned platí)
+    return { ok: true, tier: next.tier };
   }
 
   /* Rozlož kus na úlomky 💠 (× ⚒️ Klenotník). Volá se při zahození i přetečení

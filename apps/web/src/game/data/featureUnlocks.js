@@ -129,12 +129,26 @@ export const FEATURE_UNLOCKS = {
     cta: 'Otevřít mřížku 🔱',
     open: 'mastery',
   },
+  card: {
+    emoji: '💳',
+    name: 'Tomášova karta',
+    level: 6000,
+    tagline: 'Vystavena platební karta',
+    desc: 'Tomášovi právě vystavili platební kartu + uvítací zůstatek! Obchod 🛒 byl otevřený celou dobu, jen jsi tam neměl platnou kartu (cokoliv jsi vyplnil, banka zamítla). Teď v obchodě uvidíš ÚDAJE své karty — opiš je do pokladny, zaplať a postupně UPGRADUJEŠ kartu na vyšší tiery: Obyčejná → … → Eki Infinite (každý silnější bounded bonus). Po prvním nákupu se karta uloží → příště stačí klik. Z killů ti chodí € cashback (bossové vždy a víc).',
+    perks: [
+      '💳 Vystavená karta + uvítací zůstatek',
+      '✍️ Opiš údaje do pokladny → uloží se napořád',
+      '⬆️ 8 tierů — kumulativní bounded bonusy',
+    ],
+    cta: 'Otevřít obchod 🛒',
+    open: 'itemshop',
+  },
   ascension: {
     emoji: '😇',
     name: 'Absoluce',
-    level: 30000,
+    level: 10000,
     tagline: 'Nejvyšší odpuštění — nová měna',
-    desc: 'Dosáhl jsi nebes: úrovně 30000. Rebirth Tomášovi „jen" odpouští — ABSOLUCE ho zprostí úplně všeho. Dáš Ekimu absoluci, smeteš celou věž prestiže výměnou za ✨ Svatozář 😇 a za ni kupuješ TRVALÉ nebeské bonusy, které přežijí i další absoluci. Každý cyklus vyletíš výš a rychleji — donekonečna.',
+    desc: 'Dosáhl jsi nebes: úrovně 10000. Rebirth Tomášovi „jen" odpouští — ABSOLUCE ho zprostí úplně všeho. Dáš Ekimu absoluci, smeteš celou věž prestiže výměnou za ✨ Svatozář 😇 a za ni kupuješ TRVALÉ nebeské bonusy, které přežijí i další absoluci. Každý cyklus vyletíš výš a rychleji — donekonečna.',
     perks: [
       '😇 ✨ Svatozář podle dosažené hloubky',
       '💫 Trvalé nebeské bonusy (přežijí absoluci)',

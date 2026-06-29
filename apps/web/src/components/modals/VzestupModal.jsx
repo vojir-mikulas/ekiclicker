@@ -1,4 +1,4 @@
-/* ABSOLUCE 😇 — meta-prestige ("rebirth rebirthů", odemyká se na lvl 30000).
+/* ABSOLUCE 😇 — meta-prestige ("rebirth rebirthů", odemyká se na lvl 10000).
    Absoluce smete věž prestiže výměnou za ✨ Svatozář 😇; za ni se kupují TRVALÉ
    nebeské bonusy (přežijí i další absoluci). Re-render řízený podpisem svatozáře
    + levelů bonusů + nejvyšší úrovně (engine mutuje state na místě). */
