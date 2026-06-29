@@ -22,19 +22,20 @@ export const CARD = {
   welcomeBalance: 2000,      // € připsané při vystavení karty (na první nákup hned)
 };
 
-/* Tiery karty (1..8). stats = TOTAL bounded bonus na daném tieru (kumulativní —
-   vyšší tier je vždy lepší). price je v € za POVÝŠENÍ na tento tier. Všechny tiery
-   se kupují (žádný zdarma) → obchod vypadá jako skutečný krám už od začátku. Bez karty
-   se ale nezaplatí (každá vyplněná karta zamítnuta). NIKDY dmgPct. */
+/* Upgrady karty (tier 1..8). Kupují se v obchodě jako „upgrady" → karta se po
+   každém nákupu AUTOMATICKY zušlechtí na další themovanou kartu, až po Obsidiánovou
+   (nejlepší). stats = TOTAL bounded bonus na daném tieru (kumulativní — vyšší je vždy
+   lepší). price je v € (€ cashback). Všechny se kupují (žádný zdarma) → obchod vypadá
+   jako skutečný krám už od začátku. NIKDY dmgPct. */
 export const CARD_TIERS = [
-  { tier: 1, emoji: '💳', name: 'Obyčejná karta',   price: 1500,   stats: { goldPct: 0.10 } },
-  { tier: 2, emoji: '💳', name: 'Stříbrná karta',   price: 4000,   stats: { goldPct: 0.20, luck: 0.10 } },
-  { tier: 3, emoji: '💳', name: 'Zlatá karta',      price: 9000,   stats: { goldPct: 0.30, luck: 0.15, dustFind: 0.20 } },
-  { tier: 4, emoji: '💳', name: 'Platinová karta',  price: 18000,  stats: { goldPct: 0.40, luck: 0.20, dustFind: 0.30, dropChance: 0.005 } },
-  { tier: 5, emoji: '🖤', name: 'Černá karta',      price: 35000,  stats: { goldPct: 0.55, luck: 0.25, dustFind: 0.40, dropChance: 0.01, bossGold: 0.25 } },
-  { tier: 6, emoji: '💎', name: 'Diamantová karta', price: 60000,  stats: { goldPct: 0.70, luck: 0.30, dustFind: 0.55, dropChance: 0.015, bossGold: 0.40, comboCap: 20 } },
-  { tier: 7, emoji: '👑', name: 'Concierge Elite',  price: 100000, stats: { goldPct: 0.85, luck: 0.40, dustFind: 0.70, dropChance: 0.02, bossGold: 0.60, comboCap: 30, bossTime: 0.20 } },
-  { tier: 8, emoji: '♾️', name: 'Eki Infinite Card', price: 200000, stats: { goldPct: 1.00, luck: 0.50, dustFind: 0.90, dropChance: 0.025, bossGold: 0.80, comboCap: 40, bossTime: 0.30 } },
+  { tier: 1, emoji: '💳', name: 'Obyčejná karta',    price: 1500,   stats: { goldPct: 0.10 } },
+  { tier: 2, emoji: '💳', name: 'Stříbrná karta',    price: 4000,   stats: { goldPct: 0.20, luck: 0.10 } },
+  { tier: 3, emoji: '💳', name: 'Zlatá karta',       price: 9000,   stats: { goldPct: 0.30, luck: 0.15, dustFind: 0.20 } },
+  { tier: 4, emoji: '💳', name: 'Platinová karta',   price: 18000,  stats: { goldPct: 0.40, luck: 0.20, dustFind: 0.30, dropChance: 0.005 } },
+  { tier: 5, emoji: '💎', name: 'Diamantová karta',  price: 35000,  stats: { goldPct: 0.55, luck: 0.25, dustFind: 0.40, dropChance: 0.01, bossGold: 0.25 } },
+  { tier: 6, emoji: '💚', name: 'Smaragdová karta',  price: 60000,  stats: { goldPct: 0.70, luck: 0.30, dustFind: 0.55, dropChance: 0.015, bossGold: 0.40, comboCap: 20 } },
+  { tier: 7, emoji: '❤️', name: 'Rubínová karta',    price: 100000, stats: { goldPct: 0.85, luck: 0.40, dustFind: 0.70, dropChance: 0.02, bossGold: 0.60, comboCap: 30, bossTime: 0.20 } },
+  { tier: 8, emoji: '⬛', name: 'Obsidiánová karta', price: 200000, stats: { goldPct: 1.00, luck: 0.50, dustFind: 0.90, dropChance: 0.025, bossGold: 0.80, comboCap: 40, bossTime: 0.30 } },
 ];
 export const CARD_MAX_TIER = CARD_TIERS.length;
 

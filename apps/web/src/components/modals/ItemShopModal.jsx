@@ -1,41 +1,35 @@
-/* 🛒 Obchod s předměty / Tomášova karta — feature přístupná OD ZAČÁTKU (lvl 1),
-   ale platit lze až s vystavenou kartou. Na CARD.unlockLevel Tomáš dostane SKUTEČNÉ
-   údaje karty (číslo/jméno/platnost/CVC) → hráč si je OPÍŠE do pokladny. Pokladna
-   ověří vyplněné údaje proti vystavené kartě; sedí + je kredit → karta povýší o tier
-   (silnější bounded bonus, bez dmgPct → mimo difficulty). Po PRVNÍM nákupu se karta
-   uloží na účet → příště stačí jeden klik.
+/* 🛒 Obchod s předměty — katalog upgradů. Kupuješ upgrady a tvoje karta se po
+   každém nákupu AUTOMATICKY zušlechtí na další themovanou kartu (Obyčejná → … →
+   Obsidiánová = nejlepší). Platí se kartou: v pokladně se ukáže themovaná karta
+   s předvyplněnými údaji, klikneš zaplatit.
 
-   Decline: 'card' = údaje nesouhlasí, 'funds' = nedostatečný zůstatek (vtip je teď
-   skutečný stav). */
-import { useState, useMemo, useCallback } from 'react';
+   Obchod vypadá jako skutečný krám od začátku (žádné meta hlášky). Dokud nemáš
+   vystavenou kartu, prostě nemáš čím zaplatit (formulář je prázdný / platba projde
+   až s vystavenou kartou). Žádné vysvětlování. */
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useEngine, useEngineSelector, shallowEqual } from '../../hooks/useEngine.js';
-import { CARD_MAX_TIER, cardTierDef, nextCardTierDef, cardStatLabel, eur } from '../../game/data/itemshop.js';
+import { CARD_TIERS, cardTierDef, nextCardTierDef, cardStatLabel, eur } from '../../game/data/itemshop.js';
 import Modal from './Modal.jsx';
 
 const selCard = (s) => ({
-  unlocked: !!s.cardUnlocked,
   balance: Math.floor(s.card?.balance || 0),
   tier: s.card?.tier || 0,
   info: s.card?.info || null,
-  saved: !!s.card?.saved,
 });
 
-function bonusList(def) {
-  if (!def) return [];
-  return Object.entries(def.stats).map(([k, v]) => cardStatLabel(k, v));
-}
+const bonusList = (def) => (def ? Object.entries(def.stats).map(([k, v]) => cardStatLabel(k, v)) : []);
 
 export default function ItemShopModal({ onClose }) {
   const [checkout, setCheckout] = useState(false);
   return (
     <Modal onClose={onClose} className="itemshop">
-      {checkout ? <Checkout onBack={() => setCheckout(false)} /> : <Overview onUpgrade={() => setCheckout(true)} />}
+      {checkout ? <Checkout onBack={() => setCheckout(false)} /> : <Overview onBuy={() => setCheckout(true)} />}
     </Modal>
   );
 }
 
-/* ------------------------------- přehled ------------------------------- */
-function Overview({ onUpgrade }) {
+/* ------------------------------- katalog ------------------------------- */
+function Overview({ onBuy }) {
   const { balance, tier, info } = useEngineSelector(selCard, shallowEqual);
   const cur = cardTierDef(tier);
   const next = nextCardTierDef(tier);
@@ -44,7 +38,7 @@ function Overview({ onUpgrade }) {
     <div className="shop-catalog">
       <div className="shop-head">
         <span className="shop-title">🛒 Obchod s předměty</span>
-        <span className="shop-sub">Karta tier {tier}/{CARD_MAX_TIER} · plať svou kartou.</span>
+        <span className="shop-sub">Prémiové upgrady. Tvoje karta roste s každým nákupem.</span>
         <div className="shop-balance">
           <span className="icon">💳</span>
           <span className="shop-balance-val">{eur(balance)}</span>
@@ -52,15 +46,15 @@ function Overview({ onUpgrade }) {
         </div>
       </div>
 
-      {/* vystavená karta — objeví se, jakmile ji Tomáš dostane; údaje si hráč opíše do pokladny */}
+      {/* tvoje karta (themovaná dle tieru) — objeví se, jakmile ji máš */}
       {info && (
         <div className="card-issued">
-          <span className="ci-label">💳 Tvoje vystavená karta — opiš ji do pokladny</span>
+          <span className="ci-label">💳 Tvoje karta</span>
           <div className={'cc-card cc-display cc-tier-' + tier}>
             <div className="cc-face cc-front">
               <div className="cc-row1">
                 <span className="cc-chip">▭</span>
-                <span className="cc-brand">{cur ? cur.name.toUpperCase() : 'TOMÁŠOVA KARTA'}</span>
+                <span className="cc-brand">{cur ? cur.name.toUpperCase() : 'KARTA'}</span>
               </div>
               <div className="cc-number">{info.number}</div>
               <div className="cc-row3">
@@ -69,36 +63,38 @@ function Overview({ onUpgrade }) {
               </div>
             </div>
           </div>
-          <span className="ci-cvc">CVC: <b>{info.cvc}</b></span>
         </div>
       )}
 
-      <div className="card-bonuses">
-        <span className="cb-head">Aktivní bonusy (tier {tier})</span>
-        {bonusList(cur).length
-          ? <ul>{bonusList(cur).map((b, i) => <li key={i}>✓ {b}</li>)}</ul>
-          : <p className="cb-empty">Zatím žádné — kup si první tier.</p>}
+      {/* žebřík upgradů — vlastněné / další ke koupi / zamčené budoucí */}
+      <div className="up-ladder">
+        {CARD_TIERS.map((t) => {
+          const owned = tier >= t.tier;
+          const isNext = next && t.tier === next.tier;
+          return (
+            <div key={t.tier} className={'up-row' + (owned ? ' owned' : isNext ? ' next' : ' locked')}>
+              <span className={'up-emoji cc-swatch cc-tier-' + t.tier}>{t.emoji}</span>
+              <div className="up-txt">
+                <b>{t.name}</b>
+                <small>{bonusList(t).join(' · ')}</small>
+              </div>
+              {owned ? (
+                <span className="up-state owned">✓</span>
+              ) : isNext ? (
+                <button className={'shop-buy up-buy' + (balance >= t.price ? '' : ' poor')} onClick={onBuy}>
+                  {eur(t.price)}
+                </button>
+              ) : (
+                <span className="up-state locked">{eur(t.price)}</span>
+              )}
+            </div>
+          );
+        })}
       </div>
 
-      {next ? (
-        <div className="card-upgrade">
-          <div className="cu-head">
-            <span>{tier >= 1 ? 'Upgrade → ' : 'Koupit '}<b>{next.emoji} {next.name}</b> (tier {next.tier})</span>
-            <span className="cu-price">{eur(next.price)}</span>
-          </div>
-          <ul className="cu-bonuses">{bonusList(next).map((b, i) => <li key={i}>{b}</li>)}</ul>
-          <button className={'shop-buy' + (balance >= next.price ? '' : ' poor')} onClick={onUpgrade}>
-            💳 Zaplatit kartou · {eur(next.price)}
-          </button>
-        </div>
-      ) : (
-        <div className="card-maxed">♾️ Máš nejvyšší kartu. Vesmír ti závidí.</div>
-      )}
+      {!next && <div className="card-maxed">⬛ Máš Obsidiánovou kartu — nejvyšší možnou. Vesmír ti závidí.</div>}
 
-      <p className="shop-foot">
-        💸 Platí se kartou. Z killů chodí € cashback (bossové vždy a víc). Bonusy
-        jsou bounded a neovlivňují obtížnost ani žebříček — jen ti ulehčí ekonomiku.
-      </p>
+      <p className="shop-foot">Platí se kartou. Bonusy jsou bounded — neovlivní obtížnost ani žebříček.</p>
     </div>
   );
 }
@@ -114,17 +110,21 @@ function detectBrand(digits) {
 
 function Checkout({ onBack }) {
   const engine = useEngine();
-  const { balance, tier, saved } = useEngineSelector(selCard, shallowEqual);
+  const { balance, tier, info } = useEngineSelector(selCard, shallowEqual);
   const next = nextCardTierDef(tier);
 
-  const [useSaved, setUseSaved] = useState(saved);
   const [number, setNumber] = useState('');
   const [name, setName] = useState('');
   const [exp, setExp] = useState('');
   const [cvc, setCvc] = useState('');
   const [focus, setFocus] = useState(null);
   const [status, setStatus] = useState('idle'); // idle | processing | declined | success
-  const [reason, setReason] = useState(null); // 'card' | 'funds'
+  const [reason, setReason] = useState(null);
+
+  // jakmile máš vystavenou kartu → předvyplň pokladnu jejími údaji (stačí zaplatit)
+  useEffect(() => {
+    if (info) { setNumber(info.number); setName(info.name); setExp(info.exp); setCvc(info.cvc); }
+  }, [info]);
 
   const brand = useMemo(() => detectBrand(number.replace(/\s/g, '')), [number]);
 
@@ -141,24 +141,23 @@ function Checkout({ onBack }) {
 
   const digits = number.replace(/\s/g, '');
   const formValid = digits.length >= 15 && name.trim().length >= 2 && /^\d{2}\/\d{2}$/.test(exp) && cvc.length >= 3;
-  const canPay = useSaved || formValid;
 
   const pay = useCallback((e) => {
     e.preventDefault();
-    if (!canPay || status === 'processing' || status === 'success') return;
+    if (!formValid || status === 'processing' || status === 'success') return;
     setStatus('processing');
     setTimeout(() => {
-      const res = engine.upgradeCard(useSaved ? null : { number, name, exp, cvc }, useSaved);
+      const res = engine.upgradeCard({ number, name, exp, cvc });
       if (res.ok) setStatus('success');
       else { setReason(res.reason); setStatus('declined'); }
-    }, 1800);
-  }, [canPay, status, engine, useSaved, number, name, exp, cvc]);
+    }, 1700);
+  }, [formValid, status, engine, number, name, exp, cvc]);
 
   if (!next) {
     return (
       <div className="checkout">
         <div className="co-success">
-          <div className="co-succ-ico">♾️</div>
+          <div className="co-succ-ico">⬛</div>
           <b>Máš nejvyšší kartu.</b>
           <button className="shop-buy" onClick={onBack}>← Zpět</button>
         </div>
@@ -171,10 +170,10 @@ function Checkout({ onBack }) {
       <div className="checkout">
         <div className="co-success">
           <div className="co-succ-ico">{next.emoji}</div>
-          <b>Karta povýšena!</b>
-          <p>Tvoje karta je teď <strong>{next.name}</strong> (tier {next.tier}). Údaje jsme uložili — příště stačí jeden klik.</p>
+          <b>Hotovo!</b>
+          <p>Upgrade zakoupen — tvoje karta je teď <strong>{next.name}</strong>. Nové bonusy běží okamžitě.</p>
           <small>Zbývá na kartě: {eur(balance)}</small>
-          <button className="shop-buy" onClick={onBack}>← Zpět na kartu</button>
+          <button className="shop-buy" onClick={onBack}>← Zpět do obchodu</button>
         </div>
       </div>
     );
@@ -187,8 +186,8 @@ function Checkout({ onBack }) {
       <div className="co-summary">
         <span className="co-emoji">{next.emoji}</span>
         <div className="co-sum-txt">
-          <b>Upgrade na {next.name}</b>
-          <small>Tier {next.tier} · {bonusList(next).join(' · ')}</small>
+          <b>{next.name}</b>
+          <small>{bonusList(next).join(' · ')}</small>
         </div>
         <span className="co-price">{eur(next.price)}</span>
       </div>
@@ -200,25 +199,24 @@ function Checkout({ onBack }) {
         </span>
       </div>
 
-      {!useSaved && (
-        <div className={'cc-card cc-tier-' + next.tier + ' ' + brand.cls + (focus === 'cvc' ? ' flipped' : '')}>
-          <div className="cc-face cc-front">
-            <div className="cc-row1">
-              <span className="cc-chip">▭</span>
-              <span className="cc-brand">{brand.name || 'KARTA'}</span>
-            </div>
-            <div className="cc-number">{number || '•••• •••• •••• ••••'}</div>
-            <div className="cc-row3">
-              <span className="cc-holder">{name.toUpperCase() || 'JMÉNO PŘÍJMENÍ'}</span>
-              <span className="cc-exp">{exp || 'MM/RR'}</span>
-            </div>
+      {/* themovaná karta, kterou platíš (skin další úrovně), předvyplněná */}
+      <div className={'cc-card cc-tier-' + next.tier + ' ' + brand.cls + (focus === 'cvc' ? ' flipped' : '')}>
+        <div className="cc-face cc-front">
+          <div className="cc-row1">
+            <span className="cc-chip">▭</span>
+            <span className="cc-brand">{brand.name || 'KARTA'}</span>
           </div>
-          <div className="cc-face cc-back">
-            <div className="cc-stripe" />
-            <div className="cc-cvc-band"><span>{cvc || '•••'}</span></div>
+          <div className="cc-number">{number || '•••• •••• •••• ••••'}</div>
+          <div className="cc-row3">
+            <span className="cc-holder">{name.toUpperCase() || 'JMÉNO PŘÍJMENÍ'}</span>
+            <span className="cc-exp">{exp || 'MM/RR'}</span>
           </div>
         </div>
-      )}
+        <div className="cc-face cc-back">
+          <div className="cc-stripe" />
+          <div className="cc-cvc-band"><span>{cvc || '•••'}</span></div>
+        </div>
+      </div>
 
       {status === 'declined' ? (
         <div className="co-declined">
@@ -226,14 +224,14 @@ function Checkout({ onBack }) {
           {reason === 'funds' ? (
             <>
               <b>Platba zamítnuta</b>
-              <p>Nedostatečný zůstatek na kartě. Banka transakci odmítla (kód <code>51 — INSUFFICIENT FUNDS</code>).</p>
-              <small>Chybí ti {eur(Math.max(0, next.price - balance))}. Jdi pobít pár nepřátel — cashback dorazí. 😅</small>
+              <p>Nedostatečný zůstatek na kartě (kód <code>51 — INSUFFICIENT FUNDS</code>).</p>
+              <small>Chybí ti {eur(Math.max(0, next.price - balance))}.</small>
             </>
           ) : (
             <>
               <b>Platba zamítnuta</b>
-              <p>Karta zamítnuta — údaje nesouhlasí. Zkontroluj číslo, platnost, CVC i jméno (<code>INVALID CARD</code>).</p>
-              <small>Platí jen tvoje vystavená karta. Tu dostaneš (a uvidíš její údaje) na vyšší úrovni.</small>
+              <p>Karta zamítnuta (kód <code>14 — INVALID CARD</code>).</p>
+              <small>Zkontroluj číslo, platnost, CVC i jméno a zkus to znovu.</small>
             </>
           )}
           <div className="co-decl-actions">
@@ -241,22 +239,8 @@ function Checkout({ onBack }) {
             <button className="co-cancel" onClick={onBack}>Zpět</button>
           </div>
         </div>
-      ) : useSaved ? (
-        <div className="cc-saved">
-          <div className="cc-saved-row">
-            <span>💳 Uložená karta na účtu</span>
-            <button type="button" className="cc-other" onClick={() => setUseSaved(false)}>Zadat ručně</button>
-          </div>
-          <button className="cc-pay" type="button" onClick={pay} disabled={status === 'processing'}>
-            {status === 'processing' ? <><span className="cc-spin" /> Zpracovávám platbu…</> : <>🔒 Zaplatit {eur(next.price)}</>}
-          </button>
-          <p className="cc-secure">🔒 Zabezpečeno 256bitovým šifrováním, které jsme si vymysleli.</p>
-        </div>
       ) : (
         <form className="cc-form" onSubmit={pay}>
-          {saved && (
-            <button type="button" className="cc-use-saved cc-field--full" onClick={() => setUseSaved(true)}>↩︎ Použít uloženou kartu</button>
-          )}
           <label className="cc-field cc-field--full">
             <span>Číslo karty</span>
             <input inputMode="numeric" autoComplete="off" placeholder="1234 5678 9012 3456"

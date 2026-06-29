@@ -29,7 +29,7 @@ export const CONFIG = {
   baseHp: 10,
   baseGold: 14,
   curveG0: tune('G0', 1.16),    // počáteční růst HP/úroveň (≈ původní hpGrowth)
-  curveFloor: tune('FLOOR', 1.40), // asymptota růstu HP/úroveň. POZOR: tahle páčka NEZASTAVÍ
+  curveFloor: tune('FLOOR', 1.0), // asymptota růstu HP/úroveň. POZOR: tahle páčka NEZASTAVÍ
   // „buy→blitz" — silný/ascended účet protne i strmou křivku za pár minut (sim: i @1,049 blitz
   // na ~700-2000). Navíc >1,02 rozjede HP geometricky → přeteče float / 30000 NEDOSAŽITELNÉ.
   // Drž ji na 1,0 (mírná střední hra, dosažitelnost). Tvrdost coastu/endgame řeš HARDENem (níž)
@@ -43,7 +43,7 @@ export const CONFIG = {
   // 0,60→693, 0,62→1289), ale zeď SATURUJE — i +400 % zlata (album/cech/peklo/sezóna)
   // posune čerstvou zeď jen 298→~880, NE zpět na 1200 → bezpečně drží „žádný 1→1200".
   // Páruje se s difficultyExp (níž): goldRatio = základní zeď, exp = rozpětí prestiže.
-  goldRatio: tune('RATIO', 0.58),
+  goldRatio: tune('RATIO', 0.70),
   bossEvery: 5, // každá 5. úroveň = boss (Golden Eki)
   megaBossEvery: 25, // každá 25. = mega boss (Eki Král)
   ultraBossEvery: 100, // každá 100. = ultra boss (Eki Titán) — endgame milník
@@ -60,7 +60,7 @@ export const CONFIG = {
   // z mega/ultra bossů → propojení s prestige metou. Vše laditelné zde.
   // POZOR: bossové už jsou dominantní zdroj zlata (Golden Eki = 18× normál), takže
   // i malý násobič se přes reinvestici znásobí. Drž ho NÍZKO — hlavní odměna jsou 🕊.
-  bossLootMult: 0.25, // Golden Eki: poklad = odměna × tohle (jen zlato)
+  bossLootMult: 0.7, // Golden Eki: poklad = odměna × tohle (jen zlato)
   megaBossLootMult: 0.75, // Eki Král: trochu víc zlata…
   megaBossDoveChance: 0.4, // …a šance upustit 1 🕊
   ultraBossLootMult: 3, // Eki Titán: balík zlata…
@@ -77,8 +77,8 @@ export const CONFIG = {
   // pokračuje DONEKONEČNA, žádná cihlová zeď). Bezpečný proti přetečení: 1,001 drží
   // HP konečné do ~L450k (a ENEMY_HP_CAP=1e300 chrání i dál → vždy zabitelné). Strmější
   // harden (1,018) přeteče float kolem L~34000 — proto JEN mírný. Páka „tvrdost endgame".
-  hardenFrom: tune('HFROM', 1000),
-  hardenRamp: tune('HRAMP', 1.003), // 1,0 = vypnuto. Zostřeno 3000/1,001 → 1000/1,003: harden teď začíná
+  hardenFrom: tune('HFROM', 2000),
+  hardenRamp: tune('HRAMP', 1.0023), // 1,0 = vypnuto. Měkká zeď ~6500: harden od L2000, +0,23 %/úr →
   // u L1000 a roste +0,3 %/úr. ODMĚNA SE NEHARDÍ (jen HP) → nad L1000 padá odměna/HP geometricky →
   // ekonomika UŠKRTÍ blitz (nedá se ufinancovat skok) A každý hlubší level trvá geometricky dýl = grind
   // na DNY. Bezpečné proti přetečení: HP@30000 ≈ 1e90 (cap 1e300 chrání i dál). Páka „tvrdost coastu+endgame".
@@ -108,7 +108,7 @@ export const CONFIG = {
   // žebřík. Páruje se s goldRatio (výš): goldRatio = základní zeď, exp = rozpětí.
   // (Dřív 0,95 — to ale bylo s goldRatio0,62, kde volná ekonomika „utíkala" na 5000;
   // při utažené 0,58 zeď saturuje, takže nižší exp už neutíká → koherentní spolu-laděno.)
-  difficultyExp: tune('DEXP', 0.15),
+  difficultyExp: tune('DEXP', 0.5),
 
   // --- souboj ---
   critChance: 0.1,

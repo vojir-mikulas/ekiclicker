@@ -2526,11 +2526,37 @@ body::after{
 .cc-card.cc-tier-2 .cc-front{ background:linear-gradient(135deg,#6b7585,#aab4c4); color:#10151f; }
 .cc-card.cc-tier-3 .cc-front{ background:linear-gradient(135deg,#9a6a1e,#f0c64e); color:#1a1206; }
 .cc-card.cc-tier-4 .cc-front{ background:linear-gradient(135deg,#516072,#cfd8e3); color:#10151f; }
-.cc-card.cc-tier-5 .cc-front{ background:linear-gradient(135deg,#0a0d14,#2a2f3a); }
-.cc-card.cc-tier-6 .cc-front{ background:linear-gradient(135deg,#1b6f7a,#7fe7e0); color:#04201f; }
-.cc-card.cc-tier-7 .cc-front{ background:linear-gradient(135deg,#4a2a78,#b070e0); }
-.cc-card.cc-tier-8 .cc-front{ background:linear-gradient(135deg,#7b2ff7,#e23bd6 40%,#3b9bff 80%); }
-.cc-card.cc-tier-2 .cc-number, .cc-card.cc-tier-3 .cc-number, .cc-card.cc-tier-4 .cc-number, .cc-card.cc-tier-6 .cc-number{ text-shadow:none; }
+.cc-card.cc-tier-5 .cc-front{ background:linear-gradient(135deg,#1b6f7a,#7fe7e0); color:#04201f; } /* diamant */
+.cc-card.cc-tier-6 .cc-front{ background:linear-gradient(135deg,#0c5a3a,#48d99a); color:#04201a; } /* smaragd */
+.cc-card.cc-tier-7 .cc-front{ background:linear-gradient(135deg,#7a1224,#e0445e); }                /* rubín */
+.cc-card.cc-tier-8 .cc-front{ background:linear-gradient(135deg,#05050a,#2a2540 55%,#0a0a12);
+  box-shadow:0 10px 30px rgba(0,0,0,.6), inset 0 0 24px rgba(150,120,255,.18); }                  /* obsidián */
+.cc-card.cc-tier-2 .cc-number, .cc-card.cc-tier-3 .cc-number, .cc-card.cc-tier-4 .cc-number, .cc-card.cc-tier-5 .cc-number, .cc-card.cc-tier-6 .cc-number{ text-shadow:none; }
+
+/* žebřík upgradů v katalogu */
+.up-ladder{ display:flex; flex-direction:column; gap:6px; margin:14px 0; }
+.up-row{ display:flex; align-items:center; gap:10px; padding:8px 12px; border:1px solid var(--line);
+  border-radius:var(--r-panel); background:var(--panel-2); }
+.up-row.next{ border-color:var(--line-hi); box-shadow:inset 0 1px 0 rgba(140,198,240,.15); }
+.up-row.owned{ opacity:.78; border-color:#2e6b4f; }
+.up-row.locked{ opacity:.5; }
+.up-emoji{ width:30px; height:30px; flex:none; display:flex; align-items:center; justify-content:center;
+  border-radius:5px; font-size:16px; }
+.cc-swatch.cc-tier-1{ background:linear-gradient(135deg,#3a4860,#222d44); }
+.cc-swatch.cc-tier-2{ background:linear-gradient(135deg,#6b7585,#aab4c4); }
+.cc-swatch.cc-tier-3{ background:linear-gradient(135deg,#9a6a1e,#f0c64e); }
+.cc-swatch.cc-tier-4{ background:linear-gradient(135deg,#516072,#cfd8e3); }
+.cc-swatch.cc-tier-5{ background:linear-gradient(135deg,#1b6f7a,#7fe7e0); }
+.cc-swatch.cc-tier-6{ background:linear-gradient(135deg,#0c5a3a,#48d99a); }
+.cc-swatch.cc-tier-7{ background:linear-gradient(135deg,#7a1224,#e0445e); }
+.cc-swatch.cc-tier-8{ background:linear-gradient(135deg,#05050a,#2a2540 55%,#0a0a12); }
+.up-txt{ flex:1; display:flex; flex-direction:column; gap:1px; min-width:0; }
+.up-txt b{ font-size:13px; color:var(--text); font-family:var(--font-display); letter-spacing:.02em; }
+.up-txt small{ font-size:11px; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.up-buy{ width:auto; flex:none; padding:7px 14px; font-size:13px; }
+.up-state{ flex:none; font-family:var(--font-num); font-weight:700; font-size:13px; }
+.up-state.owned{ color:#7ee0a8; font-size:16px; }
+.up-state.locked{ color:var(--muted); }
 
 .card-bonuses{ margin:14px 0; padding:12px 14px; border:1px solid var(--line); border-radius:var(--r-panel); background:var(--panel-2); }
 .cb-head{ display:block; font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); margin-bottom:8px; }
