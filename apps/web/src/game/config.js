@@ -43,7 +43,7 @@ export const CONFIG = {
   // 0,60→693, 0,62→1289), ale zeď SATURUJE — i +400 % zlata (album/cech/peklo/sezóna)
   // posune čerstvou zeď jen 298→~880, NE zpět na 1200 → bezpečně drží „žádný 1→1200".
   // Páruje se s difficultyExp (níž): goldRatio = základní zeď, exp = rozpětí prestiže.
-  goldRatio: tune('RATIO', 0.68),
+  goldRatio: tune('RATIO', 0.76),
   bossEvery: 5, // každá 5. úroveň = boss (Golden Eki)
   megaBossEvery: 25, // každá 25. = mega boss (Eki Král)
   ultraBossEvery: 100, // každá 100. = ultra boss (Eki Titán) — endgame milník
@@ -65,7 +65,7 @@ export const CONFIG = {
   megaBossDoveChance: 0.4, // …a šance upustit 1 🕊
   ultraBossLootMult: 3, // Eki Titán: balík zlata…
   ultraBossDoves: 2, // …a zaručeně 2 🕊 (odměna za velký milník)
-  archonBossLootMult: 8, // Eki Archón: obří balík zlata…
+  archonBossLootMult: 12, // Eki Archón: obří balík zlata…
   archonBossDoves: 5, // …a zaručeně 5 🕊 + jeden kus sady „Věčný" (rollSetItem)
 
   // --- HLUBOKÝ HARDEN (geometrický ocas obtížnosti) — ENDGAME STROP ~5000 ---
@@ -108,7 +108,7 @@ export const CONFIG = {
   // žebřík. Páruje se s goldRatio (výš): goldRatio = základní zeď, exp = rozpětí.
   // (Dřív 0,95 — to ale bylo s goldRatio0,62, kde volná ekonomika „utíkala" na 5000;
   // při utažené 0,58 zeď saturuje, takže nižší exp už neutíká → koherentní spolu-laděno.)
-  difficultyExp: tune('DEXP', 0.39),
+  difficultyExp: tune('DEXP', 0.36),
 
   // --- souboj ---
   critChance: 0.1,
