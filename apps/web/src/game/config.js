@@ -43,7 +43,7 @@ export const CONFIG = {
   // 0,60→693, 0,62→1289), ale zeď SATURUJE — i +400 % zlata (album/cech/peklo/sezóna)
   // posune čerstvou zeď jen 298→~880, NE zpět na 1200 → bezpečně drží „žádný 1→1200".
   // Páruje se s difficultyExp (níž): goldRatio = základní zeď, exp = rozpětí prestiže.
-  goldRatio: tune('RATIO', 0.76),
+  goldRatio: tune('RATIO', 0.89),
   bossEvery: 5, // každá 5. úroveň = boss (Golden Eki)
   megaBossEvery: 25, // každá 25. = mega boss (Eki Král)
   ultraBossEvery: 100, // každá 100. = ultra boss (Eki Titán) — endgame milník
@@ -78,7 +78,7 @@ export const CONFIG = {
   // HP konečné do ~L450k (a ENEMY_HP_CAP=1e300 chrání i dál → vždy zabitelné). Strmější
   // harden (1,018) přeteče float kolem L~34000 — proto JEN mírný. Páka „tvrdost endgame".
   hardenFrom: tune('HFROM', 2000),
-  hardenRamp: tune('HRAMP', 1.0023), // 1,0 = vypnuto. Měkká zeď ~6500: harden od L2000, +0,23 %/úr →
+  hardenRamp: tune('HRAMP', 1.0018), // 1,0 = vypnuto. Měkká zeď ~6500: harden od L2000, +0,23 %/úr →
   // u L1000 a roste +0,3 %/úr. ODMĚNA SE NEHARDÍ (jen HP) → nad L1000 padá odměna/HP geometricky →
   // ekonomika UŠKRTÍ blitz (nedá se ufinancovat skok) A každý hlubší level trvá geometricky dýl = grind
   // na DNY. Bezpečné proti přetečení: HP@30000 ≈ 1e90 (cap 1e300 chrání i dál). Páka „tvrdost coastu+endgame".
@@ -108,7 +108,7 @@ export const CONFIG = {
   // žebřík. Páruje se s goldRatio (výš): goldRatio = základní zeď, exp = rozpětí.
   // (Dřív 0,95 — to ale bylo s goldRatio0,62, kde volná ekonomika „utíkala" na 5000;
   // při utažené 0,58 zeď saturuje, takže nižší exp už neutíká → koherentní spolu-laděno.)
-  difficultyExp: tune('DEXP', 0.36),
+  difficultyExp: tune('DEXP', 0.25),
 
   // --- souboj ---
   critChance: 0.1,
